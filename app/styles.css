@@ -668,12 +668,18 @@ textarea {
 
 .projectsFilterShelf {
   display: grid;
-  grid-template-columns: minmax(12rem, 24rem) minmax(0, 1fr) auto;
-  gap: 0.75rem 1rem;
-  align-items: center;
-  padding: 0.78rem 0.95rem;
-  border: 1px solid var(--projects-border);
-  background: color-mix(in oklch, var(--projects-surface) 82%, transparent);
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.9rem 1.1rem;
+  align-items: start;
+  /* padding: 0.78rem 0.95rem; */
+  /* border: 1px solid var(--projects-border); */
+  /* background: color-mix(in oklch, var(--projects-surface) 82%, transparent); */
+}
+
+.projectsFilterControls {
+  display: grid;
+  gap: 0.75rem;
+  min-width: 0;
 }
 
 .projectsSearchShell {
@@ -681,7 +687,7 @@ textarea {
   grid-template-columns: auto minmax(0, 1fr) auto;
   gap: 0.55rem;
   align-items: center;
-  max-width: 24rem;
+  max-width: 32rem;
 }
 
 .projectsSearchLabel,
@@ -727,18 +733,14 @@ textarea {
   border-color: color-mix(in oklch, var(--projects-accent) 34%, var(--projects-border));
 }
 
-.projectsResultsNote {
-  justify-self: end;
-  white-space: nowrap;
-}
-
 .projectsPulseRow {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(7.25rem, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
   gap: 0.55rem;
 }
 
 .projectsPulseButton {
+  position: relative;
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
@@ -757,6 +759,7 @@ textarea {
   box-shadow:
     inset 0 1px 0 color-mix(in oklch, white 46%, transparent),
     0 10px 24px color-mix(in oklch, var(--project-tone, transparent) 10%, transparent);
+  overflow: hidden;
 }
 
 .projectsPulseButton span {
@@ -782,24 +785,53 @@ textarea {
 }
 
 .projectsPulseButtonActive {
-  border-color: color-mix(in oklch, var(--project-tone, var(--projects-accent)) 68%, var(--projects-border));
+  transform: translateY(-1px) scale(1.01);
+  border-color: color-mix(in oklch, var(--project-tone, var(--projects-accent)) 88%, white 4%);
   background:
     linear-gradient(
       135deg,
-      color-mix(in oklch, var(--project-tone, var(--projects-accent)) 26%, var(--panel-bg)),
-      color-mix(in oklch, var(--project-tone, var(--projects-accent)) 12%, var(--panel-bg))
+      color-mix(in oklch, var(--project-tone, var(--projects-accent)) 42%, var(--panel-bg)),
+      color-mix(in oklch, var(--project-tone, var(--projects-accent)) 20%, var(--panel-bg))
     );
   box-shadow:
-    inset 0 1px 0 color-mix(in oklch, white 52%, transparent),
-    0 14px 28px color-mix(in oklch, var(--project-tone, transparent) 18%, transparent);
+    inset 0 1px 0 color-mix(in oklch, white 58%, transparent),
+    inset 0 0 0 2px color-mix(in oklch, var(--project-tone, white) 26%, transparent),
+    0 0 0 4px color-mix(in oklch, var(--project-tone, var(--projects-accent)) 18%, transparent),
+    0 16px 32px color-mix(in oklch, var(--project-tone, transparent) 24%, transparent);
+}
+
+.projectsPulseButtonActive::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, color-mix(in oklch, white 20%, transparent), transparent 45%);
+  pointer-events: none;
 }
 
 .projectsPulseButtonActive strong {
-  background: color-mix(in oklch, var(--project-tone, var(--projects-accent)) 30%, var(--panel-bg));
+  background: color-mix(in oklch, var(--project-tone, var(--projects-accent)) 48%, var(--panel-bg));
+  color: color-mix(in oklch, var(--project-tone, var(--projects-accent-strong)) 88%, var(--text-primary));
+}
+
+.projectsPulseButtonActive span {
+  color: color-mix(in oklch, var(--project-tone, var(--projects-accent-strong)) 88%, var(--text-primary));
 }
 
 .projectsPulseButton:hover {
   border-color: color-mix(in oklch, var(--project-tone, var(--projects-accent)) 58%, var(--projects-border));
+}
+
+.projectsResultsMeta {
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-end;
+  min-height: 100%;
+}
+
+.projectsResultsNote {
+  margin: 0;
+  white-space: nowrap;
+  text-align: right;
 }
 
 .projectsSessionNote {

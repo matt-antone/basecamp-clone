@@ -712,56 +712,48 @@ export default function ProjectsPage() {
               </button>
             </div>
           </div>
+          {activeTab !== "board" && (
+            <>
+              <section className="projectsFilterShelf" onKeyDown={handleCommandRowKeyDown}>
+                <div className="projectsFilterControls">
+                  <label className="projectsSearchShell">
+                    <span className="projectsSearchLabel sr-only">Find</span>
+                    <input
+                      ref={searchInputRef}
+                      className="projectsSearchInput"
+                      value={searchValue}
+                      onChange={(event) => setSearchValue(event.target.value)}
+                      placeholder="Search project names, clients, or status"
+                      aria-label="Search projects"
+                    />
+                    <span className="projectsSearchHint">/</span>
+                  </label>
+                </div>
+                <div className="projectsResultsMeta">
+                  <p className="projectsResultsNote">
+                    {visibleProjects.length} showing across {visibleClients} clients
+                  </p>
+                </div>
+              </section>
+              {activeTab !== "archived" && (
+                <div className="projectsPulseRow" aria-label="Filter search results by status">
+                  {statusSummaries.map((item) => (
+                    <button
+                      key={item.key}
+                      className={`projectsPulseButton tone-${item.key} ${statusFilter === item.key ? "projectsPulseButtonActive" : ""}`}
+                      onClick={() => setStatusFilter((current) => (current === item.key ? "all" : item.key))}
+                      aria-pressed={statusFilter === item.key}
+                      aria-label={`${item.title}: ${item.count} project${item.count === 1 ? "" : "s"}`}
+                    >
+                      <span>{item.title}</span>
+                      <strong>{item.count}</strong>
+                    </button>
+                  ))}
+                </div>
 
-          <div className="projectsPulseRow" aria-label="Project status summary">
-            {statusSummaries.map((item) => (
-              <button
-                key={item.key}
-                className={`projectsPulseButton tone-${item.key} ${statusFilter === item.key ? "projectsPulseButtonActive" : ""}`}
-                onClick={() => setStatusFilter((current) => (current === item.key ? "all" : item.key))}
-                aria-pressed={statusFilter === item.key}
-              >
-                <span>{item.title}</span>
-                <strong>{item.count}</strong>
-              </button>
-            ))}
-          </div>
-
-          <section className="projectsFilterShelf" onKeyDown={handleCommandRowKeyDown}>
-            <label className="projectsSearchShell">
-              <span className="projectsSearchLabel">Find</span>
-              <input
-                ref={searchInputRef}
-                className="projectsSearchInput"
-                value={searchValue}
-                onChange={(event) => setSearchValue(event.target.value)}
-                placeholder="Search project names, clients, or status"
-                aria-label="Search projects"
-              />
-              <span className="projectsSearchHint">/</span>
-            </label>
-
-            <div className="projectsStatusFilters" aria-label="Status filters">
-              {(["all", "new", "in_progress", "blocked", "complete"] as StatusFilter[]).map((filter) => (
-                <button
-                  key={filter}
-                  className={`projectsStatusChip ${statusFilter === filter ? "projectsStatusChipActive" : ""}`}
-                  onClick={() => setStatusFilter(filter)}
-                >
-                  {filter === "all"
-                    ? "All statuses"
-                    : filter === "in_progress"
-                      ? "In progress"
-                      : PROJECT_COLUMNS.find((column) => column.key === filter)?.title}
-                </button>
-              ))}
-            </div>
-
-            <p className="projectsResultsNote">
-              {visibleProjects.length} showing across {visibleClients} clients
-            </p>
-          </section>
-
+              )}
+            </>
+          )}
         </section>
       )}
 
