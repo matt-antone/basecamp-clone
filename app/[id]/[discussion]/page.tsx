@@ -14,6 +14,9 @@ type Comment = {
   body_html: string;
   created_at: string;
   edited_at: string | null;
+  author_email: string | null;
+  author_first_name: string | null;
+  author_last_name: string | null;
   attachments?: CommentAttachment[];
 };
 
@@ -29,6 +32,9 @@ type ThreadDetail = {
   id: string;
   title: string;
   body_html: string;
+  starter_email?: string | null;
+  starter_first_name?: string | null;
+  starter_last_name?: string | null;
   comments: Comment[];
 };
 
@@ -220,6 +226,36 @@ export default function DiscussionPage() {
     setPendingAttachments((current) => current.filter((attachment) => attachment.id !== id));
   }
 
+  function getPersonLabel(person: {
+    author_email?: string | null;
+    author_first_name?: string | null;
+    author_last_name?: string | null;
+    starter_email?: string | null;
+    starter_first_name?: string | null;
+    starter_last_name?: string | null;
+  }) {
+    const firstName = (person.author_first_name ?? person.starter_first_name ?? "").trim();
+    const lastName = (person.author_last_name ?? person.starter_last_name ?? "").trim();
+    const fullName = `${firstName} ${lastName}`.trim();
+    return fullName || person.author_email || person.starter_email || "Team member";
+  }
+
+  function getPersonInitials(person: Parameters<typeof getPersonLabel>[0]) {
+    const firstName = (person.author_first_name ?? person.starter_first_name ?? "").trim();
+    const lastName = (person.author_last_name ?? person.starter_last_name ?? "").trim();
+    if (firstName || lastName) {
+      return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase() || "TM";
+    }
+
+    const emailLocal = (person.author_email ?? person.starter_email ?? "team.member").split("@")[0];
+    const parts = emailLocal.split(/[._\-\s]+/).filter(Boolean);
+    if (parts.length >= 2) {
+      return `${parts[0].charAt(0)}${parts[1].charAt(0)}`.toUpperCase();
+    }
+
+    return emailLocal.slice(0, 2).toUpperCase() || "TM";
+  }
+
   return (
     <main className="page">
       <header className="header">
@@ -239,6 +275,15 @@ export default function DiscussionPage() {
       {thread && (
         <>
           <section className="discussionSection">
+            <div className="discussionLeadMeta">
+              <span className="discussionAvatarFallback" aria-hidden="true">
+                {getPersonInitials(thread)}
+              </span>
+              <div className="discussionLeadMetaCopy">
+                <strong>{getPersonLabel(thread)}</strong>
+                <small>Started the thread</small>
+              </div>
+            </div>
             <div dangerouslySetInnerHTML={{ __html: thread.body_html }} />
           </section>
 
@@ -247,7 +292,17 @@ export default function DiscussionPage() {
             <ul className="discussionCommentList">
               {thread.comments.map((comment) => (
                 <li key={comment.id} className="discussionCommentRow">
+                  <span className="discussionAvatarFallback" aria-hidden="true">
+                    {getPersonInitials(comment)}
+                  </span>
                   <div className="projectMain">
+                    <div className="discussionCommentMeta">
+                      <strong>{getPersonLabel(comment)}</strong>
+                      <small>
+                        {new Date(comment.created_at).toLocaleString()}
+                        {comment.edited_at ? " (edited)" : ""}
+                      </small>
+                    </div>
                     {editingCommentId === comment.id ? (
                       <div className="editorWrap">
                         <CommentMarkdownEditor
@@ -301,10 +356,6 @@ export default function DiscussionPage() {
                         </div>
                       </>
                     )}
-                    <small>
-                      {new Date(comment.created_at).toLocaleString()}
-                      {comment.edited_at ? " (edited)" : ""}
-                    </small>
                   </div>
                 </li>
               ))}

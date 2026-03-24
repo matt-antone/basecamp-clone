@@ -1,5 +1,11 @@
 node_modules/
 .next/
-.env.local
+.next_bak_*/
+.netlify/
+.env
+.env.*
+!.env.example
 .DS_Store
 coverage/
+tmp.json
+*.tsbuildinfo

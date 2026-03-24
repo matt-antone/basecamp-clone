@@ -1,7 +1,17 @@
 "use client";
 
 import Link from "next/link";
-import { type ReactNode, useEffect, useRef, useState } from "react";
+import {
+  type CSSProperties,
+  type KeyboardEvent,
+  type ReactNode,
+  useDeferredValue,
+  useEffect,
+  useMemo,
+  useRef,
+  useState
+} from "react";
+import type { FeaturedFeedPost } from "@/lib/featured-feed";
 import { getSupabaseBrowserClient } from "@/lib/supabase-browser";
 
 type SessionUser = { id: string; email?: string };
@@ -20,6 +30,14 @@ type Project = {
 
 type ProjectColumn = "new" | "in_progress" | "blocked" | "complete";
 type ProjectsViewTab = "list" | "board" | "archived";
+type StatusFilter = "all" | ProjectColumn;
+
+const PROJECT_COLUMNS: { key: ProjectColumn; title: string; subtitle: string }[] = [
+  { key: "new", title: "New", subtitle: "Ready to shape" },
+  { key: "in_progress", title: "In Progress", subtitle: "Actively moving" },
+  { key: "blocked", title: "Blocked", subtitle: "Needs a decision" },
+  { key: "complete", title: "Complete", subtitle: "Ready to file away" }
+];
 
 export default function ProjectsPage() {
   const [supabase, setSupabase] = useState<ReturnType<typeof getSupabaseBrowserClient> | null>(null);
@@ -30,15 +48,24 @@ export default function ProjectsPage() {
 
   const [clients, setClients] = useState<ClientRecord[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
+  const [latestFeaturedPost, setLatestFeaturedPost] = useState<FeaturedFeedPost | null>(null);
+  const [isFeaturedFeedLoading, setIsFeaturedFeedLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<ProjectsViewTab>("list");
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
+  const [searchValue, setSearchValue] = useState("");
+  const [highlightedProjectId, setHighlightedProjectId] = useState<string | null>(null);
 
   const [newProjectName, setNewProjectName] = useState("");
   const [newProjectDescription, setNewProjectDescription] = useState("");
   const [newProjectClientId, setNewProjectClientId] = useState("");
   const [draggingProjectId, setDraggingProjectId] = useState<string | null>(null);
   const [dragOverColumn, setDragOverColumn] = useState<ProjectColumn | null>(null);
+  const [justMovedProjectId, setJustMovedProjectId] = useState<string | null>(null);
+  const [justUpdatedColumn, setJustUpdatedColumn] = useState<ProjectColumn | null>(null);
 
   const createDialogRef = useRef<HTMLDialogElement | null>(null);
+  const searchInputRef = useRef<HTMLInputElement | null>(null);
+  const moveFlashTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   async function authedFetch(path: string, options: RequestInit = {}) {
     if (!accessToken) {
@@ -80,6 +107,34 @@ export default function ProjectsPage() {
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "Supabase init error");
     }
+  }, []);
+
+  useEffect(() => {
+    let isActive = true;
+
+    fetch("/feeds/latest")
+      .then(async (response) => {
+        if (!response.ok) {
+          throw new Error(`Feed request failed: ${response.status}`);
+        }
+
+        const data = (await response.json()) as { post?: FeaturedFeedPost };
+        if (isActive && data.post) {
+          setLatestFeaturedPost(data.post);
+        }
+      })
+      .catch(() => {
+        // Keep the default hero copy if the feed cannot be reached.
+      })
+      .finally(() => {
+        if (isActive) {
+          setIsFeaturedFeedLoading(false);
+        }
+      });
+
+    return () => {
+      isActive = false;
+    };
   }, []);
 
   useEffect(() => {
@@ -168,15 +223,119 @@ export default function ProjectsPage() {
     return "new";
   }
 
-  const columns: { key: ProjectColumn; title: string; subtitle: string }[] = [
-    { key: "new", title: "New", subtitle: "Ready to start" },
-    { key: "in_progress", title: "In Progress", subtitle: "Active work" },
-    { key: "blocked", title: "Blocked", subtitle: "Needs attention" },
-    { key: "complete", title: "Complete", subtitle: "Wrapped up" }
-  ];
-
   const activeProjects = projects.filter((project) => !project.archived);
   const archivedProjects = projects.filter((project) => project.archived);
+  const deferredSearch = useDeferredValue(searchValue);
+  const searchTerm = deferredSearch.trim().toLowerCase();
+
+  function runWithTransition(update: () => void) {
+    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (!reduceMotion && "startViewTransition" in document) {
+      // Progressive enhancement for cinematic state changes.
+      (document as Document & { startViewTransition?: (callback: () => void) => void }).startViewTransition?.(update);
+      return;
+    }
+    update();
+  }
+
+  function projectMatchesSearch(project: Project) {
+    if (!searchTerm) return true;
+    const blob = [
+      project.display_name ?? project.name,
+      project.description ?? "",
+      project.client_name ?? "",
+      project.client_code ?? "",
+      project.status ?? ""
+    ]
+      .join(" ")
+      .toLowerCase();
+
+    return blob.includes(searchTerm);
+  }
+
+  function projectMatchesStatus(project: Project) {
+    return statusFilter === "all" ? true : normalizeProjectColumn(project) === statusFilter;
+  }
+
+  const filteredActiveProjects = useMemo(
+    () => activeProjects.filter((project) => projectMatchesSearch(project) && projectMatchesStatus(project)),
+    [activeProjects, searchTerm, statusFilter]
+  );
+
+  const filteredArchivedProjects = useMemo(
+    () => archivedProjects.filter((project) => projectMatchesSearch(project) && projectMatchesStatus(project)),
+    [archivedProjects, searchTerm, statusFilter]
+  );
+
+  const keyboardNavigableProjects = useMemo(
+    () =>
+      filteredActiveProjects
+        .slice()
+        .sort((a, b) => (a.display_name ?? a.name).localeCompare(b.display_name ?? b.name)),
+    [filteredActiveProjects]
+  );
+  const statusSummaries = useMemo(() => {
+    const total = Math.max(filteredActiveProjects.length, 1);
+    return PROJECT_COLUMNS.map((column) => {
+      const count = filteredActiveProjects.filter((project) => normalizeProjectColumn(project) === column.key).length;
+      return {
+        ...column,
+        count,
+        fillPercent: `${Math.round((count / total) * 100)}%`
+      };
+    });
+  }, [filteredActiveProjects]);
+
+  useEffect(() => {
+    if (!keyboardNavigableProjects.length) {
+      setHighlightedProjectId(null);
+      return;
+    }
+    setHighlightedProjectId((current) =>
+      current && keyboardNavigableProjects.some((project) => project.id === current) ? current : keyboardNavigableProjects[0].id
+    );
+  }, [keyboardNavigableProjects]);
+
+  useEffect(() => {
+    if (!highlightedProjectId) return;
+    const element = document.querySelector<HTMLElement>(`[data-project-id="${highlightedProjectId}"]`);
+    element?.scrollIntoView({ block: "nearest" });
+  }, [highlightedProjectId]);
+
+  useEffect(() => {
+    const onKeyDown = (event: globalThis.KeyboardEvent) => {
+      if (event.defaultPrevented) return;
+      const target = event.target as HTMLElement | null;
+      const inEditable =
+        target instanceof HTMLElement &&
+        (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable);
+
+      if (event.key === "/" && !inEditable) {
+        event.preventDefault();
+        searchInputRef.current?.focus();
+        return;
+      }
+
+      if (activeTab !== "list" || inEditable || !keyboardNavigableProjects.length) return;
+
+      const currentIndex = keyboardNavigableProjects.findIndex((project) => project.id === highlightedProjectId);
+      if (event.key === "ArrowDown") {
+        event.preventDefault();
+        const nextIndex = currentIndex >= 0 ? Math.min(currentIndex + 1, keyboardNavigableProjects.length - 1) : 0;
+        setHighlightedProjectId(keyboardNavigableProjects[nextIndex].id);
+      } else if (event.key === "ArrowUp") {
+        event.preventDefault();
+        const nextIndex = currentIndex >= 0 ? Math.max(currentIndex - 1, 0) : 0;
+        setHighlightedProjectId(keyboardNavigableProjects[nextIndex].id);
+      } else if (event.key === "Enter" && highlightedProjectId) {
+        event.preventDefault();
+        window.location.href = `/${highlightedProjectId}`;
+      }
+    };
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [activeTab, keyboardNavigableProjects, highlightedProjectId]);
 
   function getProjectClientLabel(project: Project) {
     return project.client_name?.trim() || project.client_code?.trim() || "No client";
@@ -208,47 +367,78 @@ export default function ProjectsPage() {
   function renderProjectList(items: Project[], emptyState: string) {
     const groups = groupProjectsByClient(items);
     if (groups.length === 0) {
-      return <p className="emptyProjectsText">{emptyState}</p>;
+      return (
+        <section className="projectsEmptyState">
+          <p className="projectsEmptyEyebrow">{activeTab === "archived" ? "Archive" : "Clear surface"}</p>
+          <h2>{emptyState}</h2>
+          <p>
+            {searchTerm || statusFilter !== "all"
+              ? "Try widening the search or switching back to all statuses."
+              : "Create a project and the index will start forming around your client work."}
+          </p>
+          {!searchTerm && statusFilter === "all" && activeTab !== "archived" && (
+            <button type="button" className="projectPrimaryButton" onClick={() => createDialogRef.current?.showModal()}>
+              New project
+            </button>
+          )}
+        </section>
+      );
     }
 
     return (
-      <div className="projectClientGroups">
+      <div className="projectClientAtlas">
         {groups.map((group) => (
-          <section key={group.label} className="projectClientGroup">
-            <header className="projectClientGroupHeader">
-              <h3>{group.label}</h3>
-              <span>{group.projects.length}</span>
+          <section key={group.label} className="clientLedgerSection">
+            <header className="clientLedgerIntro">
+              <div className="clientLedgerCopy">
+                <p className="clientLedgerEyebrow">Client</p>
+                <h2>{group.label}</h2>
+                <p className="clientLedgerSummary">
+                  {PROJECT_COLUMNS.map((column) => {
+                    const count = group.projects.filter((project) => normalizeProjectColumn(project) === column.key).length;
+                    if (!count) return null;
+                    return (
+                      <span key={column.key} className={`clientLedgerCount tone-${column.key}`}>
+                        {count} {column.title.toLowerCase()}
+                      </span>
+                    );
+                  })}
+                </p>
+              </div>
+              <span className="clientLedgerTotal">{group.projects.length}</span>
             </header>
-            <ul className="projectList">
+            <ul className="clientProjectLedger">
               {group.projects.map((project) => (
-                <li key={project.id} className="projectListItem">
-                  <div className="projectMain">
-                    <Link href={`/${project.id}`} className="projectLink projectTitle">
+                <li
+                  key={project.id}
+                  className={`projectLedgerItem tone-${normalizeProjectColumn(project)} ${highlightedProjectId === project.id ? "projectLedgerItemActive" : ""}`}
+                  data-project-id={project.id}
+                  style={{ viewTransitionName: `project-${project.id}` } as CSSProperties}
+                >
+                  <div className="projectLedgerRail">
+                    <span className="projectLedgerStatus">{getProjectStatusLabel(project)}</span>
+                  </div>
+                  <div className="projectMain projectLedgerBody">
+                    <Link href={`/${project.id}`} className="projectLink projectTitle projectLedgerTitle">
                       {renderProjectTitle(project.display_name ?? project.name)}
                     </Link>
                     <p className="projectDescription">{project.description?.trim() || "No description provided."}</p>
                   </div>
-                  <div className="row projectCardActions">
-                    <Link href={`/${project.id}`} className="iconButton secondaryIconButton" title="Read project" aria-label="Read project">
-                      <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
-                        <path
-                          fill="currentColor"
-                          d="M12 5C6.5 5 2.1 8.3 1 12c1.1 3.7 5.5 7 11 7s9.9-3.3 11-7c-1.1-3.7-5.5-7-11-7Zm0 11a4 4 0 1 1 0-8 4 4 0 0 1 0 8Zm0-2.2A1.8 1.8 0 1 0 12 10a1.8 1.8 0 0 0 0 3.6Z"
-                        />
-                      </svg>
+                  <div className="projectLedgerMeta">
+                    <span className="projectClientPill">{getProjectClientLabel(project)}</span>
+                  </div>
+                  <div className="projectLedgerActions">
+                    <Link href={`/${project.id}`} className="projectActionLink">
+                      Open
                     </Link>
                     <button
-                      className="iconButton secondaryIconButton"
+                      type="button"
+                      className="projectActionButton"
                       title={project.archived ? "Restore project" : "Archive project"}
                       aria-label={project.archived ? "Restore project" : "Archive project"}
                       onClick={() => toggleArchive(project).catch((error) => setStatus(error.message))}
                     >
-                      <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
-                        <path
-                          fill="currentColor"
-                          d="M20 7v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7h16Zm-6 3h-4a1 1 0 0 0 0 2h4a1 1 0 1 0 0-2ZM21 3a1 1 0 0 1 1 1v2H2V4a1 1 0 0 1 1-1h18Z"
-                        />
-                      </svg>
+                      {project.archived ? "Restore" : "Archive"}
                     </button>
                   </div>
                 </li>
@@ -286,6 +476,19 @@ export default function ProjectsPage() {
     return parts.length ? parts : title;
   }
 
+  function getProjectStatusLabel(project: Project) {
+    return PROJECT_COLUMNS.find((column) => column.key === normalizeProjectColumn(project))?.title ?? "New";
+  }
+
+  function getSpotlightProject() {
+    return (
+      filteredActiveProjects.find((project) => normalizeProjectColumn(project) === "blocked") ??
+      filteredActiveProjects.find((project) => normalizeProjectColumn(project) === "in_progress") ??
+      filteredActiveProjects[0] ??
+      null
+    );
+  }
+
   async function moveProject(projectId: string, targetColumn: ProjectColumn) {
     const source = projects.find((project) => project.id === projectId);
     if (!source) return;
@@ -293,99 +496,292 @@ export default function ProjectsPage() {
     if (currentColumn === targetColumn) return;
 
     const previousProjects = projects;
-    setProjects((current) =>
-      current.map((project) =>
-        project.id === projectId
-          ? {
+    runWithTransition(() => {
+      setProjects((current) =>
+        current.map((project) =>
+          project.id === projectId
+            ? {
               ...project,
               status: targetColumn
             }
-          : project
-      )
-    );
+            : project
+        )
+      );
+    });
 
     try {
       await authedFetch(`/projects/${projectId}/status`, {
         method: "POST",
         body: JSON.stringify({ status: targetColumn })
       });
+      setJustMovedProjectId(projectId);
+      setJustUpdatedColumn(targetColumn);
+      if (moveFlashTimeoutRef.current) {
+        clearTimeout(moveFlashTimeoutRef.current);
+      }
+      moveFlashTimeoutRef.current = setTimeout(() => {
+        setJustMovedProjectId(null);
+        setJustUpdatedColumn(null);
+      }, 900);
     } catch (error) {
       setProjects(previousProjects);
       throw error;
     }
   }
 
+  useEffect(() => {
+    return () => {
+      if (moveFlashTimeoutRef.current) {
+        clearTimeout(moveFlashTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  function selectTab(nextTab: ProjectsViewTab) {
+    runWithTransition(() => {
+      setActiveTab(nextTab);
+    });
+  }
+
+  function handleCommandRowKeyDown(event: KeyboardEvent<HTMLDivElement>) {
+    if (event.key === "Escape") {
+      setSearchValue("");
+      searchInputRef.current?.blur();
+    }
+  }
+
+  const visibleProjects = activeTab === "archived" ? filteredArchivedProjects : filteredActiveProjects;
+  const visibleClients = new Set(visibleProjects.map((project) => getProjectClientLabel(project))).size;
+  const spotlightProject = domainAllowed ? getSpotlightProject() : null;
+  const spotlightStatus = spotlightProject ? normalizeProjectColumn(spotlightProject) : null;
+  const spotlightEyebrow =
+    spotlightStatus === "blocked"
+      ? "Needs intervention"
+      : spotlightStatus === "in_progress"
+        ? "Currently moving"
+        : spotlightStatus === "complete"
+          ? "Recently wrapped"
+          : "Ready to start";
+  const isHeroFeedLoading = isFeaturedFeedLoading && !latestFeaturedPost;
+  const heroKicker = latestFeaturedPost ? `Latest from ${latestFeaturedPost.sourceName}` : "Projects index";
+  const heroTitle = latestFeaturedPost?.title ?? "A calmer way to see what the studio is carrying.";
+  const heroIntro =
+    latestFeaturedPost?.description ??
+    "The page should read like an active portfolio wall, not a template dashboard. Track what is moving, what is blocked, and which client lanes need attention next.";
+
   return (
-    <main className="page">
-      <header className="header">
-        <div className="row headingRow">
-          <h1>Projects</h1>
+    <main className="page projectsExperience">
+      <section className="projectsHero">
+        <div className="projectsHeroCopy">
+          <p className={`projectsSessionNote ${domainAllowed && status.startsWith("Signed in as") ? "projectsSessionNoteQuiet" : ""}`}>
+            {status}
+          </p>
+          {isHeroFeedLoading ? (
+            <div className="projectsHeroSkeleton" role="status" aria-live="polite" aria-label="Loading featured article">
+              <span className="visuallyHidden">Loading featured article</span>
+              <div className="projectsHeroSkeletonLine projectsHeroSkeletonKicker" aria-hidden="true" />
+              <div className="projectsHeroSkeletonTitleGroup" aria-hidden="true">
+                <div className="projectsHeroSkeletonLine projectsHeroSkeletonTitle projectsHeroSkeletonTitleLong" />
+                <div className="projectsHeroSkeletonLine projectsHeroSkeletonTitle projectsHeroSkeletonTitleShort" />
+              </div>
+              <div className="projectsHeroSkeletonIntroGroup" aria-hidden="true">
+                <div className="projectsHeroSkeletonLine projectsHeroSkeletonIntro projectsHeroSkeletonIntroFull" />
+                <div className="projectsHeroSkeletonLine projectsHeroSkeletonIntro projectsHeroSkeletonIntroFull" />
+                <div className="projectsHeroSkeletonLine projectsHeroSkeletonIntro projectsHeroSkeletonIntroShort" />
+              </div>
+              <div className="projectsHeroUtilityRow" aria-hidden="true">
+                <div className="projectsHeroSkeletonLine projectsHeroSkeletonButton" />
+              </div>
+            </div>
+          ) : (
+            <>
+              <p className="projectsKicker">{heroKicker}</p>
+              <h1 className={`projectsHeroTitle ${latestFeaturedPost ? "projectsHeroTitleFeed" : ""}`}>{heroTitle}</h1>
+              <p className={`projectsHeroIntro ${latestFeaturedPost ? "projectsHeroIntroFeed" : ""}`}>{heroIntro}</p>
+              {latestFeaturedPost && (
+                <div className="projectsHeroUtilityRow">
+                  <div className="projectsHeaderActions">
+                    <a
+                      href={latestFeaturedPost.url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="projectPrimaryButton projectPrimaryButtonLink"
+                    >
+                      Read more
+                    </a>
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+
+        <aside className={`projectsSpotlight ${spotlightStatus ? `spotlight-${spotlightStatus}` : ""}`}>
+          {domainAllowed && spotlightProject ? (
+            <div className="projectsSpotlightCard">
+              <p className="projectsSpotlightEyebrow">{spotlightEyebrow}</p>
+              <Link href={`/${spotlightProject.id}`} className="projectsSpotlightTitle">
+                {renderProjectTitle(spotlightProject.display_name ?? spotlightProject.name)}
+              </Link>
+              <p className="projectsSpotlightBody">
+                {spotlightProject.description?.trim() || "No brief yet. Open the project workspace and shape the next move."}
+              </p>
+              <div className="projectsSpotlightMeta">
+                <span>{getProjectClientLabel(spotlightProject)}</span>
+                <span>{getProjectStatusLabel(spotlightProject)}</span>
+              </div>
+              <div className="projectsSpotlightActions">
+                <Link href={`/${spotlightProject.id}`} className="projectPrimaryButton projectPrimaryButtonLink">
+                  Open workspace
+                </Link>
+                <button type="button" className="projectActionButton" onClick={() => selectTab("board")}>
+                  View flow
+                </button>
+              </div>
+            </div>
+          ) : domainAllowed ? (
+            <div className="projectsSpotlightCard">
+              <p className="projectsSpotlightEyebrow">Blank slate</p>
+              <h2 className="projectsSpotlightTitleStatic">The surface is ready for the first project.</h2>
+              <p className="projectsSpotlightBody">
+                Start with a single active project and the page will build the client rhythm around it.
+              </p>
+              <div className="projectsSpotlightActions">
+                <button type="button" className="projectPrimaryButton" onClick={() => createDialogRef.current?.showModal()}>
+                  New project
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="projectsSpotlightCard">
+              <p className="projectsSpotlightEyebrow">Private workspace</p>
+              <h2 className="projectsSpotlightTitleStatic">Sign in to open the live project index.</h2>
+              <p className="projectsSpotlightBody">
+                Use your workspace Google account to load client work, discussion threads, and the project board.
+              </p>
+              <div className="projectsSpotlightActions">
+                <button type="button" className="projectPrimaryButton" onClick={signIn}>
+                  Sign in with Google
+                </button>
+              </div>
+            </div>
+          )}
           {domainAllowed && (
-            <button className="iconButton" aria-label="Create project" onClick={() => createDialogRef.current?.showModal()}>
-              <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
-                <path fill="currentColor" d="M11 11V5h2v6h6v2h-6v6h-2v-6H5v-2h6Z" />
-              </svg>
-            </button>
+            <div className="projectsHeroFacts projectsSpotlightFacts" aria-label="Projects summary">
+              <span>{filteredActiveProjects.length} active projects</span>
+              <span>{new Set(filteredActiveProjects.map((project) => getProjectClientLabel(project))).size} live clients</span>
+              <span>{archivedProjects.length} archived</span>
+            </div>
           )}
-        </div>
-        <div className="row">
-          {user && (
-            <Link href="/settings" className="iconButton" aria-label="Settings">
-              <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
-                <path
-                  fill="currentColor"
-                  d="M19.14 12.94a7.66 7.66 0 0 0 .05-.94 7.66 7.66 0 0 0-.05-.94l2.03-1.58a.5.5 0 0 0 .12-.64l-1.92-3.32a.5.5 0 0 0-.6-.22l-2.39.96a7.3 7.3 0 0 0-1.63-.94l-.36-2.54A.5.5 0 0 0 13.9 2h-3.8a.5.5 0 0 0-.49.42l-.36 2.54c-.58.23-1.12.54-1.63.94l-2.39-.96a.5.5 0 0 0-.6.22L2.7 8.48a.5.5 0 0 0 .12.64l2.03 1.58c-.03.31-.05.62-.05.94s.02.63.05.94L2.82 14.16a.5.5 0 0 0-.12.64l1.92 3.32c.13.22.39.31.6.22l2.39-.96c.51.4 1.05.71 1.63.94l.36 2.54c.04.24.25.42.49.42h3.8c.24 0 .45-.18.49-.42l.36-2.54c.58-.23 1.12-.54 1.63-.94l2.39.96c.22.09.47 0 .6-.22l1.92-3.32a.5.5 0 0 0-.12-.64l-2.03-1.58ZM12 15.5A3.5 3.5 0 1 1 12 8.5a3.5 3.5 0 0 1 0 7Z"
-                />
-              </svg>
-            </Link>
-          )}
-          {!user && <button onClick={signIn}>Sign in with Google</button>}
-          {user && <button onClick={signOut}>Sign out</button>}
-        </div>
-      </header>
+        </aside>
+      </section>
 
       {domainAllowed && (
-        <div className="tabsRow projectTabsRow" role="tablist" aria-label="Projects views">
-          <button
-            className={`tabButton ${activeTab === "list" ? "activeTab" : ""}`}
-            role="tab"
-            aria-selected={activeTab === "list"}
-            onClick={() => setActiveTab("list")}
-          >
-            List
-          </button>
-          <button
-            className={`tabButton ${activeTab === "board" ? "activeTab" : ""}`}
-            role="tab"
-            aria-selected={activeTab === "board"}
-            onClick={() => setActiveTab("board")}
-          >
-            Project Board
-          </button>
-          <button
-            className={`tabButton ${activeTab === "archived" ? "activeTab" : ""}`}
-            role="tab"
-            aria-selected={activeTab === "archived"}
-            onClick={() => setActiveTab("archived")}
-          >
-            Archived Projects
-          </button>
-        </div>
+        <section className="projectsWorkbench">
+          <div className="projectsWorkbenchBar">
+            <div className="projectsViewSwitch" role="tablist" aria-label="Projects views">
+              <button
+                className={`projectsViewButton ${activeTab === "list" ? "projectsViewButtonActive" : ""}`}
+                role="tab"
+                aria-selected={activeTab === "list"}
+                onClick={() => selectTab("list")}
+              >
+                Index
+              </button>
+              <button
+                className={`projectsViewButton ${activeTab === "board" ? "projectsViewButtonActive" : ""}`}
+                role="tab"
+                aria-selected={activeTab === "board"}
+                onClick={() => selectTab("board")}
+              >
+                Flow
+              </button>
+              <button
+                className={`projectsViewButton ${activeTab === "archived" ? "projectsViewButtonActive" : ""}`}
+                role="tab"
+                aria-selected={activeTab === "archived"}
+                onClick={() => selectTab("archived")}
+              >
+                Archive
+              </button>
+            </div>
+
+            <div className="projectsWorkbenchActions">
+              <button type="button" className="projectPrimaryButton" onClick={() => createDialogRef.current?.showModal()}>
+                New project
+              </button>
+            </div>
+          </div>
+
+          <div className="projectsPulseRow" aria-label="Project status summary">
+            {statusSummaries.map((item) => (
+              <button
+                key={item.key}
+                className={`projectsPulseButton tone-${item.key} ${statusFilter === item.key ? "projectsPulseButtonActive" : ""}`}
+                onClick={() => setStatusFilter((current) => (current === item.key ? "all" : item.key))}
+                aria-pressed={statusFilter === item.key}
+              >
+                <span>{item.title}</span>
+                <strong>{item.count}</strong>
+              </button>
+            ))}
+          </div>
+
+          <section className="projectsFilterShelf" onKeyDown={handleCommandRowKeyDown}>
+            <label className="projectsSearchShell">
+              <span className="projectsSearchLabel">Find</span>
+              <input
+                ref={searchInputRef}
+                className="projectsSearchInput"
+                value={searchValue}
+                onChange={(event) => setSearchValue(event.target.value)}
+                placeholder="Search project names, clients, or status"
+                aria-label="Search projects"
+              />
+              <span className="projectsSearchHint">/</span>
+            </label>
+
+            <div className="projectsStatusFilters" aria-label="Status filters">
+              {(["all", "new", "in_progress", "blocked", "complete"] as StatusFilter[]).map((filter) => (
+                <button
+                  key={filter}
+                  className={`projectsStatusChip ${statusFilter === filter ? "projectsStatusChipActive" : ""}`}
+                  onClick={() => setStatusFilter(filter)}
+                >
+                  {filter === "all"
+                    ? "All statuses"
+                    : filter === "in_progress"
+                      ? "In progress"
+                      : PROJECT_COLUMNS.find((column) => column.key === filter)?.title}
+                </button>
+              ))}
+            </div>
+
+            <p className="projectsResultsNote">
+              {visibleProjects.length} showing across {visibleClients} clients
+            </p>
+          </section>
+
+        </section>
       )}
 
-      <p className="status">{status}</p>
-
       {domainAllowed && (
-        <div className="layoutSingle">
-          {activeTab === "list" && renderProjectList(activeProjects, "No active projects yet.")}
+        <div className="projectsViewport">
+          {activeTab === "list" &&
+            renderProjectList(
+              filteredActiveProjects,
+              searchTerm || statusFilter !== "all" ? "No projects match this edit of the index." : "No active projects yet."
+            )}
           {activeTab === "board" && (
-            <div className="kanbanGrid">
-              {columns.map((column) => {
-                const columnProjects = activeProjects.filter((project) => normalizeProjectColumn(project) === column.key);
+            <div className="projectFlowGrid">
+              {PROJECT_COLUMNS.map((column) => {
+                const columnProjects = filteredActiveProjects.filter(
+                  (project) => normalizeProjectColumn(project) === column.key
+                );
                 return (
                   <section
                     key={column.key}
-                    className={`kanbanColumn ${dragOverColumn === column.key ? "kanbanColumnDropTarget" : ""}`}
+                    className={`projectFlowColumn tone-${column.key} ${dragOverColumn === column.key ? "projectFlowColumnDropTarget" : ""}`}
                     onDragOver={(event) => {
                       event.preventDefault();
                       setDragOverColumn(column.key);
@@ -404,18 +800,22 @@ export default function ProjectsPage() {
                       });
                     }}
                   >
-                    <header className="kanbanColumnHeader">
-                      <div className="kanbanColumnTitleBlock">
-                        <h3>{column.title}</h3>
-                        <p className="kanbanColumnSubtitle">{column.subtitle}</p>
+                    <header className="projectFlowColumnHeader">
+                      <div>
+                        <p className="projectFlowEyebrow">{column.subtitle}</p>
+                        <h2>{column.title}</h2>
                       </div>
-                      <span>{columnProjects.length}</span>
+                      <span key={`${column.key}-${columnProjects.length}`} className={justUpdatedColumn === column.key ? "projectFlowCountFlash" : ""}>
+                        {columnProjects.length}
+                      </span>
                     </header>
-                    <ul className="kanbanList">
+
+                    <ul className="projectFlowList">
                       {columnProjects.map((project) => (
                         <li
                           key={project.id}
-                          className={`projectCard ${draggingProjectId === project.id ? "projectCardDragging" : ""}`}
+                          className={`projectFlowCard ${draggingProjectId === project.id ? "projectFlowCardDragging" : ""} ${justMovedProjectId === project.id ? "projectFlowCardSettled" : ""}`}
+                          style={{ viewTransitionName: `project-${project.id}` } as CSSProperties}
                           draggable
                           onDragStart={(event) => {
                             event.dataTransfer.setData("text/plain", project.id);
@@ -427,47 +827,29 @@ export default function ProjectsPage() {
                             setDragOverColumn(null);
                           }}
                         >
-                          <div className="projectMain projectCardMain">
-                            <Link href={`/${project.id}`} className="projectLink projectTitle">
+                          <div className="projectMain projectFlowCardBody">
+                            <Link href={`/${project.id}`} className="projectLink projectTitle projectFlowCardTitle">
                               {renderProjectTitle(project.display_name ?? project.name)}
                             </Link>
                             <p className="projectDescription">{project.description?.trim() || "No description provided."}</p>
-                            <div className="projectMeta">
-                              <span className="projectClientPill">
-                                {project.client_code?.trim() || project.client_name?.trim() || "No client"}
-                              </span>
-                            </div>
                           </div>
-                          {(column.key === "complete" || column.key === "blocked") && (
-                            <div className="row projectCardActions">
-                              <Link
-                                href={`/${project.id}`}
-                                className="iconButton secondaryIconButton"
-                                title="Read project"
-                                aria-label="Read project"
-                              >
-                                <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
-                                  <path
-                                    fill="currentColor"
-                                    d="M12 5C6.5 5 2.1 8.3 1 12c1.1 3.7 5.5 7 11 7s9.9-3.3 11-7c-1.1-3.7-5.5-7-11-7Zm0 11a4 4 0 1 1 0-8 4 4 0 0 1 0 8Zm0-2.2A1.8 1.8 0 1 0 12 10a1.8 1.8 0 0 0 0 3.6Z"
-                                  />
-                                </svg>
+                          <div className="projectFlowCardFoot">
+                            <span className="projectClientPill">
+                              {project.client_code?.trim() || project.client_name?.trim() || "No client"}
+                            </span>
+                            <div className="projectFlowCardActions">
+                              <Link href={`/${project.id}`} className="projectActionLink">
+                                Open
                               </Link>
                               <button
-                                className="iconButton secondaryIconButton"
-                                title="Archive project"
-                                aria-label="Archive project"
+                                type="button"
+                                className="projectActionButton"
                                 onClick={() => toggleArchive(project).catch((error) => setStatus(error.message))}
                               >
-                                <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
-                                  <path
-                                    fill="currentColor"
-                                    d="M20 7v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7h16Zm-6 3h-4a1 1 0 0 0 0 2h4a1 1 0 1 0 0-2ZM21 3a1 1 0 0 1 1 1v2H2V4a1 1 0 0 1 1-1h18Z"
-                                  />
-                                </svg>
+                                Archive
                               </button>
                             </div>
-                          )}
+                          </div>
                         </li>
                       ))}
                     </ul>
@@ -476,7 +858,11 @@ export default function ProjectsPage() {
               })}
             </div>
           )}
-          {activeTab === "archived" && renderProjectList(archivedProjects, "No archived projects.")}
+          {activeTab === "archived" &&
+            renderProjectList(
+              filteredArchivedProjects,
+              searchTerm ? "No archived projects match this search." : "No archived projects are parked here yet."
+            )}
         </div>
       )}
 

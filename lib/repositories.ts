@@ -306,7 +306,14 @@ export async function createThread(args: {
 
 export async function getThread(projectId: string, threadId: string) {
   const threadResult = await query(
-    "select * from discussion_threads where project_id = $1 and id = $2",
+    `select
+       discussion_threads.*,
+       user_profiles.email as starter_email,
+       user_profiles.first_name as starter_first_name,
+       user_profiles.last_name as starter_last_name
+     from discussion_threads
+     left join user_profiles on user_profiles.id = discussion_threads.author_user_id
+     where discussion_threads.project_id = $1 and discussion_threads.id = $2`,
     [projectId, threadId]
   );
   const thread = threadResult.rows[0] ?? null;
@@ -315,7 +322,15 @@ export async function getThread(projectId: string, threadId: string) {
   }
 
   const commentsResult = await query(
-    "select * from discussion_comments where project_id = $1 and thread_id = $2 order by created_at asc",
+    `select
+       discussion_comments.*,
+       user_profiles.email as author_email,
+       user_profiles.first_name as author_first_name,
+       user_profiles.last_name as author_last_name
+     from discussion_comments
+     left join user_profiles on user_profiles.id = discussion_comments.author_user_id
+     where discussion_comments.project_id = $1 and discussion_comments.thread_id = $2
+     order by discussion_comments.created_at asc`,
     [projectId, threadId]
   );
 
