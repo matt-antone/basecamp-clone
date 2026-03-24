@@ -1,7 +1,9 @@
-import { FEATURED_FEEDS, parseFeedPosts } from "@/lib/featured-feed";
+import { FEATURED_FEEDS, parseFeedPosts, sortFeedPostsByPublishedDate } from "@/lib/featured-feed";
 import { ok, serverError } from "@/lib/http";
 
 export const dynamic = "force-dynamic";
+
+let latestSuccessfulPosts: ReturnType<typeof sortFeedPostsByPublishedDate> = [];
 
 export async function GET() {
   const results = await Promise.all(
@@ -27,11 +29,15 @@ export async function GET() {
     })
   );
 
-  const pool = results.flatMap((result) => result.posts);
+  const pool = sortFeedPostsByPublishedDate(results.flatMap((result) => result.posts)).slice(0, 2);
 
   if (pool.length) {
-    const post = pool[Math.floor(Math.random() * pool.length)];
-    return ok({ post });
+    latestSuccessfulPosts = pool;
+    return ok({ posts: pool });
+  }
+
+  if (latestSuccessfulPosts.length) {
+    return ok({ posts: latestSuccessfulPosts });
   }
 
   const errors = results.flatMap((result) => (result.error ? [result.error] : []));

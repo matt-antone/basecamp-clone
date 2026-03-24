@@ -18,13 +18,13 @@ import {
   toolbarPlugin
 } from "@mdxeditor/editor";
 
-type CommentMarkdownEditorProps = {
+type MarkdownEditorProps = {
   markdown: string;
   onChange: (markdown: string) => void;
   placeholder: string;
 };
 
-export default function CommentMarkdownEditor(props: CommentMarkdownEditorProps) {
+export default function MarkdownEditor(props: MarkdownEditorProps) {
   return (
     <MDXEditor
       markdown={props.markdown}
@@ -41,17 +41,15 @@ export default function CommentMarkdownEditor(props: CommentMarkdownEditorProps)
         markdownShortcutPlugin(),
         toolbarPlugin({
           toolbarContents: () => (
-            <>
-              <DiffSourceToggleWrapper>
-                <UndoRedo />
-                <Separator />
-                <BoldItalicUnderlineToggles />
-                <CreateLink />
-                <Separator />
-                <ListsToggle />
-                <BlockTypeSelect />
-              </DiffSourceToggleWrapper>
-            </>
+            <DiffSourceToggleWrapper>
+              <UndoRedo />
+              <Separator />
+              <BoldItalicUnderlineToggles />
+              <CreateLink />
+              <Separator />
+              <ListsToggle />
+              <BlockTypeSelect />
+            </DiffSourceToggleWrapper>
           )
         })
       ]}

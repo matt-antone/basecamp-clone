@@ -7,7 +7,9 @@ const patchProjectSchema = z.object({
   name: z.string().min(1),
   description: z.string().optional(),
   clientId: z.string().uuid(),
-  tags: z.array(z.string().min(1)).max(50).optional()
+  tags: z.array(z.string().min(1)).max(50).optional(),
+  requestor: z.string().optional().nullable(),
+  personalHours: z.number().nonnegative().optional().nullable()
 });
 
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -37,7 +39,9 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       name: payload.name,
       description: payload.description,
       clientId: payload.clientId,
-      tags: payload.tags
+      tags: payload.tags,
+      requestor: payload.requestor,
+      personalHours: payload.personalHours
     });
     if (!project) {
       return notFound("Project not found");

@@ -9,6 +9,11 @@ const THEME_KEY = "basecamp-clone-theme";
 
 type Theme = "light" | "dark";
 type SessionUser = { id: string; email?: string };
+type ProjectStats = {
+  active: number;
+  blocked: number;
+  archived: number;
+};
 
 function applyTheme(theme: Theme) {
   const root = document.documentElement;
@@ -20,6 +25,8 @@ function applyTheme(theme: Theme) {
 export default function ThemeToggle() {
   const [theme, setTheme] = useState<Theme>("light");
   const [user, setUser] = useState<SessionUser | null>(null);
+  const [accessToken, setAccessToken] = useState<string | null>(null);
+  const [projectStats, setProjectStats] = useState<ProjectStats | null>(null);
 
   useEffect(() => {
     const saved = localStorage.getItem(THEME_KEY);
@@ -46,10 +53,12 @@ export default function ThemeToggle() {
     supabase.auth.getSession().then(({ data }) => {
       if (!mounted) return;
       setUser(data.session?.user ? { id: data.session.user.id, email: data.session.user.email } : null);
+      setAccessToken(data.session?.access_token ?? null);
     });
 
     const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ? { id: session.user.id, email: session.user.email } : null);
+      setAccessToken(session?.access_token ?? null);
     });
 
     return () => {
@@ -57,6 +66,50 @@ export default function ThemeToggle() {
       listener.subscription.unsubscribe();
     };
   }, []);
+
+  useEffect(() => {
+    if (!user || !accessToken) {
+      setProjectStats(null);
+      return;
+    }
+
+    let canceled = false;
+
+    async function loadProjectStats() {
+      const response = await fetch("/projects?includeArchived=true", {
+        headers: {
+          Authorization: `Bearer ${accessToken}`
+        }
+      });
+      if (!response.ok) {
+        throw new Error(`Unable to load project stats (${response.status})`);
+      }
+
+      const data = (await response.json()) as {
+        projects?: Array<{ archived?: boolean; status?: string | null }>;
+      };
+      if (canceled) {
+        return;
+      }
+
+      const projects = data.projects ?? [];
+      setProjectStats({
+        active: projects.filter((project) => !project.archived).length,
+        blocked: projects.filter((project) => !project.archived && (project.status ?? "").toLowerCase() === "blocked").length,
+        archived: projects.filter((project) => project.archived).length
+      });
+    }
+
+    loadProjectStats().catch(() => {
+      if (!canceled) {
+        setProjectStats(null);
+      }
+    });
+
+    return () => {
+      canceled = true;
+    };
+  }, [user, accessToken]);
 
   function toggleTheme() {
     const nextTheme: Theme = theme === "light" ? "dark" : "light";
@@ -70,6 +123,8 @@ export default function ThemeToggle() {
       const supabase = getSupabaseBrowserClient();
       await supabase.auth.signOut();
       setUser(null);
+      setAccessToken(null);
+      setProjectStats(null);
       window.location.href = "/";
     } catch {
       // Keep header controls stable if sign-out fails.
@@ -81,9 +136,18 @@ export default function ThemeToggle() {
       <Link href="/" className="brandHomeLink" aria-label="Go to home">
         <Image src="/gx-logo.webp" alt="GX Logo" width={120} height={28} priority className="brandLogo" />
       </Link>
-      <Link href="/" className="brandLink" aria-label="Project Manager home">
-        Project Manager
-      </Link>
+      <div className="brandCluster">
+        <Link href="/" className="brandLink" aria-label="Project Manager home">
+          Project Manager
+        </Link>
+        {user && projectStats && (
+          <div className="brandStats" aria-label="Project summary">
+            <span className="brandStatChip">{projectStats.active} active</span>
+            <span className="brandStatChip">{projectStats.blocked} blocked</span>
+            <span className="brandStatChip">{projectStats.archived} archived</span>
+          </div>
+        )}
+      </div>
       <div className="themeTopBarActions">
         {user && (
           <>

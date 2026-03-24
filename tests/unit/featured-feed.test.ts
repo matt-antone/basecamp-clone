@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { FEATURED_FEEDS, parseFeedPosts, parseLatestFeedPost, shuffleFeedSources, type FeaturedFeedSource } from "@/lib/featured-feed";
+import {
+  FEATURED_FEEDS,
+  parseFeedPosts,
+  parseLatestFeedPost,
+  shuffleFeedSources,
+  sortFeedPostsByPublishedDate,
+  type FeaturedFeedSource
+} from "@/lib/featured-feed";
 
 describe("featured feed parsing", () => {
   it("parses the latest rss item and strips html from the description", () => {
@@ -11,6 +18,7 @@ describe("featured feed parsing", () => {
             <title><![CDATA[Designing calmer dashboards]]></title>
             <link>https://example.com/posts/calmer-dashboards</link>
             <description><![CDATA[<p>Build <strong>clarity</strong>, not clutter.</p>]]></description>
+            <pubDate>Tue, 19 Mar 2024 16:45:00 GMT</pubDate>
           </item>
         </channel>
       </rss>`;
@@ -19,7 +27,8 @@ describe("featured feed parsing", () => {
       title: "Designing calmer dashboards",
       description: "Build clarity, not clutter.",
       url: "https://example.com/posts/calmer-dashboards",
-      sourceName: "Abduzeedo"
+      sourceName: "Abduzeedo",
+      publishedAt: "2024-03-19T16:45:00.000Z"
     });
   });
 
@@ -40,7 +49,8 @@ describe("featured feed parsing", () => {
       title: "Typeface systems for modern brands",
       description: "Build clarity into the system.",
       url: "https://example.com/posts/typeface-systems",
-      sourceName: "Eye on Design"
+      sourceName: "Eye on Design",
+      publishedAt: null
     });
   });
 
@@ -63,7 +73,8 @@ describe("featured feed parsing", () => {
       title: "Type & grids ’ for editorial systems",
       description: "Ideas for balanced rhythm & hierarchy …",
       url: "https://example.com/posts/type-grids",
-      sourceName: "I Love Typography"
+      sourceName: "I Love Typography",
+      publishedAt: null
     });
     expect(post.description).not.toContain("<strong>");
   });
@@ -82,7 +93,8 @@ describe("featured feed parsing", () => {
       title: "Fresh links for product teams",
       description: "Read the latest from HeyDesigner.",
       url: "https://example.com/posts/fresh-links",
-      sourceName: "HeyDesigner"
+      sourceName: "HeyDesigner",
+      publishedAt: null
     });
   });
 
@@ -127,33 +139,61 @@ describe("featured feed parsing", () => {
         title: "Story 1",
         description: "Summary 1",
         url: "https://example.com/posts/story-1",
-        sourceName: "Creative Review"
+        sourceName: "Creative Review",
+        publishedAt: null
       },
       {
         title: "Story 2",
         description: "Summary 2",
         url: "https://example.com/posts/story-2",
-        sourceName: "Creative Review"
+        sourceName: "Creative Review",
+        publishedAt: null
       },
       {
         title: "Story 3",
         description: "Summary 3",
         url: "https://example.com/posts/story-3",
-        sourceName: "Creative Review"
+        sourceName: "Creative Review",
+        publishedAt: null
       },
       {
         title: "Story 4",
         description: "Summary 4",
         url: "https://example.com/posts/story-4",
-        sourceName: "Creative Review"
+        sourceName: "Creative Review",
+        publishedAt: null
       },
       {
         title: "Story 5",
         description: "Summary 5",
         url: "https://example.com/posts/story-5",
-        sourceName: "Creative Review"
+        sourceName: "Creative Review",
+        publishedAt: null
       }
     ]);
+  });
+
+  it("parses atom published dates and sorts merged posts newest-first", () => {
+    const source: FeaturedFeedSource = { name: "Fonts In Use", url: "https://fontsinuse.com/blog.rss" };
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>
+      <feed xmlns="http://www.w3.org/2005/Atom">
+        <entry>
+          <title>Older post</title>
+          <link href="https://example.com/posts/older" />
+          <published>2024-03-01T12:00:00Z</published>
+        </entry>
+        <entry>
+          <title>Newer post</title>
+          <link href="https://example.com/posts/newer" />
+          <published>2024-03-08T09:30:00Z</published>
+        </entry>
+      </feed>`;
+
+    const posts = parseFeedPosts(xml, source, 5);
+
+    expect(posts[0]?.publishedAt).toBe("2024-03-01T12:00:00.000Z");
+    expect(posts[1]?.publishedAt).toBe("2024-03-08T09:30:00.000Z");
+    expect(sortFeedPostsByPublishedDate(posts).map((post) => post.title)).toEqual(["Newer post", "Older post"]);
   });
 });
 

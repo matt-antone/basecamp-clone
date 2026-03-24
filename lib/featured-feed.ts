@@ -10,6 +10,7 @@ export type FeaturedFeedPost = {
   description: string;
   url: string;
   sourceName: string;
+  publishedAt: string | null;
 };
 
 export const FEATURED_FEEDS: FeaturedFeedSource[] = [
@@ -42,12 +43,13 @@ const HTML_ENTITY_MAP: Record<string, string> = {
 };
 
 type FeedField = "title" | "link" | "description" | "summary" | "content:encoded" | "content";
+type FeedDateField = "pubDate" | "published" | "updated" | "dc:date";
 
 function decodeCdata(value: string) {
   return value.replace(/^<!\[CDATA\[/, "").replace(/\]\]>$/, "").trim();
 }
 
-function getItemField(item: string, field: FeedField) {
+function getItemField(item: string, field: FeedField | FeedDateField) {
   const match = item.match(new RegExp(`<${field}[^>]*>([\\s\\S]*?)</${field}>`, "i"));
   return match ? decodeCdata(match[1]) : "";
 }
@@ -60,6 +62,24 @@ function getItemLink(item: string) {
 
   const hrefMatch = item.match(/<link\b[^>]*href=["']([^"']+)["'][^>]*\/?>/i);
   return hrefMatch ? hrefMatch[1].trim() : "";
+}
+
+function getItemDate(item: string) {
+  const candidateFields: FeedDateField[] = ["pubDate", "published", "updated", "dc:date"];
+
+  for (const field of candidateFields) {
+    const value = getItemField(item, field);
+    if (!value) {
+      continue;
+    }
+
+    const parsed = Date.parse(value);
+    if (!Number.isNaN(parsed)) {
+      return new Date(parsed).toISOString();
+    }
+  }
+
+  return null;
 }
 
 function decodeHtmlEntities(value: string) {
@@ -123,7 +143,8 @@ function parseFeedItem(item: string, source: FeaturedFeedSource): FeaturedFeedPo
     title,
     description,
     url,
-    sourceName: source.name
+    sourceName: source.name,
+    publishedAt: getItemDate(item)
   };
 }
 
@@ -156,6 +177,14 @@ export function parseFeedPosts(xml: string, source: FeaturedFeedSource, limit = 
 
 export function parseLatestFeedPost(xml: string, source: FeaturedFeedSource): FeaturedFeedPost {
   return parseFeedPosts(xml, source, 1)[0];
+}
+
+export function sortFeedPostsByPublishedDate(posts: FeaturedFeedPost[]) {
+  return [...posts].sort((left, right) => {
+    const rightTime = right.publishedAt ? Date.parse(right.publishedAt) : 0;
+    const leftTime = left.publishedAt ? Date.parse(left.publishedAt) : 0;
+    return rightTime - leftTime;
+  });
 }
 
 export function shuffleFeedSources(sources: FeaturedFeedSource[], random = Math.random) {

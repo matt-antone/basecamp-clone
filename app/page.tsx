@@ -51,7 +51,7 @@ export default function ProjectsPage() {
 
   const [clients, setClients] = useState<ClientRecord[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
-  const [latestFeaturedPost, setLatestFeaturedPost] = useState<FeaturedFeedPost | null>(null);
+  const [latestFeaturedPosts, setLatestFeaturedPosts] = useState<FeaturedFeedPost[]>([]);
   const [isFeaturedFeedLoading, setIsFeaturedFeedLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<ProjectsViewTab>("list");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
@@ -116,15 +116,15 @@ export default function ProjectsPage() {
   useEffect(() => {
     let isActive = true;
 
-    fetch("/feeds/latest")
+    fetch("/feeds/latest", { cache: "no-store" })
       .then(async (response) => {
         if (!response.ok) {
           throw new Error(`Feed request failed: ${response.status}`);
         }
 
-        const data = (await response.json()) as { post?: FeaturedFeedPost };
-        if (isActive && data.post) {
-          setLatestFeaturedPost(data.post);
+        const data = (await response.json()) as { posts?: FeaturedFeedPost[] };
+        if (isActive && data.posts?.length) {
+          setLatestFeaturedPosts(data.posts.slice(0, 2));
         }
       })
       .catch(() => {
@@ -498,15 +498,6 @@ export default function ProjectsPage() {
     return PROJECT_COLUMNS.find((column) => column.key === normalizeProjectColumn(project))?.title ?? "New";
   }
 
-  function getSpotlightProject() {
-    return (
-      filteredActiveProjects.find((project) => normalizeProjectColumn(project) === "blocked") ??
-      filteredActiveProjects.find((project) => normalizeProjectColumn(project) === "in_progress") ??
-      filteredActiveProjects[0] ??
-      null
-    );
-  }
-
   async function moveProject(projectId: string, targetColumn: ProjectColumn) {
     const source = projects.find((project) => project.id === projectId);
     if (!source) return;
@@ -578,21 +569,13 @@ export default function ProjectsPage() {
 
   const visibleProjects = activeTab === "archived" ? filteredArchivedProjects : filteredActiveProjects;
   const visibleClients = new Set(visibleProjects.map((project) => getProjectClientLabel(project))).size;
-  const spotlightProject = domainAllowed ? getSpotlightProject() : null;
-  const spotlightStatus = spotlightProject ? normalizeProjectColumn(spotlightProject) : null;
-  const spotlightEyebrow =
-    spotlightStatus === "blocked"
-      ? "Needs intervention"
-      : spotlightStatus === "in_progress"
-        ? "Currently moving"
-        : spotlightStatus === "complete"
-          ? "Recently wrapped"
-          : "Ready to start";
-  const isHeroFeedLoading = isFeaturedFeedLoading && !latestFeaturedPost;
-  const heroKicker = latestFeaturedPost ? `Latest from ${latestFeaturedPost.sourceName}` : "Projects index";
-  const heroTitle = latestFeaturedPost?.title ?? "A calmer way to see what the studio is carrying.";
+  const featuredHeroPost = latestFeaturedPosts[0] ?? null;
+  const feedRailPosts = latestFeaturedPosts.length > 1 ? latestFeaturedPosts.slice(1) : latestFeaturedPosts;
+  const isHeroFeedLoading = isFeaturedFeedLoading && latestFeaturedPosts.length === 0;
+  const heroKicker = featuredHeroPost ? `Latest from ${featuredHeroPost.sourceName}` : "Projects index";
+  const heroTitle = featuredHeroPost?.title ?? "A calmer way to see what the studio is carrying.";
   const heroIntro =
-    latestFeaturedPost?.description ??
+    featuredHeroPost?.description ??
     "The page should read like an active portfolio wall, not a template dashboard. Track what is moving, what is blocked, and which client lanes need attention next.";
 
   return (
@@ -623,82 +606,59 @@ export default function ProjectsPage() {
           ) : (
             <>
               <p className="projectsKicker">{heroKicker}</p>
-              <h1 className={`projectsHeroTitle ${latestFeaturedPost ? "projectsHeroTitleFeed" : ""}`}>{heroTitle}</h1>
-              <p className={`projectsHeroIntro ${latestFeaturedPost ? "projectsHeroIntroFeed" : ""}`}>{heroIntro}</p>
-              {latestFeaturedPost && (
+              <h1 className={`projectsHeroTitle ${featuredHeroPost ? "projectsHeroTitleFeed" : ""}`}>{heroTitle}</h1>
+              <p className={`projectsHeroIntro ${featuredHeroPost ? "projectsHeroIntroFeed" : ""}`}>{heroIntro}</p>
+              {featuredHeroPost && (
                 <div className="projectsHeroUtilityRow">
                   <div className="projectsHeaderActions">
-                    <a
-                      href={latestFeaturedPost.url}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="projectPrimaryButton projectPrimaryButtonLink"
-                    >
+                    <a href={featuredHeroPost.url} target="_blank" rel="noreferrer" className="projectPrimaryButton projectPrimaryButtonLink">
                       Read more
                     </a>
                   </div>
                 </div>
               )}
+              {domainAllowed && (
+                <div className="projectsHeroFacts" aria-label="Projects summary">
+                  <span>{filteredActiveProjects.length} active projects</span>
+                  <span>{new Set(filteredActiveProjects.map((project) => getProjectClientLabel(project))).size} live clients</span>
+                  <span>{archivedProjects.length} archived</span>
+                </div>
+              )}
             </>
           )}
         </div>
-
-        <aside className={`projectsSpotlight ${spotlightStatus ? `spotlight-${spotlightStatus}` : ""}`}>
-          {domainAllowed && spotlightProject ? (
-            <div className="projectsSpotlightCard">
-              <p className="projectsSpotlightEyebrow">{spotlightEyebrow}</p>
-              <Link href={`/${spotlightProject.id}`} className="projectsSpotlightTitle">
-                {renderProjectTitle(spotlightProject.display_name ?? spotlightProject.name)}
-              </Link>
-              <p className="projectsSpotlightBody">
-                {spotlightProject.description?.trim() || "No brief yet. Open the project workspace and shape the next move."}
-              </p>
-              <ProjectTagList tags={spotlightProject.tags} className="projectsSpotlightTags" />
-              <div className="projectsSpotlightMeta">
-                <span>{getProjectClientLabel(spotlightProject)}</span>
-                <span>{getProjectStatusLabel(spotlightProject)}</span>
+        <aside className="projectsFeedRail" aria-label="Latest feed posts">
+          <p className="projectsFeedEyebrow">Latest posts</p>
+          {isHeroFeedLoading ? (
+            <div className="projectsHeroSkeleton projectsHeroFeedSkeleton" role="status" aria-live="polite" aria-label="Loading latest feed posts">
+              <span className="visuallyHidden">Loading latest feed posts</span>
+              <div className="projectsHeroSkeletonIntroGroup" aria-hidden="true">
+                <div className="projectsHeroSkeletonLine projectsHeroSkeletonTitle projectsHeroSkeletonTitleLong" />
+                <div className="projectsHeroSkeletonLine projectsHeroSkeletonIntro projectsHeroSkeletonIntroFull" />
               </div>
-              <div className="projectsSpotlightActions">
-                <Link href={`/${spotlightProject.id}`} className="projectPrimaryButton projectPrimaryButtonLink">
-                  Open workspace
-                </Link>
-                <button type="button" className="projectActionButton" onClick={() => selectTab("board")}>
-                  View flow
-                </button>
+              <div className="projectsHeroSkeletonIntroGroup" aria-hidden="true">
+                <div className="projectsHeroSkeletonLine projectsHeroSkeletonTitle projectsHeroSkeletonTitleShort" />
+                <div className="projectsHeroSkeletonLine projectsHeroSkeletonIntro projectsHeroSkeletonIntroFull" />
               </div>
             </div>
-          ) : domainAllowed ? (
-            <div className="projectsSpotlightCard">
-              <p className="projectsSpotlightEyebrow">Blank slate</p>
-              <h2 className="projectsSpotlightTitleStatic">The surface is ready for the first project.</h2>
-              <p className="projectsSpotlightBody">
-                Start with a single active project and the page will build the client rhythm around it.
-              </p>
-              <div className="projectsSpotlightActions">
-                <button type="button" className="projectPrimaryButton" onClick={() => createDialogRef.current?.showModal()}>
-                  New project
-                </button>
-              </div>
-            </div>
+          ) : feedRailPosts.length > 0 ? (
+            <ul className="projectsFeedList">
+              {feedRailPosts.map((post) => (
+                <li key={`${post.url}-${post.publishedAt ?? "undated"}`} className="projectsFeedItem">
+                  <div className="projectsFeedMeta">
+                    <span>{post.sourceName}</span>
+                    <span>{formatFeedDate(post.publishedAt)}</span>
+                  </div>
+                  <a href={post.url} target="_blank" rel="noreferrer" className="projectsFeedLink">
+                    {post.title}
+                  </a>
+                  <p className="projectsFeedDescription">{post.description}</p>
+                </li>
+              ))}
+            </ul>
           ) : (
-            <div className="projectsSpotlightCard">
-              <p className="projectsSpotlightEyebrow">Private workspace</p>
-              <h2 className="projectsSpotlightTitleStatic">Sign in to open the live project index.</h2>
-              <p className="projectsSpotlightBody">
-                Use your workspace Google account to load client work, discussion threads, and the project board.
-              </p>
-              <div className="projectsSpotlightActions">
-                <button type="button" className="projectPrimaryButton" onClick={signIn}>
-                  Sign in with Google
-                </button>
-              </div>
-            </div>
-          )}
-          {domainAllowed && (
-            <div className="projectsHeroFacts projectsSpotlightFacts" aria-label="Projects summary">
-              <span>{filteredActiveProjects.length} active projects</span>
-              <span>{new Set(filteredActiveProjects.map((project) => getProjectClientLabel(project))).size} live clients</span>
-              <span>{archivedProjects.length} archived</span>
+            <div className="projectsFeedFallback">
+              <p>The feeds are quiet right now, so the homepage is keeping the focus on your project index.</p>
             </div>
           )}
         </aside>
@@ -929,4 +889,20 @@ export default function ProjectsPage() {
       </dialog>
     </main>
   );
+}
+
+function formatFeedDate(value: string | null) {
+  if (!value) {
+    return "No date";
+  }
+
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) {
+    return "No date";
+  }
+
+  return parsed.toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric"
+  });
 }

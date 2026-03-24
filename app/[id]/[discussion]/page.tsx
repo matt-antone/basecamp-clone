@@ -6,7 +6,12 @@ import { useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import { getSupabaseBrowserClient } from "@/lib/supabase-browser";
 
-const CommentMarkdownEditor = dynamic(() => import("./comment-markdown-editor"), { ssr: false });
+const MarkdownEditor = dynamic(() => import("@/components/markdown-editor"), { ssr: false });
+
+type SessionUser = {
+  id: string;
+  email?: string;
+};
 
 type Comment = {
   id: string;
@@ -14,6 +19,7 @@ type Comment = {
   body_html: string;
   created_at: string;
   edited_at: string | null;
+  author_user_id: string;
   author_email: string | null;
   author_first_name: string | null;
   author_last_name: string | null;
@@ -51,6 +57,7 @@ export default function DiscussionPage() {
   const projectId = params?.id ?? "";
   const discussionId = params?.discussion ?? "";
   const [supabase, setSupabase] = useState<ReturnType<typeof getSupabaseBrowserClient> | null>(null);
+  const [currentUser, setCurrentUser] = useState<SessionUser | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [status, setStatus] = useState("Loading...");
   const [thread, setThread] = useState<ThreadDetail | null>(null);
@@ -61,7 +68,9 @@ export default function DiscussionPage() {
   const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
   const [editingBody, setEditingBody] = useState("");
   const [newCommentEditorKey, setNewCommentEditorKey] = useState(0);
+  const [attachmentPreviewUrls, setAttachmentPreviewUrls] = useState<Record<string, string>>({});
   const commentFileInputRef = useRef<HTMLInputElement | null>(null);
+  const previewUrlsRef = useRef<Record<string, string>>({});
 
   useEffect(() => {
     try {
@@ -102,6 +111,7 @@ export default function DiscussionPage() {
         setStatus("Sign in first");
         return;
       }
+      setCurrentUser(data.session?.user ? { id: data.session.user.id, email: data.session.user.email } : null);
       setToken(accessToken);
       await load(accessToken, projectId, discussionId);
       setStatus("Ready");
@@ -109,6 +119,118 @@ export default function DiscussionPage() {
 
     init().catch((error) => setStatus(error instanceof Error ? error.message : "Load failed"));
   }, [supabase, projectId, discussionId]);
+
+  useEffect(() => {
+    previewUrlsRef.current = attachmentPreviewUrls;
+  }, [attachmentPreviewUrls]);
+
+  useEffect(() => {
+    return () => {
+      Object.values(previewUrlsRef.current).forEach((url) => {
+        if (url.startsWith("blob:")) {
+          URL.revokeObjectURL(url);
+        }
+      });
+    };
+  }, []);
+
+  useEffect(() => {
+    const attachmentIds = new Set(
+      (thread?.comments ?? [])
+        .flatMap((comment) => comment.attachments ?? [])
+        .map((attachment) => attachment.id)
+    );
+
+    setAttachmentPreviewUrls((current) => {
+      const next: Record<string, string> = {};
+      let changed = false;
+
+      Object.entries(current).forEach(([id, url]) => {
+        if (attachmentIds.has(id)) {
+          next[id] = url;
+          return;
+        }
+
+        if (url.startsWith("blob:")) {
+          URL.revokeObjectURL(url);
+        }
+        changed = true;
+      });
+
+      return changed ? next : current;
+    });
+  }, [thread]);
+
+  useEffect(() => {
+    if (!thread || !token || !projectId) return;
+
+    const imageAttachments = thread.comments
+      .flatMap((comment) => comment.attachments ?? [])
+      .filter((attachment) => isImageAttachment(attachment.mime_type));
+    const pending = imageAttachments.filter((attachment) => !previewUrlsRef.current[attachment.id]);
+    if (!pending.length) {
+      return;
+    }
+
+    let canceled = false;
+
+    async function loadPreviews() {
+      const previewEntries = await Promise.all(
+        pending.map(async (attachment) => {
+          try {
+            const response = await fetch(`/projects/${projectId}/files/${attachment.id}/thumbnail?size=w256h256`, {
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${token}`
+              }
+            });
+            if (!response.ok) {
+              return [attachment.id, ""] as const;
+            }
+            const blob = await response.blob();
+            return [attachment.id, URL.createObjectURL(blob)] as const;
+          } catch {
+            return [attachment.id, ""] as const;
+          }
+        })
+      );
+
+      if (canceled) {
+        previewEntries.forEach(([, url]) => {
+          if (url.startsWith("blob:")) {
+            URL.revokeObjectURL(url);
+          }
+        });
+        return;
+      }
+
+      setAttachmentPreviewUrls((current) => {
+        const next = { ...current };
+        let changed = false;
+
+        previewEntries.forEach(([id, url]) => {
+          if (!url) return;
+          if (next[id] && next[id] !== url && next[id].startsWith("blob:")) {
+            URL.revokeObjectURL(next[id]);
+          }
+          if (next[id] !== url) {
+            next[id] = url;
+            changed = true;
+          }
+        });
+
+        return changed ? next : current;
+      });
+    }
+
+    loadPreviews().catch(() => {
+      /* Thumbnail failures should not block discussion use. */
+    });
+
+    return () => {
+      canceled = true;
+    };
+  }, [thread, token, projectId]);
 
   async function addComment() {
     if (!token || !projectId || !discussionId) return;
@@ -284,11 +406,10 @@ export default function DiscussionPage() {
                 <small>Started the thread</small>
               </div>
             </div>
-            <div dangerouslySetInnerHTML={{ __html: thread.body_html }} />
+            <div className="discussionRichText" dangerouslySetInnerHTML={{ __html: thread.body_html }} />
           </section>
 
           <section className="discussionSection">
-            <h2>Comments</h2>
             <ul className="discussionCommentList">
               {thread.comments.map((comment) => (
                 <li key={comment.id} className="discussionCommentRow">
@@ -296,16 +417,23 @@ export default function DiscussionPage() {
                     {getPersonInitials(comment)}
                   </span>
                   <div className="projectMain">
-                    <div className="discussionCommentMeta">
-                      <strong>{getPersonLabel(comment)}</strong>
-                      <small>
-                        {new Date(comment.created_at).toLocaleString()}
-                        {comment.edited_at ? " (edited)" : ""}
-                      </small>
+                    <div className="discussionCommentHeader">
+                      <div className="discussionCommentMeta">
+                        <strong>{getPersonLabel(comment)}</strong>
+                        <small>
+                          {new Date(comment.created_at).toLocaleString()}
+                          {comment.edited_at ? " (edited)" : ""}
+                        </small>
+                        {currentUser?.id === comment.author_user_id && editingCommentId !== comment.id && (
+                          <button type="button" className="terciary" onClick={() => startEditingComment(comment)}>
+                            Edit
+                          </button>
+                        )}
+                      </div>
                     </div>
                     {editingCommentId === comment.id ? (
                       <div className="editorWrap">
-                        <CommentMarkdownEditor
+                        <MarkdownEditor
                           key={`edit-${comment.id}`}
                           markdown={editingBody}
                           onChange={setEditingBody}
@@ -332,28 +460,66 @@ export default function DiscussionPage() {
                       </div>
                     ) : (
                       <>
-                        <div dangerouslySetInnerHTML={{ __html: comment.body_html }} />
+                        <div className="discussionRichText" dangerouslySetInnerHTML={{ __html: comment.body_html }} />
                         {(comment.attachments?.length ?? 0) > 0 && (
-                          <ul className="commentAttachmentList">
-                            {comment.attachments?.map((attachment) => (
-                              <li key={attachment.id} className="commentAttachmentItem">
-                                <button
-                                  type="button"
-                                  className="fileDownloadButton"
-                                  onClick={() => openDownload(attachment.id).catch((error) => setStatus(error.message))}
-                                >
-                                  {attachment.filename}
-                                </button>
-                                <small>{formatBytes(attachment.size_bytes)}</small>
-                              </li>
-                            ))}
-                          </ul>
+                          <div className="commentAttachmentStack">
+                            {comment.attachments?.some((attachment) => isImageAttachment(attachment.mime_type)) && (
+                              <ul className="commentAttachmentThumbGrid">
+                                {comment.attachments
+                                  ?.filter((attachment) => isImageAttachment(attachment.mime_type))
+                                  .map((attachment) => (
+                                    <li key={attachment.id} className="fileThumbItem commentAttachmentThumbItem">
+                                      <button
+                                        type="button"
+                                        className="fileThumbHitArea commentAttachmentThumbButton"
+                                        onClick={() => openDownload(attachment.id).catch((error) => setStatus(error.message))}
+                                      >
+                                        {attachmentPreviewUrls[attachment.id] ? (
+                                          <img
+                                            src={attachmentPreviewUrls[attachment.id]}
+                                            alt={attachment.filename}
+                                            className="fileThumbImage"
+                                            loading="lazy"
+                                          />
+                                        ) : (
+                                          <div className="fileThumbFallback">{getAttachmentBadgeLabel(attachment)}</div>
+                                        )}
+                                      </button>
+                                      <div className="fileThumbMeta">
+                                        <button
+                                          type="button"
+                                          className="fileDownloadButton"
+                                          onClick={() => openDownload(attachment.id).catch((error) => setStatus(error.message))}
+                                          title={attachment.filename}
+                                        >
+                                          {attachment.filename}
+                                        </button>
+                                        <small>{formatBytes(attachment.size_bytes)}</small>
+                                      </div>
+                                    </li>
+                                  ))}
+                              </ul>
+                            )}
+                            {comment.attachments?.some((attachment) => !isImageAttachment(attachment.mime_type)) && (
+                              <ul className="commentAttachmentList">
+                                {comment.attachments
+                                  ?.filter((attachment) => !isImageAttachment(attachment.mime_type))
+                                  .map((attachment) => (
+                                    <li key={attachment.id} className="commentAttachmentItem">
+                                      <button
+                                        type="button"
+                                        className="fileDownloadButton"
+                                        onClick={() => openDownload(attachment.id).catch((error) => setStatus(error.message))}
+                                      >
+                                        {attachment.filename}
+                                      </button>
+                                      <small>{formatBytes(attachment.size_bytes)}</small>
+                                    </li>
+                                  ))}
+                              </ul>
+                            )}
+                          </div>
                         )}
-                        <div className="row">
-                          <button type="button" className="secondary" onClick={() => startEditingComment(comment)}>
-                            Edit
-                          </button>
-                        </div>
                       </>
                     )}
                   </div>
@@ -364,7 +530,7 @@ export default function DiscussionPage() {
           <section className="discussionSection">
             <h2>Add Comment</h2>
             <div className="form editorWrap">
-              <CommentMarkdownEditor
+              <MarkdownEditor
                 key={`new-${newCommentEditorKey}`}
                 markdown={commentBody}
                 onChange={setCommentBody}
@@ -511,6 +677,20 @@ function formatAttachmentStage(attachment: PendingAttachment) {
   if (attachment.stage === "uploading") return `${attachment.progress}%`;
   if (attachment.stage === "done") return "Uploaded";
   return "Failed";
+}
+
+function isImageAttachment(mimeType: string) {
+  return mimeType.toLowerCase().startsWith("image/");
+}
+
+function getAttachmentBadgeLabel(attachment: CommentAttachment) {
+  const mime = attachment.mime_type.toLowerCase();
+  if (mime.includes("pdf")) return "PDF";
+  if (mime.includes("spreadsheet") || mime.includes("excel") || mime.includes("csv")) return "SHEET";
+  if (mime.includes("word") || mime.includes("document")) return "DOC";
+  if (mime.includes("zip") || mime.includes("compressed")) return "ZIP";
+  const extension = attachment.filename.split(".").pop()?.trim().toUpperCase();
+  return extension && extension.length <= 5 ? extension : "FILE";
 }
 
 async function postFormDataWithUploadProgress(args: {

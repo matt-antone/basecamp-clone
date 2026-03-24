@@ -196,6 +196,32 @@ h3 {
   font-family: var(--font-sans-ui);
 }
 
+.brandCluster {
+  display: grid;
+  justify-self: center;
+  gap: 0.28rem;
+}
+
+.brandStats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.brandStatChip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.55rem;
+  padding: 0.12rem 0.45rem;
+  border: 1px solid color-mix(in srgb, var(--panel-border) 84%, transparent);
+  background: color-mix(in srgb, var(--panel-bg) 80%, transparent);
+  color: var(--text-muted);
+  font-size: 0.68rem;
+  font-weight: 650;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
 .brandLogo {
   width: auto;
   height: 26px;
@@ -452,6 +478,7 @@ textarea {
 }
 
 .projectsKicker,
+.projectsFeedEyebrow,
 .projectsSpotlightEyebrow,
 .projectsEmptyEyebrow,
 .clientLedgerEyebrow,
@@ -523,6 +550,80 @@ textarea {
   font-size: 0.8rem;
   font-weight: 600;
   letter-spacing: 0.01em;
+}
+
+.projectsFeedRail {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  gap: 0.85rem;
+  align-content: start;
+}
+
+.projectsFeedList {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.projectsFeedItem {
+  display: grid;
+  gap: 0.45rem;
+  align-items: start;
+  padding: 0.9rem 0 0;
+  border-top: 1px solid color-mix(in oklch, var(--projects-border) 76%, transparent);
+}
+
+.projectsFeedItem:first-child {
+  padding-top: 0;
+  border-top: 0;
+}
+
+.projectsFeedMeta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+  color: var(--projects-muted);
+  font-size: 0.74rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.projectsFeedLink {
+  color: var(--text-primary);
+  text-decoration: none;
+  font-family: var(--font-display), Georgia, serif;
+  font-size: clamp(1.25rem, 2.2vw, 1.65rem);
+  line-height: 1.08;
+  letter-spacing: -0.025em;
+}
+
+.projectsFeedLink:hover {
+  color: var(--projects-accent-strong);
+}
+
+.projectsFeedDescription,
+.projectsFeedFallback p {
+  margin: 0;
+  color: var(--projects-muted);
+  line-height: 1.7;
+}
+
+.projectsFeedFallback {
+  padding-top: 0.25rem;
+}
+
+.projectsHeroFeedSkeleton {
+  gap: 0.85rem;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.projectsHeroFeedSkeleton .projectsHeroSkeletonLine {
+  border-radius: 0;
+  box-shadow: none;
 }
 
 .projectsSpotlight {
@@ -950,7 +1051,7 @@ textarea {
 
 .projectLedgerStatus {
   color: color-mix(in oklch, var(--project-tone, var(--projects-accent-strong)) 70%, var(--text-primary));
-  font-size: 0.75rem;
+  font-size: 0.65rem;
   font-weight: 700;
   letter-spacing: 0.12em;
   text-transform: uppercase;
@@ -962,7 +1063,7 @@ textarea {
 }
 
 .projectsExperience .projectTitle {
-  font-size: 1.03rem;
+  font-size: 1.125rem;
   line-height: 1.25;
 }
 
@@ -1367,6 +1468,15 @@ button {
   text-decoration: none;
 }
 
+.terciary,
+.terciaryLink {
+  background: transparent;
+  color: var(--link-color);
+  text-decoration: underline;
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
 .dialog {
   border: 1px solid var(--dialog-border);
   border-radius: 0;
@@ -1753,6 +1863,35 @@ li.active {
   max-width: min(46rem, 100%);
 }
 
+.projectDetailsSection {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.projectDetailsEditor {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 0.9rem;
+  align-items: end;
+}
+
+.projectDetailsField {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.projectDetailsField span {
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.projectDetailsActions {
+  grid-column: 1 / -1;
+}
+
 .projectClientPill {
   display: inline-flex;
   align-items: center;
@@ -1926,7 +2065,6 @@ li.active {
 }
 
 .discussionSection + .discussionSection {
-  border-top: 1px solid color-mix(in srgb, var(--thread-border) 88%, transparent);
   padding-top: 12px;
 }
 
@@ -1975,10 +2113,125 @@ li.active {
   gap: 10px;
 }
 
+.discussionCommentHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.discussionCommentActions {
+  display: inline-flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+.discussionRichText {
+  color: var(--text-primary);
+}
+
+.discussionRichText :where(h1, h2, h3, h4, h5, h6) {
+  margin: 1.25rem 0 0.6rem;
+  font-family: var(--font-display), Georgia, serif;
+  line-height: 1.08;
+  letter-spacing: -0.02em;
+}
+
+.discussionRichText :where(p, ul, ol, blockquote, pre, hr, figure) {
+  margin: 0 0 0.95rem;
+}
+
+.discussionRichText :where(ul, ol) {
+  display: block;
+  padding-left: 1.25rem;
+}
+
+.discussionRichText ul {
+  list-style: disc;
+}
+
+.discussionRichText ol {
+  list-style: decimal;
+}
+
+.discussionRichText li {
+  display: list-item;
+  margin: 0.32rem 0;
+}
+
+.discussionRichText li::marker {
+  color: var(--projects-accent-strong);
+}
+
+.discussionRichText a {
+  color: var(--link-color);
+  text-decoration: underline;
+  text-decoration-thickness: 0.08em;
+  text-underline-offset: 0.16em;
+}
+
+.discussionRichText blockquote {
+  padding: 0.1rem 0 0.1rem 0.95rem;
+  border-left: 2px solid color-mix(in srgb, var(--active-border) 45%, transparent);
+  color: var(--text-muted);
+}
+
+.discussionRichText :where(code, pre) {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+}
+
+.discussionRichText code {
+  padding: 0.12rem 0.3rem;
+  background: color-mix(in srgb, var(--panel-bg) 68%, var(--input-bg));
+  font-size: 0.92em;
+}
+
+.discussionRichText pre {
+  overflow-x: auto;
+  padding: 0.8rem 0.9rem;
+  border: 1px solid color-mix(in srgb, var(--thread-border) 76%, transparent);
+  background: color-mix(in srgb, var(--panel-bg) 74%, var(--input-bg));
+}
+
+.discussionRichText pre code {
+  padding: 0;
+  background: transparent;
+}
+
+.discussionRichText img {
+  display: block;
+  max-width: min(100%, 42rem);
+  height: auto;
+  border: 1px solid color-mix(in srgb, var(--thread-border) 76%, transparent);
+}
+
+.commentAttachmentStack {
+  display: grid;
+  gap: 0.8rem;
+}
+
 .commentAttachmentList {
   display: grid;
   gap: 6px;
   margin-top: 8px;
+}
+
+.commentAttachmentThumbGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 150px));
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.commentAttachmentThumbItem {
+  width: 150px;
+}
+
+.commentAttachmentThumbButton {
+  width: 150px;
+  height: 150px;
+  aspect-ratio: 1 / 1;
 }
 
 .commentAttachmentItem {
@@ -2236,14 +2489,6 @@ textarea:focus-visible,
     grid-template-columns: 1fr;
   }
 
-  .projectsSpotlight {
-    justify-content: stretch;
-  }
-
-  .projectsSpotlightCard {
-    width: 100%;
-  }
-
   .projectsFilterShelf,
   .clientLedgerSection {
     grid-template-columns: 1fr;
@@ -2273,9 +2518,23 @@ textarea:focus-visible,
     gap: 0.6rem;
   }
 
+  .brandCluster {
+    justify-self: start;
+    gap: 0.2rem;
+  }
+
   .brandLink {
     font-size: 0.82rem;
-    justify-self: center;
+    justify-self: start;
+  }
+
+  .brandStats {
+    gap: 0.25rem;
+  }
+
+  .brandStatChip {
+    padding-inline: 0.35rem;
+    font-size: 0.62rem;
   }
 
   .themeTopBarActions {
@@ -2368,5 +2627,30 @@ textarea:focus-visible,
     width: 100%;
     height: auto;
     aspect-ratio: 1 / 1;
+  }
+
+  .projectDetailsEditor {
+    grid-template-columns: 1fr;
+  }
+
+  .discussionCommentHeader {
+    flex-direction: column;
+  }
+
+  .discussionCommentActions {
+    justify-content: flex-start;
+  }
+
+  .commentAttachmentThumbGrid {
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  }
+
+  .commentAttachmentThumbItem {
+    width: 100%;
+  }
+
+  .commentAttachmentThumbButton {
+    width: 100%;
+    height: auto;
   }
 }

@@ -1,10 +1,13 @@
 "use client";
 
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { ProjectTagList } from "@/components/project-tag-list";
 import { useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import { getSupabaseBrowserClient } from "@/lib/supabase-browser";
+
+const MarkdownEditor = dynamic(() => import("@/components/markdown-editor"), { ssr: false });
 
 type Project = {
   id: string;
@@ -13,6 +16,9 @@ type Project = {
   description: string | null;
   tags?: string[] | null;
   status?: string | null;
+  client_id: string | null;
+  requestor?: string | null;
+  personal_hours?: number | string | null;
 };
 
 type Thread = {
@@ -47,8 +53,12 @@ export default function ProjectPage() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [isFileDragActive, setIsFileDragActive] = useState(false);
+  const [isSavingProjectDetails, setIsSavingProjectDetails] = useState(false);
   const [title, setTitle] = useState("");
   const [bodyMarkdown, setBodyMarkdown] = useState("");
+  const [requestorInput, setRequestorInput] = useState("");
+  const [personalHoursInput, setPersonalHoursInput] = useState("");
+  const [createDiscussionEditorKey, setCreateDiscussionEditorKey] = useState(0);
   const createDiscussionDialogRef = useRef<HTMLDialogElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const previewUrlsRef = useRef<Record<string, string>>({});
@@ -105,6 +115,11 @@ export default function ProjectPage() {
 
     init().catch((error) => setStatus(error instanceof Error ? error.message : "Load failed"));
   }, [supabase, projectId]);
+
+  useEffect(() => {
+    setRequestorInput(project?.requestor ?? "");
+    setPersonalHoursInput(formatPersonalHoursInput(project?.personal_hours));
+  }, [project]);
 
   useEffect(() => {
     previewUrlsRef.current = filePreviewUrls;
@@ -236,8 +251,45 @@ export default function ProjectPage() {
     });
     setTitle("");
     setBodyMarkdown("");
+    setCreateDiscussionEditorKey((current) => current + 1);
     createDiscussionDialogRef.current?.close();
     await load(token, projectId);
+  }
+
+  async function saveProjectDetails() {
+    if (!token || !projectId || !project || !project.client_id) return;
+
+    const trimmedRequestor = requestorInput.trim();
+    const trimmedHours = personalHoursInput.trim();
+    const parsedPersonalHours = trimmedHours ? Number(trimmedHours) : Number.NaN;
+    if (trimmedHours && (!Number.isFinite(parsedPersonalHours) || parsedPersonalHours < 0)) {
+      throw new Error("Personal hours must be a non-negative number");
+    }
+    const personalHours = trimmedHours ? parsedPersonalHours : null;
+
+    setIsSavingProjectDetails(true);
+    try {
+      await authedFetch(token, `/projects/${projectId}`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          name: project.name,
+          description: project.description ?? undefined,
+          clientId: project.client_id,
+          tags: project.tags ?? [],
+          requestor: trimmedRequestor || null,
+          personalHours
+        })
+      });
+      await load(token, projectId);
+      setStatus("Project details saved");
+    } finally {
+      setIsSavingProjectDetails(false);
+    }
+  }
+
+  function resetProjectDetailsForm() {
+    setRequestorInput(project?.requestor ?? "");
+    setPersonalHoursInput(formatPersonalHoursInput(project?.personal_hours));
   }
 
   async function uploadSelectedFile() {
@@ -329,6 +381,49 @@ export default function ProjectPage() {
       </header>
 
       <p className="status">{status}</p>
+
+      <section className="stackSection projectDetailsSection">
+        <div className="sectionHeader">
+          <div className="sectionHeaderTitle">
+            <h2>Project Details</h2>
+            <small className="filesCount">Saved only on this project page</small>
+          </div>
+        </div>
+        <div className="projectDetailsEditor">
+          <label className="projectDetailsField">
+            <span>Requestor</span>
+            <input
+              value={requestorInput}
+              onChange={(event) => setRequestorInput(event.target.value)}
+              placeholder="Who requested this work?"
+            />
+          </label>
+          <label className="projectDetailsField">
+            <span>Personal hours</span>
+            <input
+              type="number"
+              min="0"
+              step="0.25"
+              inputMode="decimal"
+              value={personalHoursInput}
+              onChange={(event) => setPersonalHoursInput(event.target.value)}
+              placeholder="0"
+            />
+          </label>
+          <div className="row projectDetailsActions">
+            <button
+              type="button"
+              onClick={() => saveProjectDetails().catch((error) => setStatus(error.message))}
+              disabled={isSavingProjectDetails || !project?.client_id}
+            >
+              {isSavingProjectDetails ? "Saving..." : "Save"}
+            </button>
+            <button type="button" className="secondary" onClick={resetProjectDetailsForm} disabled={isSavingProjectDetails}>
+              Cancel
+            </button>
+          </div>
+        </div>
+      </section>
 
       <section className="stackSection">
         <div className="sectionHeader">
@@ -485,7 +580,12 @@ export default function ProjectPage() {
           <h3>Create Discussion</h3>
           <div className="form">
             <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Discussion title" />
-            <textarea value={bodyMarkdown} onChange={(e) => setBodyMarkdown(e.target.value)} placeholder="Markdown body" />
+            <MarkdownEditor
+              key={`create-discussion-${createDiscussionEditorKey}`}
+              markdown={bodyMarkdown}
+              onChange={setBodyMarkdown}
+              placeholder="Write the discussion body in markdown"
+            />
           </div>
           <div className="row">
             <button
@@ -495,7 +595,16 @@ export default function ProjectPage() {
             >
               Create
             </button>
-            <button type="button" className="secondary" onClick={() => createDiscussionDialogRef.current?.close()}>
+            <button
+              type="button"
+              className="secondary"
+              onClick={() => {
+                setTitle("");
+                setBodyMarkdown("");
+                setCreateDiscussionEditorKey((current) => current + 1);
+                createDiscussionDialogRef.current?.close();
+              }}
+            >
               Cancel
             </button>
           </div>
@@ -530,4 +639,13 @@ function formatBytes(size: number) {
     unitIndex += 1;
   }
   return `${value.toFixed(value >= 10 ? 0 : 1)} ${units[unitIndex]}`;
+}
+
+function formatPersonalHoursInput(value: number | string | null | undefined) {
+  if (value === null || value === undefined || value === "") {
+    return "";
+  }
+
+  const numericValue = typeof value === "number" ? value : Number(value);
+  return Number.isFinite(numericValue) ? String(numericValue) : "";
 }

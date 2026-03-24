@@ -211,6 +211,8 @@ export async function updateProject(args: {
   description?: string;
   clientId: string;
   tags?: string[];
+  requestor?: string | null;
+  personalHours?: number | string | null;
 }) {
   const current = await getProject(args.id);
   if (!current) {
@@ -221,15 +223,24 @@ export async function updateProject(args: {
   }
 
   const nextTags = args.tags === undefined ? current.tags ?? [] : normalizeProjectTags(args.tags);
+  const nextRequestor =
+    args.requestor === undefined
+      ? current.requestor ?? null
+      : typeof args.requestor === "string"
+        ? args.requestor.trim() || null
+        : null;
+  const nextPersonalHours = args.personalHours === undefined ? current.personal_hours ?? null : args.personalHours;
   const result = await query(
     `update projects
      set name = $2,
          description = $3,
          tags = $4::text[],
+         requestor = $5,
+         personal_hours = $6,
          updated_at = now()
      where id = $1
      returning *`,
-    [args.id, args.name.trim(), args.description ?? null, nextTags]
+    [args.id, args.name.trim(), args.description ?? null, nextTags, nextRequestor, nextPersonalHours]
   );
 
   return result.rows[0] ?? null;

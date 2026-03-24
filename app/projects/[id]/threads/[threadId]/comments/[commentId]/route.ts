@@ -1,6 +1,6 @@
 import { requireUser } from "@/lib/auth";
-import { badRequest, notFound, ok, serverError, unauthorized } from "@/lib/http";
-import { editComment } from "@/lib/repositories";
+import { badRequest, forbidden, notFound, ok, serverError, unauthorized } from "@/lib/http";
+import { editComment, getComment } from "@/lib/repositories";
 import { z } from "zod";
 
 const editCommentSchema = z.object({
@@ -12,8 +12,15 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string; threadId: string; commentId: string }> }
 ) {
   try {
-    await requireUser(request);
+    const user = await requireUser(request);
     const { id, threadId, commentId } = await params;
+    const existingComment = await getComment(id, threadId, commentId);
+    if (!existingComment) {
+      return notFound("Comment not found");
+    }
+    if (existingComment.author_user_id !== user.id) {
+      return forbidden("Only the comment author can edit this comment");
+    }
     const payload = editCommentSchema.parse(await request.json());
     const comment = await editComment({
       projectId: id,
