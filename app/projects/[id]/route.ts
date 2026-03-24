@@ -8,15 +8,14 @@ const patchProjectSchema = z.object({
   description: z.string().optional(),
   clientId: z.string().uuid(),
   tags: z.array(z.string().min(1)).max(50).optional(),
-  requestor: z.string().optional().nullable(),
-  personalHours: z.number().nonnegative().optional().nullable()
+  requestor: z.string().optional().nullable()
 });
 
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
-    await requireUser(request);
+    const user = await requireUser(request);
     const { id } = await params;
-    const project = await getProject(id);
+    const project = await getProject(id, user.id);
     if (!project) {
       return notFound("Project not found");
     }
@@ -40,8 +39,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       description: payload.description,
       clientId: payload.clientId,
       tags: payload.tags,
-      requestor: payload.requestor,
-      personalHours: payload.personalHours
+      requestor: payload.requestor
     });
     if (!project) {
       return notFound("Project not found");

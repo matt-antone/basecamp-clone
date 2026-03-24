@@ -327,6 +327,71 @@ textarea {
   letter-spacing: 0.01em;
 }
 
+.loadingStatePage {
+  min-height: min(70vh, 40rem);
+  display: grid;
+  place-items: center;
+}
+
+.loadingState,
+.inlineLoadingState {
+  display: grid;
+  justify-items: center;
+  gap: 1rem;
+  text-align: center;
+}
+
+.loadingState {
+  width: min(100%, 28rem);
+  padding: clamp(1.5rem, 4vw, 2.5rem);
+}
+
+.inlineLoadingState {
+  min-height: 13rem;
+  padding: 1.5rem;
+  border: 1px solid color-mix(in oklch, var(--md-editor-border) 80%, transparent);
+  background: color-mix(in oklch, var(--md-editor-bg) 92%, var(--panel-bg));
+}
+
+.loadingStateSpinner {
+  width: 2.25rem;
+  height: 2.25rem;
+  border: 2px solid color-mix(in oklch, var(--panel-border) 68%, transparent);
+  border-top-color: var(--projects-accent-strong, color-mix(in oklch, var(--text-primary) 72%, transparent));
+  border-radius: 999px;
+  animation: loadingSpin 0.9s linear infinite;
+}
+
+.inlineLoadingStateSpinner {
+  width: 1.8rem;
+  height: 1.8rem;
+}
+
+.loadingStateCopy {
+  display: grid;
+  gap: 0.4rem;
+  justify-items: center;
+}
+
+.loadingStateLabel,
+.loadingStateMessage {
+  margin: 0;
+}
+
+.loadingStateLabel {
+  color: var(--text-primary);
+  font-size: 0.95rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+.loadingStateMessage {
+  max-width: 34ch;
+  color: var(--text-muted);
+  font-size: 0.94rem;
+  line-height: 1.6;
+}
+
 .projectsExperience {
   --projects-accent: oklch(0.45 0.06 238);
   --projects-accent-strong: oklch(0.34 0.07 242);
@@ -402,79 +467,6 @@ textarea {
   display: grid;
   gap: 1rem;
   align-content: start;
-}
-
-.projectsHeroSkeleton {
-  display: grid;
-  gap: 1rem;
-  align-content: start;
-}
-
-.projectsHeroSkeletonTitleGroup,
-.projectsHeroSkeletonIntroGroup {
-  display: grid;
-  gap: 0.55rem;
-}
-
-.projectsHeroSkeletonLine {
-  position: relative;
-  overflow: hidden;
-  border-radius: 999px;
-  background:
-    linear-gradient(
-      90deg,
-      color-mix(in oklch, var(--input-bg) 72%, var(--panel-bg)) 0%,
-      color-mix(in oklch, var(--panel-bg) 82%, white 18%) 52%,
-      color-mix(in oklch, var(--input-bg) 74%, var(--panel-bg)) 100%
-    );
-  box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--projects-border) 45%, transparent);
-}
-
-.projectsHeroSkeletonLine::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  transform: translateX(-100%);
-  background: linear-gradient(90deg, transparent, color-mix(in oklch, white 44%, transparent), transparent);
-  animation: skeletonSheen 1.8s cubic-bezier(0.22, 1, 0.36, 1) infinite;
-}
-
-.projectsHeroSkeletonKicker {
-  width: clamp(8rem, 22vw, 11rem);
-  height: 0.72rem;
-  margin-top: 0.1rem;
-}
-
-.projectsHeroSkeletonTitle {
-  border-radius: 1.2rem;
-  height: clamp(2.2rem, 5vw, 4rem);
-}
-
-.projectsHeroSkeletonTitleLong {
-  width: min(100%, 30rem);
-}
-
-.projectsHeroSkeletonTitleShort {
-  width: min(72%, 22rem);
-}
-
-.projectsHeroSkeletonIntro {
-  border-radius: 0.8rem;
-  height: 0.98rem;
-}
-
-.projectsHeroSkeletonIntroFull {
-  width: min(100%, 38rem);
-}
-
-.projectsHeroSkeletonIntroShort {
-  width: min(74%, 28rem);
-}
-
-.projectsHeroSkeletonButton {
-  width: 8.4rem;
-  height: 2.85rem;
-  border-radius: 999px;
 }
 
 .projectsKicker,
@@ -611,19 +603,6 @@ textarea {
 
 .projectsFeedFallback {
   padding-top: 0.25rem;
-}
-
-.projectsHeroFeedSkeleton {
-  gap: 0.85rem;
-  border: 0;
-  border-radius: 0;
-  background: transparent;
-  box-shadow: none;
-}
-
-.projectsHeroFeedSkeleton .projectsHeroSkeletonLine {
-  border-radius: 0;
-  box-shadow: none;
 }
 
 .projectsSpotlight {
@@ -1397,6 +1376,26 @@ textarea {
   margin-bottom: 14px;
 }
 
+.dialogField {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.dialogField span,
+.projectHoursField span {
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.dialogFieldHint {
+  margin: -2px 0 0;
+  color: var(--text-muted);
+  font-size: 0.78rem;
+}
+
 input,
 select,
 textarea {
@@ -1859,37 +1858,56 @@ li.active {
   min-width: 0;
 }
 
-.projectHeaderTags {
-  max-width: min(46rem, 100%);
-}
-
-.projectDetailsSection {
-  display: grid;
-  gap: 0.85rem;
-}
-
-.projectDetailsEditor {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 0.9rem;
+.projectHoursRow {
+  display: flex;
   align-items: end;
+  gap: 10px;
+  flex-wrap: wrap;
 }
 
-.projectDetailsField {
+.projectHoursFieldInput{
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.projectHoursAvatar {
+  width: 34px;
+  height: 34px;
+  border-radius: 0;
+  object-fit: cover;
+  border: 1px solid var(--avatar-border);
+  flex: 0 0 auto;
+}
+
+.projectHoursAvatarFallback {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--avatar-bg);
+  color: var(--button-secondary-text);
+  font-weight: 700;
+}
+
+.projectHoursForm {
+  display: flex;
+  align-items: end;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.projectHoursField {
   display: grid;
   gap: 0.45rem;
+  min-width: min(220px, 100%);
 }
 
-.projectDetailsField span {
-  color: var(--text-muted);
-  font-size: 0.78rem;
-  font-weight: 600;
-  letter-spacing: 0.02em;
-  text-transform: uppercase;
+.projectHoursField input {
+  min-width: 180px;
 }
 
-.projectDetailsActions {
-  grid-column: 1 / -1;
+.projectHeaderTags {
+  max-width: min(46rem, 100%);
 }
 
 .projectClientPill {
@@ -2450,9 +2468,9 @@ textarea:focus-visible,
   }
 }
 
-@keyframes skeletonSheen {
+@keyframes loadingSpin {
   100% {
-    transform: translateX(100%);
+    transform: rotate(360deg);
   }
 }
 
@@ -2629,8 +2647,13 @@ textarea:focus-visible,
     aspect-ratio: 1 / 1;
   }
 
-  .projectDetailsEditor {
-    grid-template-columns: 1fr;
+  .projectHoursForm {
+    width: 100%;
+  }
+
+  .projectHoursField {
+    min-width: 0;
+    flex: 1 1 200px;
   }
 
   .discussionCommentHeader {

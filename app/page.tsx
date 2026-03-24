@@ -1,7 +1,10 @@
 "use client";
 
 import Link from "next/link";
+import { PageLoadingState } from "@/components/loading-shells";
+import { ProjectDialogForm, type ProjectDialogValues } from "@/components/project-dialog-form";
 import { ProjectTagList } from "@/components/project-tag-list";
+import { createClientResource } from "@/lib/client-resource";
 import {
   type CSSProperties,
   type FocusEvent,
@@ -16,7 +19,6 @@ import {
 import type { FeaturedFeedPost } from "@/lib/featured-feed";
 import { getSupabaseBrowserClient } from "@/lib/supabase-browser";
 
-type SessionUser = { id: string; email?: string };
 type ClientRecord = { id: string; name: string; code: string };
 type Project = {
   id: string;
@@ -34,6 +36,14 @@ type Project = {
 type ProjectColumn = "new" | "in_progress" | "blocked" | "complete";
 type ProjectsViewTab = "list" | "board" | "archived";
 type StatusFilter = "all" | ProjectColumn;
+type ProjectsBootstrap = {
+  accessToken: string | null;
+  status: string;
+  domainAllowed: boolean;
+  clients: ClientRecord[];
+  projects: Project[];
+  latestFeaturedPosts: FeaturedFeedPost[];
+};
 
 const PROJECT_COLUMNS: { key: ProjectColumn; title: string; subtitle: string }[] = [
   { key: "new", title: "New", subtitle: "Ready to shape" },
@@ -42,26 +52,53 @@ const PROJECT_COLUMNS: { key: ProjectColumn; title: string; subtitle: string }[]
   { key: "complete", title: "Complete", subtitle: "Ready to file away" }
 ];
 
-export default function ProjectsPage() {
-  const [supabase, setSupabase] = useState<ReturnType<typeof getSupabaseBrowserClient> | null>(null);
-  const [user, setUser] = useState<SessionUser | null>(null);
-  const [accessToken, setAccessToken] = useState<string | null>(null);
-  const [status, setStatus] = useState("Initializing...");
-  const [domainAllowed, setDomainAllowed] = useState(false);
+const projectsBootstrapResource = createClientResource(loadProjectsBootstrap, () => "projects-home");
 
-  const [clients, setClients] = useState<ClientRecord[]>([]);
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [latestFeaturedPosts, setLatestFeaturedPosts] = useState<FeaturedFeedPost[]>([]);
-  const [isFeaturedFeedLoading, setIsFeaturedFeedLoading] = useState(true);
+export default function ProjectsPage() {
+  const [initial, setInitial] = useState<ProjectsBootstrap | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    projectsBootstrapResource.read("projects-home").then((nextState) => {
+      if (!cancelled) {
+        setInitial(nextState);
+      }
+    });
+
+    return () => {
+      cancelled = true;
+      projectsBootstrapResource.clear();
+    };
+  }, []);
+
+  if (!initial) {
+    return (
+      <PageLoadingState
+        label="Loading workspace"
+        message="Gathering projects, clients, and the latest studio signals."
+      />
+    );
+  }
+
+  return <ProjectsPageContent initial={initial} />;
+}
+
+function ProjectsPageContent({ initial }: { initial: ProjectsBootstrap }) {
+  const [accessToken, setAccessToken] = useState<string | null>(initial.accessToken);
+  const [status, setStatus] = useState(initial.status);
+  const [domainAllowed, setDomainAllowed] = useState(initial.domainAllowed);
+
+  const [clients, setClients] = useState<ClientRecord[]>(initial.clients);
+  const [projects, setProjects] = useState<Project[]>(initial.projects);
+  const [latestFeaturedPosts, setLatestFeaturedPosts] = useState<FeaturedFeedPost[]>(initial.latestFeaturedPosts);
   const [activeTab, setActiveTab] = useState<ProjectsViewTab>("list");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [searchValue, setSearchValue] = useState("");
   const [highlightedProjectId, setHighlightedProjectId] = useState<string | null>(null);
 
-  const [newProjectName, setNewProjectName] = useState("");
-  const [newProjectDescription, setNewProjectDescription] = useState("");
-  const [newProjectClientId, setNewProjectClientId] = useState("");
-  const [newProjectTags, setNewProjectTags] = useState("");
+  const [projectForm, setProjectForm] = useState<ProjectDialogValues>(createProjectDialogValues());
+  const [isCreatingProject, setIsCreatingProject] = useState(false);
   const [draggingProjectId, setDraggingProjectId] = useState<string | null>(null);
   const [dragOverColumn, setDragOverColumn] = useState<ProjectColumn | null>(null);
   const [justMovedProjectId, setJustMovedProjectId] = useState<string | null>(null);
@@ -91,138 +128,74 @@ export default function ProjectsPage() {
     return data;
   }
 
-  async function refreshClients() {
-    const data = await authedFetch("/clients");
+  async function refreshClients(nextAccessToken = accessToken) {
+    if (!nextAccessToken) {
+      throw new Error("Missing access token");
+    }
+
+    const data = await authedFetchWithToken(nextAccessToken, "/clients");
     const loaded = data.clients ?? [];
     setClients(loaded);
-    if (!newProjectClientId && loaded[0]?.id) {
-      setNewProjectClientId(loaded[0].id);
-    }
+    setProjectForm((current) =>
+      current.clientId || !loaded[0]?.id
+        ? current
+        : {
+            ...current,
+            clientId: loaded[0].id
+          }
+    );
   }
 
-  async function refreshProjects() {
-    const data = await authedFetch("/projects?includeArchived=true");
+  async function refreshProjects(nextAccessToken = accessToken) {
+    if (!nextAccessToken) {
+      throw new Error("Missing access token");
+    }
+
+    const data = await authedFetchWithToken(nextAccessToken, "/projects?includeArchived=true");
     setProjects(data.projects ?? []);
   }
 
-  useEffect(() => {
-    try {
-      setSupabase(getSupabaseBrowserClient());
-    } catch (error) {
-      setStatus(error instanceof Error ? error.message : "Supabase init error");
-    }
-  }, []);
-
-  useEffect(() => {
-    let isActive = true;
-
-    fetch("/feeds/latest", { cache: "no-store" })
-      .then(async (response) => {
-        if (!response.ok) {
-          throw new Error(`Feed request failed: ${response.status}`);
-        }
-
-        const data = (await response.json()) as { posts?: FeaturedFeedPost[] };
-        if (isActive && data.posts?.length) {
-          setLatestFeaturedPosts(data.posts.slice(0, 2));
-        }
-      })
-      .catch(() => {
-        // Keep the default hero copy if the feed cannot be reached.
-      })
-      .finally(() => {
-        if (isActive) {
-          setIsFeaturedFeedLoading(false);
-        }
-      });
-
-    return () => {
-      isActive = false;
-    };
-  }, []);
-
-  useEffect(() => {
-    if (!supabase) return;
-
-    const init = async () => {
-      const { data } = await supabase.auth.getSession();
-      setUser(data.session?.user ? { id: data.session.user.id, email: data.session.user.email } : null);
-      setAccessToken(data.session?.access_token ?? null);
-      if (!data.session?.user?.email) {
-        setStatus("Please sign in");
-        return;
-      }
-
-      const response = await fetch("/auth/google/callback", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ provider: "google", email: data.session.user.email })
-      });
-
-      if (!response.ok) {
-        setStatus("Blocked: non-workspace account");
-        await supabase.auth.signOut();
-        return;
-      }
-
-      setDomainAllowed(true);
-      setStatus(`Signed in as ${data.session.user.email}`);
-    };
-
-    init().catch((error) => setStatus(error instanceof Error ? error.message : "Init failed"));
-
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ? { id: session.user.id, email: session.user.email } : null);
-      setAccessToken(session?.access_token ?? null);
-    });
-
-    return () => listener.subscription.unsubscribe();
-  }, [supabase]);
-
-  useEffect(() => {
-    if (!domainAllowed || !accessToken) return;
-    refreshClients().catch((error) => setStatus(error instanceof Error ? error.message : "Failed loading clients"));
-    refreshProjects().catch((error) => setStatus(error instanceof Error ? error.message : "Failed loading projects"));
-  }, [domainAllowed, accessToken]);
-
   async function signIn() {
-    if (!supabase) return;
+    const supabase = getSupabaseBrowserClient();
     await supabase.auth.signInWithOAuth({ provider: "google", options: { redirectTo: window.location.origin } });
   }
 
   async function signOut() {
-    if (!supabase) return;
+    const supabase = getSupabaseBrowserClient();
     await supabase.auth.signOut();
     setDomainAllowed(false);
+    setAccessToken(null);
     setProjects([]);
     setClients([]);
-    setStatus("Signed out");
+    setLatestFeaturedPosts([]);
+    setStatus("Please sign in");
+    projectsBootstrapResource.clear();
   }
 
   async function createProject() {
-    const tags = Array.from(
-      new Set(
-        newProjectTags
-          .split(",")
-          .map((tag) => tag.trim().toLowerCase())
-          .filter(Boolean)
-      )
-    );
+    setIsCreatingProject(true);
+    try {
+      await authedFetch("/projects", {
+        method: "POST",
+        body: JSON.stringify({
+          name: projectForm.name,
+          description: projectForm.description,
+          clientId: projectForm.clientId,
+          tags: parseProjectTags(projectForm.tags),
+          requestor: projectForm.requestor.trim() || null
+        })
+      });
+      setProjectForm(createProjectDialogValues(clients[0]?.id ?? ""));
+      createDialogRef.current?.close();
+      await refreshProjects();
+    } finally {
+      setIsCreatingProject(false);
+    }
+  }
 
-    await authedFetch("/projects", {
-      method: "POST",
-      body: JSON.stringify({
-        name: newProjectName,
-        description: newProjectDescription,
-        clientId: newProjectClientId,
-        tags
-      })
-    });
-    setNewProjectName("");
-    setNewProjectDescription("");
-    setNewProjectTags("");
-    createDialogRef.current?.close();
-    await refreshProjects();
+  function openCreateDialog() {
+    setProjectForm(createProjectDialogValues(clients[0]?.id ?? ""));
+    createDialogRef.current?.showModal();
   }
 
   async function toggleArchive(project: Project) {
@@ -392,7 +365,7 @@ export default function ProjectsPage() {
               : "Create a project and the index will start forming around your client work."}
           </p>
           {!searchTerm && statusFilter === "all" && activeTab !== "archived" && (
-            <button type="button" className="projectPrimaryButton" onClick={() => createDialogRef.current?.showModal()}>
+            <button type="button" className="projectPrimaryButton" onClick={openCreateDialog}>
               New project
             </button>
           )}
@@ -571,7 +544,6 @@ export default function ProjectsPage() {
   const visibleClients = new Set(visibleProjects.map((project) => getProjectClientLabel(project))).size;
   const featuredHeroPost = latestFeaturedPosts[0] ?? null;
   const feedRailPosts = latestFeaturedPosts.length > 1 ? latestFeaturedPosts.slice(1) : latestFeaturedPosts;
-  const isHeroFeedLoading = isFeaturedFeedLoading && latestFeaturedPosts.length === 0;
   const heroKicker = featuredHeroPost ? `Latest from ${featuredHeroPost.sourceName}` : "Projects index";
   const heroTitle = featuredHeroPost?.title ?? "A calmer way to see what the studio is carrying.";
   const heroIntro =
@@ -586,62 +558,31 @@ export default function ProjectsPage() {
           <p className={`projectsSessionNote ${domainAllowed && status.startsWith("Signed in as") ? "projectsSessionNoteQuiet" : ""}`}>
             {status}
           </p>
-          {isHeroFeedLoading ? (
-            <div className="projectsHeroSkeleton" role="status" aria-live="polite" aria-label="Loading featured article">
-              <span className="visuallyHidden">Loading featured article</span>
-              <div className="projectsHeroSkeletonLine projectsHeroSkeletonKicker" aria-hidden="true" />
-              <div className="projectsHeroSkeletonTitleGroup" aria-hidden="true">
-                <div className="projectsHeroSkeletonLine projectsHeroSkeletonTitle projectsHeroSkeletonTitleLong" />
-                <div className="projectsHeroSkeletonLine projectsHeroSkeletonTitle projectsHeroSkeletonTitleShort" />
-              </div>
-              <div className="projectsHeroSkeletonIntroGroup" aria-hidden="true">
-                <div className="projectsHeroSkeletonLine projectsHeroSkeletonIntro projectsHeroSkeletonIntroFull" />
-                <div className="projectsHeroSkeletonLine projectsHeroSkeletonIntro projectsHeroSkeletonIntroFull" />
-                <div className="projectsHeroSkeletonLine projectsHeroSkeletonIntro projectsHeroSkeletonIntroShort" />
-              </div>
-              <div className="projectsHeroUtilityRow" aria-hidden="true">
-                <div className="projectsHeroSkeletonLine projectsHeroSkeletonButton" />
-              </div>
-            </div>
-          ) : (
-            <>
-              <p className="projectsKicker">{heroKicker}</p>
-              <h1 className={`projectsHeroTitle ${featuredHeroPost ? "projectsHeroTitleFeed" : ""}`}>{heroTitle}</h1>
-              <p className={`projectsHeroIntro ${featuredHeroPost ? "projectsHeroIntroFeed" : ""}`}>{heroIntro}</p>
-              {featuredHeroPost && (
-                <div className="projectsHeroUtilityRow">
-                  <div className="projectsHeaderActions">
-                    <a href={featuredHeroPost.url} target="_blank" rel="noreferrer" className="projectPrimaryButton projectPrimaryButtonLink">
-                      Read more
-                    </a>
-                  </div>
+          <>
+            <p className="projectsKicker">{heroKicker}</p>
+            <h1 className={`projectsHeroTitle ${featuredHeroPost ? "projectsHeroTitleFeed" : ""}`}>{heroTitle}</h1>
+            <p className={`projectsHeroIntro ${featuredHeroPost ? "projectsHeroIntroFeed" : ""}`}>{heroIntro}</p>
+            {featuredHeroPost && (
+              <div className="projectsHeroUtilityRow">
+                <div className="projectsHeaderActions">
+                  <a href={featuredHeroPost.url} target="_blank" rel="noreferrer" className="projectPrimaryButton projectPrimaryButtonLink">
+                    Read more
+                  </a>
                 </div>
-              )}
-              {domainAllowed && (
-                <div className="projectsHeroFacts" aria-label="Projects summary">
-                  <span>{filteredActiveProjects.length} active projects</span>
-                  <span>{new Set(filteredActiveProjects.map((project) => getProjectClientLabel(project))).size} live clients</span>
-                  <span>{archivedProjects.length} archived</span>
-                </div>
-              )}
-            </>
-          )}
+              </div>
+            )}
+            {domainAllowed && (
+              <div className="projectsHeroFacts" aria-label="Projects summary">
+                <span>{filteredActiveProjects.length} active projects</span>
+                <span>{new Set(filteredActiveProjects.map((project) => getProjectClientLabel(project))).size} live clients</span>
+                <span>{archivedProjects.length} archived</span>
+              </div>
+            )}
+          </>
         </div>
         <aside className="projectsFeedRail" aria-label="Latest feed posts">
           <p className="projectsFeedEyebrow">Latest posts</p>
-          {isHeroFeedLoading ? (
-            <div className="projectsHeroSkeleton projectsHeroFeedSkeleton" role="status" aria-live="polite" aria-label="Loading latest feed posts">
-              <span className="visuallyHidden">Loading latest feed posts</span>
-              <div className="projectsHeroSkeletonIntroGroup" aria-hidden="true">
-                <div className="projectsHeroSkeletonLine projectsHeroSkeletonTitle projectsHeroSkeletonTitleLong" />
-                <div className="projectsHeroSkeletonLine projectsHeroSkeletonIntro projectsHeroSkeletonIntroFull" />
-              </div>
-              <div className="projectsHeroSkeletonIntroGroup" aria-hidden="true">
-                <div className="projectsHeroSkeletonLine projectsHeroSkeletonTitle projectsHeroSkeletonTitleShort" />
-                <div className="projectsHeroSkeletonLine projectsHeroSkeletonIntro projectsHeroSkeletonIntroFull" />
-              </div>
-            </div>
-          ) : feedRailPosts.length > 0 ? (
+          {feedRailPosts.length > 0 ? (
             <ul className="projectsFeedList">
               {feedRailPosts.map((post) => (
                 <li key={`${post.url}-${post.publishedAt ?? "undated"}`} className="projectsFeedItem">
@@ -695,7 +636,7 @@ export default function ProjectsPage() {
             </div>
 
             <div className="projectsWorkbenchActions">
-              <button type="button" className="projectPrimaryButton" onClick={() => createDialogRef.current?.showModal()}>
+              <button type="button" className="projectPrimaryButton" onClick={openCreateDialog}>
                 New project
               </button>
             </div>
@@ -850,42 +791,16 @@ export default function ProjectsPage() {
 
       {/* Create project dialog */}
       <dialog ref={createDialogRef} className="dialog">
-        <form method="dialog" className="dialogForm">
-          <h3>Create Project</h3>
-          <div className="form">
-            <input value={newProjectName} onChange={(e) => setNewProjectName(e.target.value)} placeholder="Project name" />
-            <input
-              value={newProjectDescription}
-              onChange={(e) => setNewProjectDescription(e.target.value)}
-              placeholder="Description"
-            />
-            <input
-              value={newProjectTags}
-              onChange={(e) => setNewProjectTags(e.target.value)}
-              placeholder="Tags (comma separated)"
-            />
-            <select value={newProjectClientId} onChange={(e) => setNewProjectClientId(e.target.value)}>
-              <option value="">Select client</option>
-              {clients.map((client) => (
-                <option key={client.id} value={client.id}>
-                  {client.code} - {client.name}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="row">
-            <button
-              type="button"
-              onClick={() => createProject().catch((error) => setStatus(error.message))}
-              disabled={!newProjectName.trim() || !newProjectClientId}
-            >
-              Create
-            </button>
-            <button type="button" className="secondary" onClick={() => createDialogRef.current?.close()}>
-              Cancel
-            </button>
-          </div>
-        </form>
+        <ProjectDialogForm
+          title="Create Project"
+          submitLabel="Create"
+          values={projectForm}
+          clients={clients}
+          submitting={isCreatingProject}
+          onChange={setProjectForm}
+          onSubmit={() => createProject().catch((error) => setStatus(error.message))}
+          onCancel={() => createDialogRef.current?.close()}
+        />
       </dialog>
     </main>
   );
@@ -905,4 +820,114 @@ function formatFeedDate(value: string | null) {
     month: "short",
     day: "numeric"
   });
+}
+
+function parseProjectTags(value: string) {
+  return Array.from(
+    new Set(
+      value
+        .split(",")
+        .map((tag) => tag.trim().toLowerCase())
+        .filter(Boolean)
+    )
+  );
+}
+
+function createProjectDialogValues(clientId = ""): ProjectDialogValues {
+  return {
+    name: "",
+    description: "",
+    requestor: "",
+    tags: "",
+    clientId
+  };
+}
+
+async function authedFetchWithToken(accessToken: string, path: string, options: RequestInit = {}) {
+  const response = await fetch(path, {
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${accessToken}`,
+      ...(options.headers ?? {})
+    }
+  });
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(data.error ?? `Request failed: ${response.status}`);
+  }
+  return data;
+}
+
+async function loadProjectsBootstrap(): Promise<ProjectsBootstrap> {
+  let latestFeaturedPosts: FeaturedFeedPost[] = [];
+
+  try {
+    const feedResponse = await fetch("/feeds/latest", { cache: "no-store" });
+    if (feedResponse.ok) {
+      const feedData = (await feedResponse.json()) as { posts?: FeaturedFeedPost[] };
+      latestFeaturedPosts = feedData.posts?.slice(0, 2) ?? [];
+    }
+  } catch {
+    // Keep the default hero copy if the feed cannot be reached.
+  }
+
+  try {
+    const supabase = getSupabaseBrowserClient();
+    const { data } = await supabase.auth.getSession();
+    const accessToken = data.session?.access_token ?? null;
+    const email = data.session?.user?.email ?? null;
+
+    if (!accessToken || !email) {
+      return {
+        accessToken: null,
+        status: "Please sign in",
+        domainAllowed: false,
+        clients: [],
+        projects: [],
+        latestFeaturedPosts
+      };
+    }
+
+    const authResponse = await fetch("/auth/google/callback", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ provider: "google", email })
+    });
+
+    if (!authResponse.ok) {
+      await supabase.auth.signOut();
+      return {
+        accessToken: null,
+        status: "Blocked: non-workspace account",
+        domainAllowed: false,
+        clients: [],
+        projects: [],
+        latestFeaturedPosts
+      };
+    }
+
+    const [clientsResponse, projectsResponse] = await Promise.all([
+      authedFetchWithToken(accessToken, "/clients"),
+      authedFetchWithToken(accessToken, "/projects?includeArchived=true")
+    ]);
+
+    return {
+      accessToken,
+      status: `Signed in as ${email}`,
+      domainAllowed: true,
+      clients: clientsResponse.clients ?? [],
+      projects: projectsResponse.projects ?? [],
+      latestFeaturedPosts
+    };
+  } catch (error) {
+    return {
+      accessToken: null,
+      status: error instanceof Error ? error.message : "Unable to load workspace",
+      domainAllowed: false,
+      clients: [],
+      projects: [],
+      latestFeaturedPosts
+    };
+  }
 }

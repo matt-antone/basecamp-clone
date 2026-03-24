@@ -70,4 +70,45 @@ describe("POST /projects", () => {
     expect(deleteProjectByIdMock).toHaveBeenCalledWith("project-1");
     expect(setProjectStorageDirMock).not.toHaveBeenCalled();
   });
+
+  it("passes requestor through when creating a project", async () => {
+    requireUserMock.mockResolvedValue({ id: "user-1", email: "person@example.com" });
+    createProjectMock.mockResolvedValue({
+      id: "project-1",
+      project_code: "BRGS-0001",
+      project_slug: "website-refresh",
+      client_slug: "bright-ridge",
+      storage_project_dir: "/projects/bright-ridge/BRGS-0001-website-refresh"
+    });
+    ensureProjectFoldersMock.mockResolvedValue({
+      projectDir: "/projects/bright-ridge/BRGS-0001-website-refresh"
+    });
+    setProjectStorageDirMock.mockResolvedValue({
+      id: "project-1",
+      requestor: "Jane Producer"
+    });
+
+    const { POST } = await import("@/app/projects/route");
+    const response = await POST(
+      new Request("http://localhost/projects", {
+        method: "POST",
+        headers: {
+          authorization: "Bearer token",
+          "content-type": "application/json"
+        },
+        body: JSON.stringify({
+          name: "Website Refresh",
+          clientId: "11111111-1111-1111-1111-111111111111",
+          requestor: "Jane Producer"
+        })
+      })
+    );
+
+    expect(response.status).toBe(201);
+    expect(createProjectMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        requestor: "Jane Producer"
+      })
+    );
+  });
 });

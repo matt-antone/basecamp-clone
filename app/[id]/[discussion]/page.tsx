@@ -2,11 +2,16 @@
 
 import Link from "next/link";
 import dynamic from "next/dynamic";
+import { InlineLoadingState, PageLoadingState } from "@/components/loading-shells";
+import { createClientResource } from "@/lib/client-resource";
 import { useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import { getSupabaseBrowserClient } from "@/lib/supabase-browser";
 
-const MarkdownEditor = dynamic(() => import("@/components/markdown-editor"), { ssr: false });
+const MarkdownEditor = dynamic(() => import("@/components/markdown-editor"), {
+  ssr: false,
+  loading: () => <InlineLoadingState label="Loading editor" message="Preparing the writing surface." />
+});
 
 type SessionUser = {
   id: string;
@@ -52,15 +57,62 @@ type PendingAttachment = {
   error?: string;
 };
 
+type DiscussionBootstrap = {
+  currentUser: SessionUser | null;
+  token: string | null;
+  status: string;
+  thread: ThreadDetail | null;
+};
+
+const discussionBootstrapResource = createClientResource(
+  loadDiscussionBootstrap,
+  ({ projectId, discussionId }) => `${projectId}:${discussionId}`
+);
+
 export default function DiscussionPage() {
   const params = useParams<{ id: string; discussion: string }>();
   const projectId = params?.id ?? "";
   const discussionId = params?.discussion ?? "";
-  const [supabase, setSupabase] = useState<ReturnType<typeof getSupabaseBrowserClient> | null>(null);
-  const [currentUser, setCurrentUser] = useState<SessionUser | null>(null);
-  const [token, setToken] = useState<string | null>(null);
-  const [status, setStatus] = useState("Loading...");
-  const [thread, setThread] = useState<ThreadDetail | null>(null);
+  const [initial, setInitial] = useState<DiscussionBootstrap | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    setInitial(null);
+    discussionBootstrapResource.read({ projectId, discussionId }).then((nextState) => {
+      if (!cancelled) {
+        setInitial(nextState);
+      }
+    });
+
+    return () => {
+      cancelled = true;
+      discussionBootstrapResource.clear({ projectId, discussionId });
+    };
+  }, [discussionId, projectId]);
+
+  if (!initial) {
+    return (
+      <PageLoadingState
+        label="Loading discussion"
+        message="Bringing in the thread, comments, and attachments."
+      />
+    );
+  }
+
+  return <DiscussionPageContent projectId={projectId} discussionId={discussionId} initial={initial} />;
+}
+
+function DiscussionPageContent(props: {
+  projectId: string;
+  discussionId: string;
+  initial: DiscussionBootstrap;
+}) {
+  const { projectId, discussionId, initial } = props;
+  const [currentUser] = useState<SessionUser | null>(initial.currentUser);
+  const token = initial.token;
+  const [status, setStatus] = useState(initial.status);
+  const [thread, setThread] = useState<ThreadDetail | null>(initial.thread);
   const [commentBody, setCommentBody] = useState("");
   const [pendingAttachments, setPendingAttachments] = useState<PendingAttachment[]>([]);
   const [isAttachmentDragActive, setIsAttachmentDragActive] = useState(false);
@@ -72,53 +124,15 @@ export default function DiscussionPage() {
   const commentFileInputRef = useRef<HTMLInputElement | null>(null);
   const previewUrlsRef = useRef<Record<string, string>>({});
 
-  useEffect(() => {
-    try {
-      setSupabase(getSupabaseBrowserClient());
-    } catch (error) {
-      setStatus(error instanceof Error ? error.message : "Supabase init failed");
-    }
-  }, []);
-
   async function authedFetch(accessToken: string, path: string, options: RequestInit = {}) {
-    const response = await fetch(path, {
-      ...options,
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${accessToken}`,
-        ...(options.headers ?? {})
-      }
-    });
-    const data = await response.json();
-    if (!response.ok) {
-      throw new Error(data.error ?? "Request failed");
-    }
-    return data;
+    return authedFetchDiscussion(accessToken, path, options);
   }
 
   async function load(accessToken: string, id: string, discussion: string) {
     const data = await authedFetch(accessToken, `/projects/${id}/threads/${discussion}`);
-    setThread(data.thread);
+    setThread(data.thread ?? null);
+    setStatus("Ready");
   }
-
-  useEffect(() => {
-    if (!supabase || !projectId || !discussionId) return;
-
-    const init = async () => {
-      const { data } = await supabase.auth.getSession();
-      const accessToken = data.session?.access_token ?? null;
-      if (!accessToken) {
-        setStatus("Sign in first");
-        return;
-      }
-      setCurrentUser(data.session?.user ? { id: data.session.user.id, email: data.session.user.email } : null);
-      setToken(accessToken);
-      await load(accessToken, projectId, discussionId);
-      setStatus("Ready");
-    };
-
-    init().catch((error) => setStatus(error instanceof Error ? error.message : "Load failed"));
-  }, [supabase, projectId, discussionId]);
 
   useEffect(() => {
     previewUrlsRef.current = attachmentPreviewUrls;
@@ -728,4 +742,66 @@ async function postFormDataWithUploadProgress(args: {
     };
     xhr.send(args.body);
   });
+}
+
+async function authedFetchDiscussion(accessToken: string, path: string, options: RequestInit = {}) {
+  const response = await fetch(path, {
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${accessToken}`,
+      ...(options.headers ?? {})
+    }
+  });
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(data.error ?? "Request failed");
+  }
+  return data;
+}
+
+async function loadDiscussionBootstrap(params: {
+  projectId: string;
+  discussionId: string;
+}): Promise<DiscussionBootstrap> {
+  const { projectId, discussionId } = params;
+
+  if (!projectId || !discussionId) {
+    return {
+      currentUser: null,
+      token: null,
+      status: "Loading discussion…",
+      thread: null
+    };
+  }
+
+  try {
+    const supabase = getSupabaseBrowserClient();
+    const { data } = await supabase.auth.getSession();
+    const accessToken = data.session?.access_token ?? null;
+
+    if (!accessToken) {
+      return {
+        currentUser: null,
+        token: null,
+        status: "Sign in first",
+        thread: null
+      };
+    }
+
+    const threadResponse = await authedFetchDiscussion(accessToken, `/projects/${projectId}/threads/${discussionId}`);
+    return {
+      currentUser: data.session?.user ? { id: data.session.user.id, email: data.session.user.email } : null,
+      token: accessToken,
+      status: "Ready",
+      thread: (threadResponse.thread ?? null) as ThreadDetail | null
+    };
+  } catch (error) {
+    return {
+      currentUser: null,
+      token: null,
+      status: error instanceof Error ? error.message : "Load failed",
+      thread: null
+    };
+  }
 }

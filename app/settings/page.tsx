@@ -1,6 +1,9 @@
 "use client";
 
 import Link from "next/link";
+import { PageLoadingState } from "@/components/loading-shells";
+import { getAvatarProxyUrl } from "@/lib/avatar";
+import { createClientResource } from "@/lib/client-resource";
 import { useEffect, useState } from "react";
 import { getSupabaseBrowserClient } from "@/lib/supabase-browser";
 
@@ -41,50 +44,135 @@ const EMPTY_PROFILE: ProfileForm = {
   bio: ""
 };
 
+type SettingsBootstrap = {
+  token: string | null;
+  googleAvatarUrl: string;
+  status: string;
+  clients: ClientRecord[];
+  profile: ProfileForm;
+};
+
+const settingsBootstrapResource = createClientResource(loadSettingsBootstrap, () => "settings");
+
 export default function SettingsPage() {
-  const [supabase, setSupabase] = useState<ReturnType<typeof getSupabaseBrowserClient> | null>(null);
-  const [token, setToken] = useState<string | null>(null);
-  const [googleAvatarUrl, setGoogleAvatarUrl] = useState("");
-  const [status, setStatus] = useState("Loading...");
+  const [initial, setInitial] = useState<SettingsBootstrap | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    settingsBootstrapResource.read("settings").then((nextState) => {
+      if (!cancelled) {
+        setInitial(nextState);
+      }
+    });
+
+    return () => {
+      cancelled = true;
+      settingsBootstrapResource.clear();
+    };
+  }, []);
+
+  if (!initial) {
+    return (
+      <PageLoadingState
+        label="Loading settings"
+        message="Getting your profile and workspace preferences ready."
+      />
+    );
+  }
+
+  return <SettingsPageContent initial={initial} />;
+}
+
+async function authedFetchSettings(accessToken: string, path: string, options: RequestInit = {}) {
+  const response = await fetch(path, {
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${accessToken}`,
+      ...(options.headers ?? {})
+    }
+  });
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(data.error ?? "Request failed");
+  }
+  return data;
+}
+
+function profileRecordToForm(data: UserProfileRecord | null): ProfileForm {
+  if (!data) {
+    return EMPTY_PROFILE;
+  }
+
+  return {
+    email: data.email ?? "",
+    firstName: data.first_name ?? "",
+    lastName: data.last_name ?? "",
+    avatarUrl: data.avatar_url ?? "",
+    jobTitle: data.job_title ?? "",
+    timezone: data.timezone ?? "",
+    bio: data.bio ?? ""
+  };
+}
+
+async function loadSettingsBootstrap(): Promise<SettingsBootstrap> {
+  try {
+    const supabase = getSupabaseBrowserClient();
+    const { data } = await supabase.auth.getSession();
+    const accessToken = data.session?.access_token ?? null;
+    const metadata =
+      data.session?.user?.user_metadata && typeof data.session.user.user_metadata === "object"
+        ? (data.session.user.user_metadata as Record<string, unknown>)
+        : {};
+    const googleAvatarUrl = typeof metadata.avatar_url === "string" ? metadata.avatar_url : "";
+
+    if (!accessToken) {
+      return {
+        token: null,
+        googleAvatarUrl,
+        status: "Sign in first, then open settings",
+        clients: [],
+        profile: EMPTY_PROFILE
+      };
+    }
+
+    const [clientsData, profileData] = await Promise.all([
+      authedFetchSettings(accessToken, "/clients"),
+      authedFetchSettings(accessToken, "/profile")
+    ]);
+
+    return {
+      token: accessToken,
+      googleAvatarUrl,
+      status: "Ready",
+      clients: (clientsData.clients ?? []) as ClientRecord[],
+      profile: profileRecordToForm((profileData.profile ?? null) as UserProfileRecord | null)
+    };
+  } catch (error) {
+    return {
+      token: null,
+      googleAvatarUrl: "",
+      status: error instanceof Error ? error.message : "Failed to load",
+      clients: [],
+      profile: EMPTY_PROFILE
+    };
+  }
+}
+
+function SettingsPageContent({ initial }: { initial: SettingsBootstrap }) {
+  const token = initial.token;
+  const [googleAvatarUrl] = useState(initial.googleAvatarUrl);
+  const [status, setStatus] = useState(initial.status);
   const [tab, setTab] = useState<"clients" | "profile">("clients");
 
-  const [clients, setClients] = useState<ClientRecord[]>([]);
+  const [clients, setClients] = useState<ClientRecord[]>(initial.clients);
   const [name, setName] = useState("");
   const [code, setCode] = useState("");
 
-  const [profile, setProfile] = useState<ProfileForm>(EMPTY_PROFILE);
+  const [profile, setProfile] = useState<ProfileForm>(initial.profile);
   const [savingProfile, setSavingProfile] = useState(false);
-
-  useEffect(() => {
-    try {
-      setSupabase(getSupabaseBrowserClient());
-    } catch (error) {
-      setStatus(error instanceof Error ? error.message : "Supabase init failed");
-    }
-  }, []);
-
-  useEffect(() => {
-    if (!supabase) return;
-    const bootstrap = async () => {
-      const { data } = await supabase.auth.getSession();
-      const accessToken = data.session?.access_token ?? null;
-      const metadata =
-        data.session?.user?.user_metadata && typeof data.session.user.user_metadata === "object"
-          ? (data.session.user.user_metadata as Record<string, unknown>)
-          : {};
-      const googleAvatar = typeof metadata.avatar_url === "string" ? metadata.avatar_url : "";
-      setToken(accessToken);
-      setGoogleAvatarUrl(googleAvatar);
-      if (!accessToken) {
-        setStatus("Sign in first, then open settings");
-        return;
-      }
-      setStatus("Ready");
-      await Promise.all([loadClients(accessToken), loadProfile(accessToken)]);
-    };
-
-    bootstrap().catch((error) => setStatus(error instanceof Error ? error.message : "Failed to load"));
-  }, [supabase]);
+  const displayedAvatarUrl = googleAvatarUrl || profile.avatarUrl;
 
   async function authedFetch(accessToken: string, path: string, options: RequestInit = {}) {
     const response = await fetch(path, {
@@ -211,8 +299,8 @@ export default function SettingsPage() {
       {tab === "profile" && (
         <section className="stackSection">
           <h2 className="profileTitle">
-            {googleAvatarUrl || profile.avatarUrl ? (
-              <img src={googleAvatarUrl || profile.avatarUrl} alt="Profile avatar" className="profileAvatar" />
+            {displayedAvatarUrl ? (
+              <img src={getAvatarProxyUrl(displayedAvatarUrl)} alt="Profile avatar" className="profileAvatar" />
             ) : (
               <span className="profileAvatarFallback">{(profile.firstName || profile.email || "U").charAt(0).toUpperCase()}</span>
             )}

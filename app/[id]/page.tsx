@@ -2,12 +2,19 @@
 
 import Link from "next/link";
 import dynamic from "next/dynamic";
+import { InlineLoadingState, PageLoadingState } from "@/components/loading-shells";
+import { ProjectDialogForm, type ProjectDialogValues } from "@/components/project-dialog-form";
 import { ProjectTagList } from "@/components/project-tag-list";
+import { getAvatarProxyUrl } from "@/lib/avatar";
+import { createClientResource } from "@/lib/client-resource";
 import { useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import { getSupabaseBrowserClient } from "@/lib/supabase-browser";
 
-const MarkdownEditor = dynamic(() => import("@/components/markdown-editor"), { ssr: false });
+const MarkdownEditor = dynamic(() => import("@/components/markdown-editor"), {
+  ssr: false,
+  loading: () => <InlineLoadingState label="Loading editor" message="Preparing the writing surface." />
+});
 
 type Project = {
   id: string;
@@ -17,8 +24,10 @@ type Project = {
   tags?: string[] | null;
   status?: string | null;
   client_id: string | null;
+  client_name?: string | null;
+  client_code?: string | null;
   requestor?: string | null;
-  personal_hours?: number | string | null;
+  my_hours?: number | string | null;
 };
 
 type Thread = {
@@ -39,86 +48,106 @@ type ProjectFile = {
   created_at: string;
 };
 
+type ClientRecord = {
+  id: string;
+  name: string;
+  code: string;
+};
+
+type ViewerProfile = {
+  email: string;
+  first_name: string | null;
+  last_name: string | null;
+  avatar_url: string | null;
+};
+
+type ProjectPageBootstrap = {
+  token: string | null;
+  status: string;
+  project: Project | null;
+  clients: ClientRecord[];
+  viewerProfile: ViewerProfile | null;
+  threads: Thread[];
+  files: ProjectFile[];
+};
+
+const projectBootstrapResource = createClientResource(loadProjectBootstrap, (projectId) => projectId);
+
 export default function ProjectPage() {
   const params = useParams<{ id: string }>();
   const projectId = params?.id ?? "";
-  const [supabase, setSupabase] = useState<ReturnType<typeof getSupabaseBrowserClient> | null>(null);
-  const [token, setToken] = useState<string | null>(null);
-  const [status, setStatus] = useState("Loading...");
+  const [initial, setInitial] = useState<ProjectPageBootstrap | null>(null);
 
-  const [project, setProject] = useState<Project | null>(null);
-  const [threads, setThreads] = useState<Thread[]>([]);
-  const [files, setFiles] = useState<ProjectFile[]>([]);
+  useEffect(() => {
+    let cancelled = false;
+
+    setInitial(null);
+    projectBootstrapResource.read(projectId).then((nextState) => {
+      if (!cancelled) {
+        setInitial(nextState);
+      }
+    });
+
+    return () => {
+      cancelled = true;
+      projectBootstrapResource.clear(projectId);
+    };
+  }, [projectId]);
+
+  if (!initial) {
+    return (
+      <PageLoadingState
+        label="Loading project"
+        message="Pulling together project details, discussions, and files."
+      />
+    );
+  }
+
+  return <ProjectPageContent projectId={projectId} initial={initial} />;
+}
+
+function ProjectPageContent({ projectId, initial }: { projectId: string; initial: ProjectPageBootstrap }) {
+  const token = initial.token;
+  const [status, setStatus] = useState(initial.status);
+
+  const [project, setProject] = useState<Project | null>(initial.project);
+  const [clients, setClients] = useState<ClientRecord[]>(initial.clients);
+  const [viewerProfile, setViewerProfile] = useState<ViewerProfile | null>(initial.viewerProfile);
+  const [threads, setThreads] = useState<Thread[]>(initial.threads);
+  const [files, setFiles] = useState<ProjectFile[]>(initial.files);
   const [filePreviewUrls, setFilePreviewUrls] = useState<Record<string, string>>({});
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [isFileDragActive, setIsFileDragActive] = useState(false);
-  const [isSavingProjectDetails, setIsSavingProjectDetails] = useState(false);
+  const [isSavingProject, setIsSavingProject] = useState(false);
+  const [isSavingMyHours, setIsSavingMyHours] = useState(false);
+  const [projectForm, setProjectForm] = useState<ProjectDialogValues>(createProjectDialogValues());
   const [title, setTitle] = useState("");
   const [bodyMarkdown, setBodyMarkdown] = useState("");
-  const [requestorInput, setRequestorInput] = useState("");
-  const [personalHoursInput, setPersonalHoursInput] = useState("");
+  const [myHoursInput, setMyHoursInput] = useState("");
   const [createDiscussionEditorKey, setCreateDiscussionEditorKey] = useState(0);
+  const editProjectDialogRef = useRef<HTMLDialogElement | null>(null);
   const createDiscussionDialogRef = useRef<HTMLDialogElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const previewUrlsRef = useRef<Record<string, string>>({});
 
-  useEffect(() => {
-    try {
-      setSupabase(getSupabaseBrowserClient());
-    } catch (error) {
-      setStatus(error instanceof Error ? error.message : "Supabase init failed");
-    }
-  }, []);
-
   async function authedFetch(accessToken: string, path: string, options: RequestInit = {}) {
-    const response = await fetch(path, {
-      ...options,
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${accessToken}`,
-        ...(options.headers ?? {})
-      }
-    });
-    const data = await response.json();
-    if (!response.ok) {
-      throw new Error(data.error ?? "Request failed");
-    }
-    return data;
+    return authedFetchProject(accessToken, path, options);
   }
 
   async function load(accessToken: string, id: string) {
-    const [projectRes, threadsRes, filesRes] = await Promise.all([
-      authedFetch(accessToken, `/projects/${id}`),
-      authedFetch(accessToken, `/projects/${id}/threads`),
-      authedFetch(accessToken, `/projects/${id}/files`)
-    ]);
-    setProject(projectRes.project);
-    setThreads(threadsRes.threads ?? []);
-    setFiles(filesRes.files ?? []);
+    const nextState = await loadProjectData(accessToken, id);
+    setProject(nextState.project);
+    setThreads(nextState.threads);
+    setFiles(nextState.files);
+    setClients(nextState.clients);
+    setViewerProfile(nextState.viewerProfile);
+    setStatus("Ready");
   }
 
   useEffect(() => {
-    if (!supabase || !projectId) return;
-
-    const init = async () => {
-      const { data } = await supabase.auth.getSession();
-      const accessToken = data.session?.access_token ?? null;
-      if (!accessToken) {
-        setStatus("Sign in first");
-        return;
-      }
-      setToken(accessToken);
-      await load(accessToken, projectId);
-      setStatus("Ready");
-    };
-
-    init().catch((error) => setStatus(error instanceof Error ? error.message : "Load failed"));
-  }, [supabase, projectId]);
-
-  useEffect(() => {
-    setRequestorInput(project?.requestor ?? "");
-    setPersonalHoursInput(formatPersonalHoursInput(project?.personal_hours));
+    setProjectForm(createProjectDialogValues(project?.client_id ?? "", project));
+    setMyHoursInput(formatHoursInput(project?.my_hours));
   }, [project]);
 
   useEffect(() => {
@@ -256,40 +285,56 @@ export default function ProjectPage() {
     await load(token, projectId);
   }
 
-  async function saveProjectDetails() {
+  async function saveProject() {
     if (!token || !projectId || !project || !project.client_id) return;
 
-    const trimmedRequestor = requestorInput.trim();
-    const trimmedHours = personalHoursInput.trim();
-    const parsedPersonalHours = trimmedHours ? Number(trimmedHours) : Number.NaN;
-    if (trimmedHours && (!Number.isFinite(parsedPersonalHours) || parsedPersonalHours < 0)) {
-      throw new Error("Personal hours must be a non-negative number");
-    }
-    const personalHours = trimmedHours ? parsedPersonalHours : null;
-
-    setIsSavingProjectDetails(true);
+    setIsSavingProject(true);
     try {
       await authedFetch(token, `/projects/${projectId}`, {
         method: "PATCH",
         body: JSON.stringify({
-          name: project.name,
-          description: project.description ?? undefined,
+          name: projectForm.name,
+          description: projectForm.description,
           clientId: project.client_id,
-          tags: project.tags ?? [],
-          requestor: trimmedRequestor || null,
-          personalHours
+          tags: parseProjectTags(projectForm.tags),
+          requestor: projectForm.requestor.trim() || null
         })
       });
       await load(token, projectId);
-      setStatus("Project details saved");
+      editProjectDialogRef.current?.close();
+      setStatus("Project updated");
     } finally {
-      setIsSavingProjectDetails(false);
+      setIsSavingProject(false);
     }
   }
 
-  function resetProjectDetailsForm() {
-    setRequestorInput(project?.requestor ?? "");
-    setPersonalHoursInput(formatPersonalHoursInput(project?.personal_hours));
+  async function saveMyHours() {
+    if (!token || !projectId) return;
+
+    const trimmedHours = myHoursInput.trim();
+    const parsedHours = trimmedHours ? Number(trimmedHours) : Number.NaN;
+    if (trimmedHours && (!Number.isFinite(parsedHours) || parsedHours < 0)) {
+      throw new Error("My hours must be a non-negative number");
+    }
+
+    setIsSavingMyHours(true);
+    try {
+      const data = await authedFetch(token, `/projects/${projectId}/my-hours`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          hours: trimmedHours ? parsedHours : null
+        })
+      });
+      setProject(data.project ?? null);
+      setStatus("My hours saved");
+    } finally {
+      setIsSavingMyHours(false);
+    }
+  }
+
+  function openEditProjectDialog() {
+    setProjectForm(createProjectDialogValues(project?.client_id ?? "", project));
+    editProjectDialogRef.current?.showModal();
   }
 
   async function uploadSelectedFile() {
@@ -363,67 +408,61 @@ export default function ProjectPage() {
       <header className="header">
         <div className={`projectHeaderCopy projectStatusTone tone-${normalizeProjectColumn(project)}`}>
           <h1>{project?.display_name ?? project?.name ?? "Project"}</h1>
+          <div className="projectHoursRow">
+
+            <form
+              className="projectHoursForm"
+              onSubmit={(event) => {
+                event.preventDefault();
+                saveMyHours().catch((error) => setStatus(error.message));
+              }}
+            >
+              <label className="projectHoursField">
+                <span>My Hours</span>
+                <span className="projectHoursFieldInput">
+                  {viewerProfile?.avatar_url ? (
+                    <img src={getAvatarProxyUrl(viewerProfile.avatar_url)} alt="Your avatar" className="projectHoursAvatar" />
+                  ) : (
+                    <span className="projectHoursAvatar projectHoursAvatarFallback">{getViewerInitials(viewerProfile)}</span>
+                  )}
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.25"
+                    inputMode="decimal"
+                    value={myHoursInput}
+                    onChange={(event) => setMyHoursInput(event.target.value)}
+                    placeholder="0"
+                  />
+                </span>
+              </label>
+              <button
+                type="submit"
+                className="secondary"
+                disabled={isSavingMyHours || myHoursInput === formatHoursInput(project?.my_hours)}
+              >
+                {isSavingMyHours ? "Saving..." : "Save"}
+              </button>
+            </form>
+          </div>
           <ProjectTagList tags={project?.tags} className="projectHeaderTags" />
         </div>
         <div className="row">
           <Link href="/" className="linkButton">
             All Projects
           </Link>
-          <Link href="/settings" className="iconButton" aria-label="Settings">
+          <button type="button" className="iconButton" aria-label="Edit project" onClick={openEditProjectDialog}>
             <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
               <path
                 fill="currentColor"
                 d="M19.14 12.94a7.66 7.66 0 0 0 .05-.94 7.66 7.66 0 0 0-.05-.94l2.03-1.58a.5.5 0 0 0 .12-.64l-1.92-3.32a.5.5 0 0 0-.6-.22l-2.39.96a7.3 7.3 0 0 0-1.63-.94l-.36-2.54A.5.5 0 0 0 13.9 2h-3.8a.5.5 0 0 0-.49.42l-.36 2.54c-.58.23-1.12.54-1.63.94l-2.39-.96a.5.5 0 0 0-.6.22L2.7 8.48a.5.5 0 0 0 .12.64l2.03 1.58c-.03.31-.05.62-.05.94s.02.63.05.94L2.82 14.16a.5.5 0 0 0-.12.64l1.92 3.32c.13.22.39.31.6.22l2.39-.96c.51.4 1.05.71 1.63.94l.36 2.54c.04.24.25.42.49.42h3.8c.24 0 .45-.18.49-.42l.36-2.54c.58-.23 1.12-.54 1.63-.94l2.39.96c.22.09.47 0 .6-.22l1.92-3.32a.5.5 0 0 0-.12-.64l-2.03-1.58ZM12 15.5A3.5 3.5 0 1 1 12 8.5a3.5 3.5 0 0 1 0 7Z"
               />
             </svg>
-          </Link>
+          </button>
         </div>
       </header>
 
       <p className="status">{status}</p>
-
-      <section className="stackSection projectDetailsSection">
-        <div className="sectionHeader">
-          <div className="sectionHeaderTitle">
-            <h2>Project Details</h2>
-            <small className="filesCount">Saved only on this project page</small>
-          </div>
-        </div>
-        <div className="projectDetailsEditor">
-          <label className="projectDetailsField">
-            <span>Requestor</span>
-            <input
-              value={requestorInput}
-              onChange={(event) => setRequestorInput(event.target.value)}
-              placeholder="Who requested this work?"
-            />
-          </label>
-          <label className="projectDetailsField">
-            <span>Personal hours</span>
-            <input
-              type="number"
-              min="0"
-              step="0.25"
-              inputMode="decimal"
-              value={personalHoursInput}
-              onChange={(event) => setPersonalHoursInput(event.target.value)}
-              placeholder="0"
-            />
-          </label>
-          <div className="row projectDetailsActions">
-            <button
-              type="button"
-              onClick={() => saveProjectDetails().catch((error) => setStatus(error.message))}
-              disabled={isSavingProjectDetails || !project?.client_id}
-            >
-              {isSavingProjectDetails ? "Saving..." : "Save"}
-            </button>
-            <button type="button" className="secondary" onClick={resetProjectDetailsForm} disabled={isSavingProjectDetails}>
-              Cancel
-            </button>
-          </div>
-        </div>
-      </section>
 
       <section className="stackSection">
         <div className="sectionHeader">
@@ -610,6 +649,20 @@ export default function ProjectPage() {
           </div>
         </form>
       </dialog>
+
+      <dialog ref={editProjectDialogRef} className="dialog">
+        <ProjectDialogForm
+          title="Edit Project"
+          submitLabel="Save Changes"
+          values={projectForm}
+          clients={clients}
+          submitting={isSavingProject}
+          clientDisabled
+          onChange={setProjectForm}
+          onSubmit={() => saveProject().catch((error) => setStatus(error.message))}
+          onCancel={() => editProjectDialogRef.current?.close()}
+        />
+      </dialog>
     </main>
   );
 }
@@ -641,11 +694,126 @@ function formatBytes(size: number) {
   return `${value.toFixed(value >= 10 ? 0 : 1)} ${units[unitIndex]}`;
 }
 
-function formatPersonalHoursInput(value: number | string | null | undefined) {
+function formatHoursInput(value: number | string | null | undefined) {
   if (value === null || value === undefined || value === "") {
     return "";
   }
 
   const numericValue = typeof value === "number" ? value : Number(value);
   return Number.isFinite(numericValue) ? String(numericValue) : "";
+}
+
+function parseProjectTags(value: string) {
+  return Array.from(
+    new Set(
+      value
+        .split(",")
+        .map((tag) => tag.trim().toLowerCase())
+        .filter(Boolean)
+    )
+  );
+}
+
+function createProjectDialogValues(clientId = "", project?: Project | null): ProjectDialogValues {
+  return {
+    name: project?.name ?? "",
+    description: project?.description ?? "",
+    requestor: project?.requestor ?? "",
+    tags: (project?.tags ?? []).join(", "),
+    clientId
+  };
+}
+
+function getViewerInitials(profile: ViewerProfile | null) {
+  const firstName = (profile?.first_name ?? "").trim();
+  const lastName = (profile?.last_name ?? "").trim();
+  if (firstName || lastName) {
+    return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase() || "U";
+  }
+
+  const emailLocalPart = (profile?.email ?? "user").split("@")[0];
+  return emailLocalPart.slice(0, 2).toUpperCase() || "U";
+}
+
+async function authedFetchProject(accessToken: string, path: string, options: RequestInit = {}) {
+  const response = await fetch(path, {
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${accessToken}`,
+      ...(options.headers ?? {})
+    }
+  });
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(data.error ?? "Request failed");
+  }
+  return data;
+}
+
+async function loadProjectData(accessToken: string, projectId: string) {
+  const [projectRes, threadsRes, filesRes, clientsRes, profileRes] = await Promise.all([
+    authedFetchProject(accessToken, `/projects/${projectId}`),
+    authedFetchProject(accessToken, `/projects/${projectId}/threads`),
+    authedFetchProject(accessToken, `/projects/${projectId}/files`),
+    authedFetchProject(accessToken, "/clients"),
+    authedFetchProject(accessToken, "/profile")
+  ]);
+
+  return {
+    project: (projectRes.project ?? null) as Project | null,
+    threads: (threadsRes.threads ?? []) as Thread[],
+    files: (filesRes.files ?? []) as ProjectFile[],
+    clients: (clientsRes.clients ?? []) as ClientRecord[],
+    viewerProfile: (profileRes.profile ?? null) as ViewerProfile | null
+  };
+}
+
+async function loadProjectBootstrap(projectId: string): Promise<ProjectPageBootstrap> {
+  if (!projectId) {
+    return {
+      token: null,
+      status: "Loading project…",
+      project: null,
+      clients: [],
+      viewerProfile: null,
+      threads: [],
+      files: []
+    };
+  }
+
+  try {
+    const supabase = getSupabaseBrowserClient();
+    const { data } = await supabase.auth.getSession();
+    const accessToken = data.session?.access_token ?? null;
+
+    if (!accessToken) {
+      return {
+        token: null,
+        status: "Sign in first",
+        project: null,
+        clients: [],
+        viewerProfile: null,
+        threads: [],
+        files: []
+      };
+    }
+
+    const nextState = await loadProjectData(accessToken, projectId);
+    return {
+      token: accessToken,
+      status: "Ready",
+      ...nextState
+    };
+  } catch (error) {
+    return {
+      token: null,
+      status: error instanceof Error ? error.message : "Load failed",
+      project: null,
+      clients: [],
+      viewerProfile: null,
+      threads: [],
+      files: []
+    };
+  }
 }

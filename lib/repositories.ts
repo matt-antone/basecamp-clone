@@ -129,6 +129,7 @@ export async function createProject(args: {
   createdBy: string;
   clientId?: string;
   tags?: string[];
+  requestor?: string | null;
 }) {
   const projectTitle = args.name.trim();
   if (!projectTitle) {
@@ -146,6 +147,7 @@ export async function createProject(args: {
   const clientSlug = slugify(client.name, { strict: true }) || slugify(client.code, { strict: true }) || "client";
   const projectSlug = slugify(projectTitle, { lower: true, strict: true }) || "project";
   const normalizedTags = normalizeProjectTags(args.tags);
+  const requestor = typeof args.requestor === "string" ? args.requestor.trim() || null : null;
   const projectsRoot = config.dropboxProjectsRootFolder();
   const result = await query(
     `with lock as (
@@ -158,7 +160,7 @@ export async function createProject(args: {
          and exists(select 1 from lock)
      )
      insert into projects (
-       name, slug, description, created_by, client_id, status, project_seq, project_code, client_slug, project_slug, tags, storage_project_dir
+       name, slug, description, created_by, client_id, status, project_seq, project_code, client_slug, project_slug, tags, storage_project_dir, requestor
      )
      select
        $1,
@@ -172,7 +174,8 @@ export async function createProject(args: {
        $6,
        $7,
        $8::text[],
-       $9 || '/' || $6 || '/' || $5 || '-' || lpad(next_seq.seq::text, 4, '0') || '-' || $7
+       $9 || '/' || $6 || '/' || $5 || '-' || lpad(next_seq.seq::text, 4, '0') || '-' || $7,
+       $10
      from next_seq
      returning *`,
     [
@@ -184,25 +187,56 @@ export async function createProject(args: {
       clientSlug,
       projectSlug,
       normalizedTags,
-      projectsRoot
+      projectsRoot,
+      requestor
     ]
   );
   return result.rows[0];
 }
 
-export async function getProject(id: string) {
-  const result = await query(
-    `select p.*, c.name as client_name, c.code as client_code,
-       case
-         when p.project_code is not null and length(trim(p.project_code)) > 0 then p.project_code || '-' || p.name
-         else p.name
-       end as display_name
-     from projects p
-     left join clients c on c.id = p.client_id
-     where p.id = $1`,
-    [id]
-  );
-  return result.rows[0] ?? null;
+export async function getProject(id: string, viewerUserId?: string | null) {
+  try {
+    const result = await query(
+      `select p.*, c.name as client_name, c.code as client_code,
+         case
+           when p.project_code is not null and length(trim(p.project_code)) > 0 then p.project_code || '-' || p.name
+           else p.name
+         end as display_name,
+         ${
+           viewerUserId
+             ? "puh.hours as my_hours"
+             : "null::numeric as my_hours"
+         }
+       from projects p
+       left join clients c on c.id = p.client_id
+       ${
+         viewerUserId
+           ? "left join project_user_hours puh on puh.project_id = p.id and puh.user_id = $2"
+           : ""
+       }
+       where p.id = $1`,
+      viewerUserId ? [id, viewerUserId] : [id]
+    );
+    return result.rows[0] ?? null;
+  } catch (error) {
+    if (!viewerUserId || !isMissingProjectUserHoursTableError(error)) {
+      throw error;
+    }
+
+    const fallback = await query(
+      `select p.*, c.name as client_name, c.code as client_code,
+         case
+           when p.project_code is not null and length(trim(p.project_code)) > 0 then p.project_code || '-' || p.name
+           else p.name
+         end as display_name,
+         null::numeric as my_hours
+       from projects p
+       left join clients c on c.id = p.client_id
+       where p.id = $1`,
+      [id]
+    );
+    return fallback.rows[0] ?? null;
+  }
 }
 
 export async function updateProject(args: {
@@ -212,7 +246,6 @@ export async function updateProject(args: {
   clientId: string;
   tags?: string[];
   requestor?: string | null;
-  personalHours?: number | string | null;
 }) {
   const current = await getProject(args.id);
   if (!current) {
@@ -229,21 +262,76 @@ export async function updateProject(args: {
       : typeof args.requestor === "string"
         ? args.requestor.trim() || null
         : null;
-  const nextPersonalHours = args.personalHours === undefined ? current.personal_hours ?? null : args.personalHours;
-  const result = await query(
-    `update projects
-     set name = $2,
-         description = $3,
-         tags = $4::text[],
-         requestor = $5,
-         personal_hours = $6,
-         updated_at = now()
-     where id = $1
-     returning *`,
-    [args.id, args.name.trim(), args.description ?? null, nextTags, nextRequestor, nextPersonalHours]
-  );
 
+  try {
+    const result = await query(
+      `update projects
+       set name = $2,
+           description = $3,
+           tags = $4::text[],
+           requestor = $5,
+           updated_at = now()
+       where id = $1
+       returning *`,
+      [args.id, args.name.trim(), args.description ?? null, nextTags, nextRequestor]
+    );
+
+    return result.rows[0] ?? null;
+  } catch (error) {
+    if (!isMissingProjectRequestorColumnError(error)) {
+      throw error;
+    }
+
+    const fallback = await query(
+      `update projects
+       set name = $2,
+           description = $3,
+           tags = $4::text[],
+           updated_at = now()
+       where id = $1
+       returning *`,
+      [args.id, args.name.trim(), args.description ?? null, nextTags]
+    );
+
+    return fallback.rows[0] ?? null;
+  }
+}
+
+export async function setProjectUserHours(args: {
+  projectId: string;
+  userId: string;
+  hours: number | null;
+}) {
+  if (args.hours === null) {
+    await query("delete from project_user_hours where project_id = $1 and user_id = $2", [args.projectId, args.userId]);
+    return null;
+  }
+
+  const result = await query(
+    `insert into project_user_hours (project_id, user_id, hours)
+     values ($1, $2, $3)
+     on conflict (project_id, user_id)
+     do update set hours = excluded.hours, updated_at = now()
+     returning *`,
+    [args.projectId, args.userId, args.hours]
+  );
   return result.rows[0] ?? null;
+}
+
+function isMissingProjectUserHoursTableError(error: unknown) {
+  if (!(error instanceof Error)) {
+    return false;
+  }
+
+  return /project_user_hours/i.test(error.message) && /does not exist|undefined table/i.test(error.message);
+}
+
+function isMissingProjectRequestorColumnError(error: unknown) {
+  if (!(error instanceof Error)) {
+    return false;
+  }
+
+  return /requestor/i.test(error.message) && /does not exist|undefined column/i.test(error.message);
 }
 
 export async function setProjectStorageDir(id: string, storageProjectDir: string) {

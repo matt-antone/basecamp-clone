@@ -8,7 +8,8 @@ const createProjectSchema = z.object({
   name: z.string().min(1),
   description: z.string().optional(),
   clientId: z.string().uuid(),
-  tags: z.array(z.string().min(1)).max(50).optional()
+  tags: z.array(z.string().min(1)).max(50).optional(),
+  requestor: z.string().optional().nullable()
 });
 
 export async function GET(request: Request) {
@@ -37,7 +38,8 @@ export async function POST(request: Request) {
       description: payload.description,
       createdBy: user.id,
       clientId: payload.clientId,
-      tags: payload.tags
+      tags: payload.tags,
+      requestor: payload.requestor
     });
 
     const adapter = new DropboxStorageAdapter();
