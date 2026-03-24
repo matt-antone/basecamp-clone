@@ -11,7 +11,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "dropbox:refresh-token": "node scripts/get-dropbox-refresh-token.mjs",
-    "seed:dummy-projects": "node --env-file=.env scripts/seed-dummy-projects.mjs"
+    "seed:dummy-projects": "node --env-file=.env.local scripts/seed-dummy-projects.mjs"
   },
   "dependencies": {
     "@mdxeditor/editor": "^3.52.5",

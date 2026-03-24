@@ -36,6 +36,11 @@ Required browser auth env vars:
 - `NEXT_PUBLIC_SUPABASE_URL`
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
 
+Required server env vars:
+- `DATABASE_URL`
+- `SUPABASE_SERVICE_ROLE_KEY`
+- `WORKSPACE_DOMAIN`
+
 Dropbox env vars:
 - `DROPBOX_APP_KEY`
 - `DROPBOX_APP_SECRET`
