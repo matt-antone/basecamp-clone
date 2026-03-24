@@ -425,26 +425,48 @@ export async function createFileMetadata(args: {
   threadId?: string | null;
   commentId?: string | null;
 }) {
-  const result = await query(
-    `insert into project_files (
-      project_id, uploader_user_id, filename, mime_type, size_bytes, dropbox_file_id, dropbox_path, checksum, thread_id, comment_id
-     )
-     values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-     returning *`,
-    [
-      args.projectId,
-      args.uploaderUserId,
-      args.filename,
-      args.mimeType,
-      args.sizeBytes,
-      args.dropboxFileId,
-      args.dropboxPath,
-      args.checksum,
-      args.threadId ?? null,
-      args.commentId ?? null
-    ]
-  );
-  return result.rows[0];
+  const values = [
+    args.projectId,
+    args.uploaderUserId,
+    args.filename,
+    args.mimeType,
+    args.sizeBytes,
+    args.dropboxFileId,
+    args.dropboxPath,
+    args.checksum,
+    args.threadId ?? null,
+    args.commentId ?? null
+  ];
+
+  try {
+    const result = await query(
+      `insert into project_files (
+        project_id, uploader_user_id, filename, mime_type, size_bytes, dropbox_file_id, dropbox_path, checksum, thread_id, comment_id
+       )
+       values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+       returning *`,
+      values
+    );
+    return result.rows[0];
+  } catch (error) {
+    if (!isMissingProjectFileAttachmentColumnError(error)) {
+      throw error;
+    }
+
+    if (args.threadId || args.commentId) {
+      throw new Error("Comment attachments require database migration 0007_comment_attachments.sql");
+    }
+
+    const result = await query(
+      `insert into project_files (
+        project_id, uploader_user_id, filename, mime_type, size_bytes, dropbox_file_id, dropbox_path, checksum
+       )
+       values ($1, $2, $3, $4, $5, $6, $7, $8)
+       returning *`,
+      values.slice(0, 8)
+    );
+    return result.rows[0];
+  }
 }
 
 export async function getFileById(projectId: string, fileId: string) {
@@ -453,4 +475,23 @@ export async function getFileById(projectId: string, fileId: string) {
     [projectId, fileId]
   );
   return result.rows[0] ?? null;
+}
+
+function isMissingProjectFileAttachmentColumnError(error: unknown) {
+  if (typeof error !== "object" || error === null) {
+    return false;
+  }
+
+  const candidate = error as { code?: string; message?: string };
+  if (candidate.code === "42703") {
+    return true;
+  }
+
+  const message = candidate.message?.toLowerCase() ?? "";
+  return (
+    message.includes('column "thread_id"') ||
+    message.includes('column "comment_id"') ||
+    message.includes("project_files.thread_id") ||
+    message.includes("project_files.comment_id")
+  );
 }

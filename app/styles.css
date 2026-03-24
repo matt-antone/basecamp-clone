@@ -1180,6 +1180,13 @@ textarea {
   margin-bottom: 10px;
 }
 
+.sectionHeaderTitle {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
 .stackSection {
   margin-top: 12px;
   padding-top: 12px;
@@ -1713,6 +1720,18 @@ li.active {
   letter-spacing: 0.02em;
 }
 
+.filesFolderLink {
+  color: var(--link-color);
+  text-decoration: none;
+  font-size: 0.82rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.filesFolderLink:hover {
+  text-decoration: underline;
+}
+
 .fileUploadShell {
   border: 1px solid color-mix(in srgb, var(--panel-border) 82%, transparent);
   background: color-mix(in srgb, var(--panel-bg) 70%, var(--input-bg));
@@ -1740,7 +1759,7 @@ li.active {
 
 .fileThumbGrid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(320px, 320px));
+  grid-template-columns: repeat(8, minmax(0, 1fr));
   gap: 12px 10px;
 }
 
@@ -1750,9 +1769,28 @@ li.active {
   align-items: start;
 }
 
+.fileThumbUploadItem {
+  align-content: start;
+}
+
+.fileThumbUploadArea {
+  gap: 10px;
+}
+
+.fileThumbUploadDropZone {
+  min-height: 0;
+  aspect-ratio: 1 / 1;
+  align-content: center;
+}
+
+.fileThumbEmptyState {
+  grid-column: 1 / -1;
+}
+
 .fileThumbHitArea {
-  width: 320px;
-  height: 320px;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 1 / 1;
   border: 1px solid color-mix(in srgb, var(--thread-border) 88%, transparent);
   background: color-mix(in srgb, var(--panel-bg) 78%, var(--input-bg));
   overflow: hidden;
@@ -1805,6 +1843,7 @@ li.active {
   text-align: left;
   justify-content: flex-start;
   font-weight: 600;
+  font-size: 0.82rem;
 }
 
 .fileDownloadButton:hover {

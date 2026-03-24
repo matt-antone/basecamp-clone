@@ -45,6 +45,8 @@ Dropbox env vars:
 - `DROPBOX_APP_KEY`
 - `DROPBOX_APP_SECRET`
 - `DROPBOX_REFRESH_TOKEN`
+- `DROPBOX_SELECT_USER` (required for Dropbox Business team tokens with team member file access)
+- `DROPBOX_SELECT_ADMIN` (optional alternative for admin-oriented team access)
 - `DROPBOX_PROJECTS_ROOT_FOLDER` (optional, defaults to `/projects`)
 
 ## API Paths

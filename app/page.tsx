@@ -3,6 +3,7 @@
 import Link from "next/link";
 import {
   type CSSProperties,
+  type FocusEvent,
   type KeyboardEvent,
   type ReactNode,
   useDeferredValue,
@@ -292,7 +293,7 @@ export default function ProjectsPage() {
       return;
     }
     setHighlightedProjectId((current) =>
-      current && keyboardNavigableProjects.some((project) => project.id === current) ? current : keyboardNavigableProjects[0].id
+      current && keyboardNavigableProjects.some((project) => project.id === current) ? current : null
     );
   }, [keyboardNavigableProjects]);
 
@@ -414,6 +415,8 @@ export default function ProjectsPage() {
                   className={`projectLedgerItem tone-${normalizeProjectColumn(project)} ${highlightedProjectId === project.id ? "projectLedgerItemActive" : ""}`}
                   data-project-id={project.id}
                   style={{ viewTransitionName: `project-${project.id}` } as CSSProperties}
+                  onFocusCapture={() => setHighlightedProjectId(project.id)}
+                  onBlurCapture={(event) => handleProjectRowBlur(event, project.id)}
                 >
                   <div className="projectLedgerRail">
                     <span className="projectLedgerStatus">{getProjectStatusLabel(project)}</span>
@@ -424,14 +427,14 @@ export default function ProjectsPage() {
                     </Link>
                     <p className="projectDescription">{project.description?.trim() || "No description provided."}</p>
                   </div>
-                  <div className="projectLedgerMeta">
+                  {/* <div className="projectLedgerMeta">
                     <span className="projectClientPill">{getProjectClientLabel(project)}</span>
-                  </div>
+                  </div> */}
                   <div className="projectLedgerActions">
                     <Link href={`/${project.id}`} className="projectActionLink">
                       Open
                     </Link>
-                    <button
+                    {/* <button
                       type="button"
                       className="projectActionButton"
                       title={project.archived ? "Restore project" : "Archive project"}
@@ -439,7 +442,7 @@ export default function ProjectsPage() {
                       onClick={() => toggleArchive(project).catch((error) => setStatus(error.message))}
                     >
                       {project.archived ? "Restore" : "Archive"}
-                    </button>
+                    </button> */}
                   </div>
                 </li>
               ))}
@@ -550,6 +553,14 @@ export default function ProjectsPage() {
     }
   }
 
+  function handleProjectRowBlur(event: FocusEvent<HTMLLIElement>, projectId: string) {
+    const nextFocused = event.relatedTarget;
+    if (nextFocused instanceof Node && event.currentTarget.contains(nextFocused)) {
+      return;
+    }
+    setHighlightedProjectId((current) => (current === projectId ? null : current));
+  }
+
   const visibleProjects = activeTab === "archived" ? filteredArchivedProjects : filteredActiveProjects;
   const visibleClients = new Set(visibleProjects.map((project) => getProjectClientLabel(project))).size;
   const spotlightProject = domainAllowed ? getSpotlightProject() : null;
@@ -571,6 +582,7 @@ export default function ProjectsPage() {
 
   return (
     <main className="page projectsExperience">
+      {/* Hero section */}
       <section className="projectsHero">
         <div className="projectsHeroCopy">
           <p className={`projectsSessionNote ${domainAllowed && status.startsWith("Signed in as") ? "projectsSessionNoteQuiet" : ""}`}>
@@ -675,7 +687,7 @@ export default function ProjectsPage() {
           )}
         </aside>
       </section>
-
+      {/* Workbench section */}
       {domainAllowed && (
         <section className="projectsWorkbench">
           <div className="projectsWorkbenchBar">
@@ -757,6 +769,7 @@ export default function ProjectsPage() {
         </section>
       )}
 
+      {/* Viewport section */}
       {domainAllowed && (
         <div className="projectsViewport">
           {activeTab === "list" &&
@@ -858,6 +871,7 @@ export default function ProjectsPage() {
         </div>
       )}
 
+      {/* Create project dialog */}
       <dialog ref={createDialogRef} className="dialog">
         <form method="dialog" className="dialogForm">
           <h3>Create Project</h3>

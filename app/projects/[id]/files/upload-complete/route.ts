@@ -1,11 +1,13 @@
+import { createHash } from "node:crypto";
 import { requireUser } from "@/lib/auth";
 import { badRequest, notFound, ok, serverError, unauthorized } from "@/lib/http";
 import { createFileMetadata, getComment, getProject, getThread } from "@/lib/repositories";
 import { DropboxStorageAdapter } from "@/lib/storage/dropbox-adapter";
+import { isTeamSelectUserRequiredError } from "@/lib/storage/dropbox-adapter";
 import { mapDropboxMetadata } from "@/lib/storage/dropbox-adapter";
 import { z } from "zod";
 
-const uploadCompleteSchema = z.object({
+const uploadCompleteJsonSchema = z.object({
   filename: z.string().min(1),
   mimeType: z.string().min(1),
   sizeBytes: z.number().int().nonnegative(),
@@ -25,6 +27,63 @@ const uploadCompleteSchema = z.object({
   }
 });
 
+const uploadCompleteFormFieldsSchema = z.object({
+  sessionId: z.string().min(1),
+  targetPath: z.string().min(1),
+  threadId: z.string().uuid().optional(),
+  commentId: z.string().uuid().optional()
+}).superRefine((value, ctx) => {
+  if (value.commentId && !value.threadId) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "threadId is required when commentId is provided",
+      path: ["threadId"]
+    });
+  }
+});
+
+async function parseUploadCompleteRequest(request: Request) {
+  const contentType = request.headers.get("content-type") ?? "";
+  if (contentType.includes("multipart/form-data")) {
+    const formData = await request.formData();
+    const rawThreadId = formData.get("threadId");
+    const rawCommentId = formData.get("commentId");
+    const file = formData.get("file");
+    const payload = uploadCompleteFormFieldsSchema.parse({
+      sessionId: formData.get("sessionId"),
+      targetPath: formData.get("targetPath"),
+      threadId: typeof rawThreadId === "string" && rawThreadId.length > 0 ? rawThreadId : undefined,
+      commentId: typeof rawCommentId === "string" && rawCommentId.length > 0 ? rawCommentId : undefined
+    });
+
+    if (!(file instanceof File) || !file.name.trim()) {
+      throw new z.ZodError([
+        {
+          code: z.ZodIssueCode.custom,
+          message: "file is required",
+          path: ["file"]
+        }
+      ]);
+    }
+
+    const content = Buffer.from(await file.arrayBuffer());
+    return {
+      ...payload,
+      filename: file.name,
+      mimeType: file.type || "application/octet-stream",
+      sizeBytes: file.size,
+      checksum: createHash("sha256").update(content).digest("hex"),
+      content
+    };
+  }
+
+  const payload = uploadCompleteJsonSchema.parse(await request.json());
+  return {
+    ...payload,
+    content: Buffer.from(payload.contentBase64, "base64")
+  };
+}
+
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const user = await requireUser(request);
@@ -34,7 +93,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       return notFound("Project not found");
     }
 
-    const payload = uploadCompleteSchema.parse(await request.json());
+    const payload = await parseUploadCompleteRequest(request);
     if (payload.threadId) {
       const thread = await getThread(id, payload.threadId);
       if (!thread) {
@@ -53,7 +112,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       sessionId: payload.sessionId,
       targetPath: payload.targetPath,
       filename: payload.filename,
-      contentBase64: payload.contentBase64,
+      content: payload.content,
       mimeType: payload.mimeType
     });
 
@@ -89,6 +148,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     if (error instanceof z.ZodError) {
       return badRequest(error.message);
     }
+    if (isTeamSelectUserRequiredError(error)) {
+      return serverError("Dropbox team token requires DROPBOX_SELECT_USER (team member id) or DROPBOX_SELECT_ADMIN.");
+    }
+    console.error("upload_complete_failed", error);
     return serverError(error instanceof Error ? error.message : "Upload failed");
   }
 }

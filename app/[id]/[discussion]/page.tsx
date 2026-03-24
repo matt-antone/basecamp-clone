@@ -474,41 +474,18 @@ async function uploadAttachmentForComment(args: {
     throw new Error(initPayload.error ?? "Unable to initialize attachment upload");
   }
 
-  const buffer = await file.arrayBuffer();
-  const body = JSON.stringify({
-    filename: file.name,
-    mimeType: file.type || "application/octet-stream",
-    sizeBytes: file.size,
-    checksum: await sha256Hex(buffer),
-    contentBase64: arrayBufferToBase64(buffer),
-    sessionId: initPayload.upload.sessionId,
-    targetPath: initPayload.upload.targetPath,
-    threadId,
-    commentId
-  });
-  await postJsonWithUploadProgress({
+  const formData = new FormData();
+  formData.append("file", file);
+  formData.append("sessionId", initPayload.upload.sessionId);
+  formData.append("targetPath", initPayload.upload.targetPath);
+  formData.append("threadId", threadId);
+  formData.append("commentId", commentId);
+  await postFormDataWithUploadProgress({
     path: `/projects/${projectId}/files/upload-complete`,
     token,
-    body,
+    body: formData,
     onProgress: onUploadProgress
   });
-}
-
-function arrayBufferToBase64(buffer: ArrayBuffer) {
-  let binary = "";
-  const bytes = new Uint8Array(buffer);
-  for (let i = 0; i < bytes.length; i += 1) {
-    binary += String.fromCharCode(bytes[i]);
-  }
-  return btoa(binary);
-}
-
-async function sha256Hex(buffer: ArrayBuffer) {
-  const digest = await crypto.subtle.digest("SHA-256", buffer);
-  const view = new Uint8Array(digest);
-  return Array.from(view)
-    .map((value) => value.toString(16).padStart(2, "0"))
-    .join("");
 }
 
 function formatBytes(size: number) {
@@ -536,16 +513,15 @@ function formatAttachmentStage(attachment: PendingAttachment) {
   return "Failed";
 }
 
-async function postJsonWithUploadProgress(args: {
+async function postFormDataWithUploadProgress(args: {
   path: string;
   token: string;
-  body: string;
+  body: FormData;
   onProgress: (value: number) => void;
 }) {
   return await new Promise<void>((resolve, reject) => {
     const xhr = new XMLHttpRequest();
     xhr.open("POST", args.path);
-    xhr.setRequestHeader("Content-Type", "application/json");
     xhr.setRequestHeader("Authorization", `Bearer ${args.token}`);
     xhr.upload.onprogress = (event) => {
       if (!event.lengthComputable || event.total <= 0) return;

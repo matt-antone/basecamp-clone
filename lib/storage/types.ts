@@ -7,10 +7,11 @@ export interface StorageAdapter {
     sessionId: string;
     targetPath: string;
     filename: string;
-    contentBase64: string;
+    content: Buffer;
     mimeType: string;
   }): Promise<{ fileId: string; path: string; rev: string }>;
   createTemporaryDownloadLink(path: string): Promise<string>;
+  createFolderLink(path: string): Promise<string>;
   ensureProjectFolders(args: {
     clientSlug: string;
     projectFolderBaseName: string;

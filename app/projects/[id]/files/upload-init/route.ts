@@ -3,6 +3,7 @@ import { config } from "@/lib/config";
 import { badRequest, notFound, ok, serverError, unauthorized } from "@/lib/http";
 import { getProject } from "@/lib/repositories";
 import { DropboxStorageAdapter } from "@/lib/storage/dropbox-adapter";
+import { isTeamSelectUserRequiredError } from "@/lib/storage/dropbox-adapter";
 import slugify from "slugify";
 import { z } from "zod";
 
@@ -54,6 +55,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     }
     if (error instanceof z.ZodError) {
       return badRequest(error.message);
+    }
+    if (isTeamSelectUserRequiredError(error)) {
+      return serverError("Dropbox team token requires DROPBOX_SELECT_USER (team member id) or DROPBOX_SELECT_ADMIN.");
     }
     return serverError();
   }

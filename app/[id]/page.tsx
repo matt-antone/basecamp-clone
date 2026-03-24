@@ -250,22 +250,12 @@ export default function ProjectPage() {
         })
       });
 
-      const buffer = await selectedFile.arrayBuffer();
-      const checksum = await sha256Hex(buffer);
-      const contentBase64 = arrayBufferToBase64(buffer);
+      const formData = new FormData();
+      formData.append("file", selectedFile);
+      formData.append("sessionId", init.upload.sessionId);
+      formData.append("targetPath", init.upload.targetPath);
 
-      await authedFetch(token, `/projects/${projectId}/files/upload-complete`, {
-        method: "POST",
-        body: JSON.stringify({
-          filename: selectedFile.name,
-          mimeType: selectedFile.type || "application/octet-stream",
-          sizeBytes: selectedFile.size,
-          checksum,
-          contentBase64,
-          sessionId: init.upload.sessionId,
-          targetPath: init.upload.targetPath
-        })
-      });
+      await authedMultipartFetch(token, `/projects/${projectId}/files/upload-complete`, formData);
 
       setSelectedFile(null);
       if (fileInputRef.current) {
@@ -288,6 +278,21 @@ export default function ProjectPage() {
 
   function handleFileInputSelection(list: FileList | null) {
     setSelectedFile(list?.[0] ?? null);
+  }
+
+  async function authedMultipartFetch(accessToken: string, path: string, body: FormData) {
+    const response = await fetch(path, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${accessToken}`
+      },
+      body
+    });
+    const data = await response.json();
+    if (!response.ok) {
+      throw new Error(data.error ?? "Request failed");
+    }
+    return data;
   }
 
   return (
@@ -343,11 +348,88 @@ export default function ProjectPage() {
 
       <section className="stackSection filesSection">
         <div className="sectionHeader">
-          <h2>Files</h2>
+          <div className="sectionHeaderTitle">
+            <h2>Files</h2>
+            <a
+              href={`/projects/${projectId}/folder-link`}
+              className="filesFolderLink"
+              target="_blank"
+              rel="noreferrer"
+            >
+              Open Dropbox folder
+            </a>
+          </div>
           <small className="filesCount">{files.length} total</small>
         </div>
 
         <ul className="fileThumbGrid">
+          <li className="fileThumbItem fileThumbUploadItem">
+            <div className="commentUploadArea fileUploadArea fileThumbUploadArea">
+              {/* <label className="commentFileLabel">Upload file</label> */}
+              <input
+                ref={fileInputRef}
+                type="file"
+                className="commentFileInputHidden"
+                onChange={(event) => handleFileInputSelection(event.target.files)}
+              />
+              <div
+                className={`commentDropZone fileThumbUploadDropZone ${isFileDragActive ? "commentDropZoneActive" : ""}`}
+                onClick={() => fileInputRef.current?.click()}
+                onDragEnter={(event) => {
+                  event.preventDefault();
+                  setIsFileDragActive(true);
+                }}
+                onDragOver={(event) => {
+                  event.preventDefault();
+                  setIsFileDragActive(true);
+                }}
+                onDragLeave={(event) => {
+                  event.preventDefault();
+                  setIsFileDragActive(false);
+                }}
+                onDrop={(event) => {
+                  event.preventDefault();
+                  setIsFileDragActive(false);
+                  handleFileInputSelection(event.dataTransfer.files);
+                }}
+              >
+                <p className="commentDropZoneTitle">Drop a file here</p>
+                <p className="commentDropZoneSubtle">or click to browse</p>
+              </div>
+              {selectedFile && (
+                <ul className="commentUploadQueue">
+                  <li className="commentUploadQueueItem">
+                    <div className="commentUploadQueueHead">
+                      <span>{selectedFile.name}</span>
+                      <small>{formatBytes(selectedFile.size)} • ready to upload</small>
+                    </div>
+                    {!isUploading && (
+                      <button
+                        type="button"
+                        className="secondary"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          setSelectedFile(null);
+                          if (fileInputRef.current) {
+                            fileInputRef.current.value = "";
+                          }
+                        }}
+                      >
+                        Remove
+                      </button>
+                    )}
+                  </li>
+                </ul>
+              )}
+              <button
+                type="button"
+                onClick={() => uploadSelectedFile().catch((error) => setStatus(error.message))}
+                disabled={!selectedFile || isUploading}
+              >
+                {isUploading ? "Uploading..." : "Upload File"}
+              </button>
+            </div>
+          </li>
           {files.map((file) => {
             const isImage = file.mime_type.toLowerCase().startsWith("image/");
             const previewUrl = filePreviewUrls[file.id];
@@ -380,74 +462,8 @@ export default function ProjectPage() {
               </li>
             );
           })}
-          {files.length === 0 && <li className="emptyProjectsText">No files yet. Upload one to start your project workspace.</li>}
+          {files.length === 0 && <li className="emptyProjectsText fileThumbEmptyState">No files yet. Upload one to start your project workspace.</li>}
         </ul>
-
-        <div className="commentUploadArea fileUploadArea">
-          <label className="commentFileLabel">Upload file</label>
-          <input
-            ref={fileInputRef}
-            type="file"
-            className="commentFileInputHidden"
-            onChange={(event) => handleFileInputSelection(event.target.files)}
-          />
-          <div
-            className={`commentDropZone ${isFileDragActive ? "commentDropZoneActive" : ""}`}
-            onClick={() => fileInputRef.current?.click()}
-            onDragEnter={(event) => {
-              event.preventDefault();
-              setIsFileDragActive(true);
-            }}
-            onDragOver={(event) => {
-              event.preventDefault();
-              setIsFileDragActive(true);
-            }}
-            onDragLeave={(event) => {
-              event.preventDefault();
-              setIsFileDragActive(false);
-            }}
-            onDrop={(event) => {
-              event.preventDefault();
-              setIsFileDragActive(false);
-              handleFileInputSelection(event.dataTransfer.files);
-            }}
-          >
-            <p className="commentDropZoneTitle">Drop a file here</p>
-            <p className="commentDropZoneSubtle">or click to browse</p>
-          </div>
-          {selectedFile && (
-            <ul className="commentUploadQueue">
-              <li className="commentUploadQueueItem">
-                <div className="commentUploadQueueHead">
-                  <span>{selectedFile.name}</span>
-                  <small>{formatBytes(selectedFile.size)} • ready to upload</small>
-                </div>
-                {!isUploading && (
-                  <button
-                    type="button"
-                    className="secondary"
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      setSelectedFile(null);
-                      if (fileInputRef.current) {
-                        fileInputRef.current.value = "";
-                      }
-                    }}
-                  >
-                    Remove
-                  </button>
-                )}
-              </li>
-            </ul>
-          )}
-          <button
-            type="button"
-            onClick={() => uploadSelectedFile().catch((error) => setStatus(error.message))}
-            disabled={!selectedFile || isUploading}
-          >
-            {isUploading ? "Uploading..." : "Upload File"}
-          </button>
-        </div>
       </section>
 
       <dialog ref={createDiscussionDialogRef} className="dialog">
@@ -483,23 +499,6 @@ function getFileBadgeLabel(file: ProjectFile) {
   if (mime.includes("zip") || mime.includes("compressed")) return "ZIP";
   const extension = file.filename.split(".").pop()?.trim().toUpperCase();
   return extension && extension.length <= 5 ? extension : "FILE";
-}
-
-function arrayBufferToBase64(buffer: ArrayBuffer) {
-  let binary = "";
-  const bytes = new Uint8Array(buffer);
-  for (let i = 0; i < bytes.length; i += 1) {
-    binary += String.fromCharCode(bytes[i]);
-  }
-  return btoa(binary);
-}
-
-async function sha256Hex(buffer: ArrayBuffer) {
-  const digest = await crypto.subtle.digest("SHA-256", buffer);
-  const view = new Uint8Array(digest);
-  return Array.from(view)
-    .map((value) => value.toString(16).padStart(2, "0"))
-    .join("");
 }
 
 function formatBytes(size: number) {

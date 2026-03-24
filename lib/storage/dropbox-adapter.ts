@@ -3,10 +3,23 @@ import { config } from "../config";
 import type { StorageAdapter } from "./types";
 
 export class DropboxStorageAdapter implements StorageAdapter {
-  private readonly client: Dropbox;
+  private readonly baseClient: Dropbox;
+  private clientPromise: Promise<Dropbox> | null = null;
+  private readonly clientId: string | undefined;
+  private readonly clientSecret: string | undefined;
+  private readonly refreshToken: string | undefined;
+  private readonly selectUser: string | undefined;
+  private readonly selectAdmin: string | undefined;
+  private readonly dropboxFetch: typeof fetch;
 
   constructor() {
-    const dropboxFetch: typeof fetch = async (...args) => {
+    this.clientId = process.env.DROPBOX_APP_KEY?.trim();
+    this.clientSecret = process.env.DROPBOX_APP_SECRET?.trim();
+    this.refreshToken = process.env.DROPBOX_REFRESH_TOKEN?.trim();
+    this.selectUser = process.env.DROPBOX_SELECT_USER?.trim();
+    this.selectAdmin = process.env.DROPBOX_SELECT_ADMIN?.trim();
+
+    this.dropboxFetch = async (...args) => {
       if (typeof globalThis.fetch !== "function") {
         throw new Error("Global fetch is unavailable in this runtime");
       }
@@ -18,12 +31,44 @@ export class DropboxStorageAdapter implements StorageAdapter {
       return compatibleResponse;
     };
 
-    this.client = new Dropbox({
-      clientId: process.env.DROPBOX_APP_KEY,
-      clientSecret: process.env.DROPBOX_APP_SECRET,
-      refreshToken: process.env.DROPBOX_REFRESH_TOKEN,
-      fetch: dropboxFetch
+    this.baseClient = new Dropbox({
+      clientId: this.clientId,
+      clientSecret: this.clientSecret,
+      refreshToken: this.refreshToken,
+      selectUser: this.selectUser,
+      selectAdmin: this.selectAdmin,
+      fetch: this.dropboxFetch
     });
+  }
+
+  private async getClient() {
+    if (this.clientPromise) {
+      return this.clientPromise;
+    }
+
+    this.clientPromise = (async () => {
+      if (!this.selectUser) {
+        return this.baseClient;
+      }
+
+      const account = await this.baseClient.usersGetCurrentAccount();
+      const rootInfo = account.result.root_info;
+      if (rootInfo.root_namespace_id === rootInfo.home_namespace_id) {
+        return this.baseClient;
+      }
+
+      return new Dropbox({
+        clientId: this.clientId,
+        clientSecret: this.clientSecret,
+        refreshToken: this.refreshToken,
+        selectUser: this.selectUser,
+        selectAdmin: this.selectAdmin,
+        pathRoot: JSON.stringify({ ".tag": "root", root: rootInfo.root_namespace_id }),
+        fetch: this.dropboxFetch
+      });
+    })();
+
+    return this.clientPromise;
   }
 
   async uploadInit(args: { projectStorageDir: string; filename: string; sizeBytes: number }) {
@@ -39,18 +84,18 @@ export class DropboxStorageAdapter implements StorageAdapter {
     sessionId: string;
     targetPath: string;
     filename: string;
-    contentBase64: string;
+    content: Buffer;
     mimeType: string;
   }) {
+    const client = await this.getClient();
     const parentDir = getParentDir(args.targetPath);
     if (parentDir) {
       await this.ensureDirectoryChain(parentDir);
     }
 
-    const content = Buffer.from(args.contentBase64, "base64");
-    const completed = await this.client.filesUpload({
+    const completed = await client.filesUpload({
       path: args.targetPath,
-      contents: content,
+      contents: args.content,
       autorename: true,
       mode: { ".tag": "add" },
       mute: false
@@ -64,13 +109,44 @@ export class DropboxStorageAdapter implements StorageAdapter {
   }
 
   async createTemporaryDownloadLink(path: string) {
-    const result = await this.client.filesGetTemporaryLink({ path });
+    const client = await this.getClient();
+    const result = await client.filesGetTemporaryLink({ path });
     return result.result.link;
   }
 
-  async createThumbnail(path: string, size: ThumbnailSize = "w256h256") {
+  async createFolderLink(path: string) {
+    const client = await this.getClient();
+    const existing = await client.sharingListSharedLinks({
+      path,
+      direct_only: true
+    });
+    const existingLink = existing.result.links.find((link) => typeof link.url === "string");
+    if (existingLink?.url) {
+      return existingLink.url;
+    }
+
     try {
-      const response = await this.client.filesGetThumbnail({
+      const created = await client.sharingCreateSharedLinkWithSettings({ path });
+      return created.result.url;
+    } catch (error) {
+      if (isSharedLinkAlreadyExistsError(error)) {
+        const retry = await client.sharingListSharedLinks({
+          path,
+          direct_only: true
+        });
+        const retryLink = retry.result.links.find((link) => typeof link.url === "string");
+        if (retryLink?.url) {
+          return retryLink.url;
+        }
+      }
+      throw error;
+    }
+  }
+
+  async createThumbnail(path: string, size: ThumbnailSize = "w256h256") {
+    const client = await this.getClient();
+    try {
+      const response = await client.filesGetThumbnail({
         path,
         format: { ".tag": "jpeg" },
         size: { ".tag": size },
@@ -136,8 +212,9 @@ export class DropboxStorageAdapter implements StorageAdapter {
   }
 
   private async tryCreateFolder(path: string): Promise<boolean> {
+    const client = await this.getClient();
     try {
-      await this.client.filesCreateFolderV2({ path, autorename: false });
+      await client.filesCreateFolderV2({ path, autorename: false });
       return true;
     } catch (error) {
       if (isPathConflictError(error)) {
@@ -148,8 +225,9 @@ export class DropboxStorageAdapter implements StorageAdapter {
   }
 
   private async pathExists(path: string): Promise<boolean> {
+    const client = await this.getClient();
     try {
-      await this.client.filesGetMetadata({ path });
+      await client.filesGetMetadata({ path });
       return true;
     } catch (error) {
       if (isNotFoundError(error)) {
@@ -218,12 +296,6 @@ function getParentDir(path: string) {
 function getDropboxErrorSummary(error: unknown) {
   if (typeof error === "object" && error !== null) {
     const obj = error as Record<string, unknown>;
-    if (typeof obj.error_summary === "string") {
-      return obj.error_summary;
-    }
-    if (typeof obj.message === "string") {
-      return obj.message;
-    }
     const nestedError = obj.error;
     if (typeof nestedError === "object" && nestedError !== null) {
       const nested = nestedError as Record<string, unknown>;
@@ -233,6 +305,22 @@ function getDropboxErrorSummary(error: unknown) {
       if (typeof nested.message === "string") {
         return nested.message;
       }
+      try {
+        return JSON.stringify(nested);
+      } catch {
+        // Fall through to outer fields below.
+      }
+    }
+    if (typeof obj.error_summary === "string") {
+      return obj.error_summary;
+    }
+    if (typeof obj.message === "string") {
+      return obj.message;
+    }
+    try {
+      return JSON.stringify(obj);
+    } catch {
+      // Fall through to String(error) below.
     }
   }
   return String(error);
@@ -240,7 +328,18 @@ function getDropboxErrorSummary(error: unknown) {
 
 function isPathConflictError(error: unknown) {
   const summary = getDropboxErrorSummary(error).toLowerCase();
-  return summary.includes("path/conflict");
+  const status = typeof error === "object" && error !== null ? (error as { status?: unknown }).status : undefined;
+  return summary.includes("path/conflict") || summary.includes("conflict/folder") || (status === 409 && summary.includes("conflict"));
+}
+
+function isSharedLinkAlreadyExistsError(error: unknown) {
+  const summary = getDropboxErrorSummary(error).toLowerCase();
+  return summary.includes("shared_link_already_exists");
+}
+
+export function isTeamSelectUserRequiredError(error: unknown) {
+  const summary = getDropboxErrorSummary(error).toLowerCase();
+  return summary.includes("dropbox-api-select-user") || summary.includes("select_user");
 }
 
 function isNotFoundError(error: unknown) {
