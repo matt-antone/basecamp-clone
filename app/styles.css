@@ -331,6 +331,22 @@ textarea {
   --project-tone: var(--projects-complete);
 }
 
+.projectStatusTone.tone-new {
+  --project-tone: oklch(0.82 0.13 102);
+}
+
+.projectStatusTone.tone-in_progress {
+  --project-tone: oklch(0.68 0.15 244);
+}
+
+.projectStatusTone.tone-blocked {
+  --project-tone: oklch(0.67 0.17 32);
+}
+
+.projectStatusTone.tone-complete {
+  --project-tone: oklch(0.77 0.14 160);
+}
+
 .projectsHero {
   position: relative;
   display: grid;
@@ -965,6 +981,37 @@ textarea {
   -webkit-line-clamp: 3;
 }
 
+.projectTagList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.projectTagPill {
+  display: inline-flex;
+  align-items: center;
+  max-width: 100%;
+  padding: 0.10rem 0.42rem;
+  border: 1px solid color-mix(in oklch, var(--project-tone, var(--active-border)) 28%, var(--panel-border));
+  border-radius: 999px;
+  background: color-mix(in oklch, var(--project-tone, var(--active-border)) 14%, var(--panel-bg));
+  color: color-mix(in oklch, var(--project-tone, var(--text-primary)) 72%, var(--text-primary));
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.015em;
+  line-height: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.projectTagListCompact {
+  margin-top: 0.45rem;
+}
+
 .projectLedgerMeta,
 .projectFlowCardFoot {
   display: flex;
@@ -980,6 +1027,10 @@ textarea {
   background: color-mix(in oklch, var(--project-tone, var(--projects-accent)) 9%, var(--panel-bg));
   border-color: color-mix(in oklch, var(--project-tone, var(--projects-accent)) 26%, var(--projects-border));
   color: color-mix(in oklch, var(--project-tone, var(--text-primary)) 62%, var(--text-primary));
+}
+
+.projectsSpotlightTags {
+  margin-top: 0.05rem;
 }
 
 .projectsEmptyState {
@@ -1690,6 +1741,16 @@ li.active {
   display: flex;
   flex-wrap: wrap;
   gap: 5px;
+}
+
+.projectHeaderCopy {
+  display: grid;
+  gap: 0.7rem;
+  min-width: 0;
+}
+
+.projectHeaderTags {
+  max-width: min(46rem, 100%);
 }
 
 .projectClientPill {

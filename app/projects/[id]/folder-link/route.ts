@@ -1,27 +1,8 @@
 import { requireUser } from "@/lib/auth";
-import { config } from "@/lib/config";
 import { notFound, serverError, unauthorized } from "@/lib/http";
+import { getProjectStorageDir } from "@/lib/project-storage";
 import { getProject } from "@/lib/repositories";
 import { DropboxStorageAdapter, isTeamSelectUserRequiredError } from "@/lib/storage/dropbox-adapter";
-import slugify from "slugify";
-
-function getProjectStorageDir(project: Record<string, unknown>) {
-  if (typeof project.storage_project_dir === "string" && project.storage_project_dir) {
-    return project.storage_project_dir;
-  }
-
-  const fallbackClientSlug =
-    (typeof project.client_name === "string" && slugify(project.client_name, { lower: true, strict: true })) || "unassigned";
-  const fallbackProjectSlug =
-    (typeof project.project_slug === "string" && project.project_slug) ||
-    (typeof project.slug === "string" && project.slug) ||
-    "project";
-  const fallbackProjectCode =
-    (typeof project.project_code === "string" && project.project_code) ||
-    (typeof project.id === "string" ? project.id : "project");
-
-  return `${config.dropboxProjectsRootFolder()}/${fallbackClientSlug}/${fallbackProjectCode}-${fallbackProjectSlug}`;
-}
 
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {

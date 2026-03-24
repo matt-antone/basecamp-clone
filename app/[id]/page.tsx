@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { ProjectTagList } from "@/components/project-tag-list";
 import { useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import { getSupabaseBrowserClient } from "@/lib/supabase-browser";
@@ -10,6 +11,8 @@ type Project = {
   name: string;
   display_name?: string | null;
   description: string | null;
+  tags?: string[] | null;
+  status?: string | null;
 };
 
 type Thread = {
@@ -295,10 +298,21 @@ export default function ProjectPage() {
     return data;
   }
 
+  function normalizeProjectColumn(projectRecord: Project | null): "new" | "in_progress" | "blocked" | "complete" {
+    const value = (projectRecord?.status ?? "new").toLowerCase();
+    if (value === "in_progress" || value === "in progress") return "in_progress";
+    if (value === "blocked") return "blocked";
+    if (value === "complete" || value === "completed") return "complete";
+    return "new";
+  }
+
   return (
     <main className="page">
       <header className="header">
-        <h1>{project?.display_name ?? project?.name ?? "Project"}</h1>
+        <div className={`projectHeaderCopy projectStatusTone tone-${normalizeProjectColumn(project)}`}>
+          <h1>{project?.display_name ?? project?.name ?? "Project"}</h1>
+          <ProjectTagList tags={project?.tags} className="projectHeaderTags" />
+        </div>
         <div className="row">
           <Link href="/" className="linkButton">
             All Projects

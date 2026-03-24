@@ -1,7 +1,7 @@
 import { requireUser } from "@/lib/auth";
 import { badRequest, serverError, unauthorized, ok } from "@/lib/http";
 import { createProject, deleteProjectById, listProjects, setProjectStorageDir } from "@/lib/repositories";
-import { DropboxStorageAdapter } from "@/lib/storage/dropbox-adapter";
+import { DropboxStorageAdapter, getDropboxErrorSummary, isTeamSelectUserRequiredError } from "@/lib/storage/dropbox-adapter";
 import { z } from "zod";
 
 const createProjectSchema = z.object({
@@ -18,6 +18,9 @@ export async function GET(request: Request) {
     const projects = await listProjects(includeArchived);
     return ok({ projects });
   } catch (error) {
+    console.error("project_create_failed", {
+      error: error instanceof Error ? error.message : String(error)
+    });
     if (error instanceof Error && /auth|token|workspace/i.test(error.message)) {
       return unauthorized(error.message);
     }
@@ -47,6 +50,8 @@ export async function POST(request: Request) {
       const project = await setProjectStorageDir(createdProject.id, provisioned.projectDir);
       return ok({ project: project ?? createdProject }, 201);
     } catch (error) {
+      const dropboxSummary = getDropboxErrorSummary(error);
+
       try {
         await deleteProjectById(createdProject.id);
       } catch (cleanupError) {
@@ -61,9 +66,14 @@ export async function POST(request: Request) {
         clientSlug: createdProject.client_slug,
         projectCode: createdProject.project_code,
         projectSlug: createdProject.project_slug,
-        error: error instanceof Error ? error.message : String(error)
+        error: dropboxSummary
       });
-      return serverError();
+
+      if (isTeamSelectUserRequiredError(error)) {
+        return serverError("Project creation failed because Dropbox requires DROPBOX_SELECT_USER or DROPBOX_SELECT_ADMIN for this team token.");
+      }
+
+      return serverError(`Project creation failed while provisioning Dropbox folders: ${dropboxSummary}`);
     }
   } catch (error) {
     if (error instanceof Error && /auth|token|workspace/i.test(error.message)) {

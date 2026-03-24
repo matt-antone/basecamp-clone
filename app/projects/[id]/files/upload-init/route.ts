@@ -1,10 +1,9 @@
 import { requireUser } from "@/lib/auth";
-import { config } from "@/lib/config";
 import { badRequest, notFound, ok, serverError, unauthorized } from "@/lib/http";
+import { getProjectStorageDir } from "@/lib/project-storage";
 import { getProject } from "@/lib/repositories";
 import { DropboxStorageAdapter } from "@/lib/storage/dropbox-adapter";
 import { isTeamSelectUserRequiredError } from "@/lib/storage/dropbox-adapter";
-import slugify from "slugify";
 import { z } from "zod";
 
 const uploadInitSchema = z.object({
@@ -24,17 +23,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
     const payload = uploadInitSchema.parse(await request.json());
     const adapter = new DropboxStorageAdapter();
-    const fallbackClientSlug =
-      (typeof project.client_name === "string" && slugify(project.client_name, { lower: true, strict: true })) || "unassigned";
-    const fallbackProjectSlug =
-      (typeof project.project_slug === "string" && project.project_slug) ||
-      (typeof project.slug === "string" && project.slug) ||
-      "project";
-    const fallbackProjectCode =
-      (typeof project.project_code === "string" && project.project_code) || (typeof project.id === "string" ? project.id : "project");
-    const projectStorageDir =
-      (typeof project.storage_project_dir === "string" && project.storage_project_dir) ||
-      `${config.dropboxProjectsRootFolder()}/${fallbackClientSlug}/${fallbackProjectCode}-${fallbackProjectSlug}`;
+    const projectStorageDir = getProjectStorageDir(project);
 
     const init = await adapter.uploadInit({
       projectStorageDir,

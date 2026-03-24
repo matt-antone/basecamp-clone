@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { ProjectTagList } from "@/components/project-tag-list";
 import {
   type CSSProperties,
   type FocusEvent,
@@ -22,6 +23,7 @@ type Project = {
   name: string;
   display_name?: string | null;
   description: string | null;
+  tags?: string[] | null;
   archived: boolean;
   status?: string | null;
   client_id: string | null;
@@ -59,6 +61,7 @@ export default function ProjectsPage() {
   const [newProjectName, setNewProjectName] = useState("");
   const [newProjectDescription, setNewProjectDescription] = useState("");
   const [newProjectClientId, setNewProjectClientId] = useState("");
+  const [newProjectTags, setNewProjectTags] = useState("");
   const [draggingProjectId, setDraggingProjectId] = useState<string | null>(null);
   const [dragOverColumn, setDragOverColumn] = useState<ProjectColumn | null>(null);
   const [justMovedProjectId, setJustMovedProjectId] = useState<string | null>(null);
@@ -197,16 +200,27 @@ export default function ProjectsPage() {
   }
 
   async function createProject() {
+    const tags = Array.from(
+      new Set(
+        newProjectTags
+          .split(",")
+          .map((tag) => tag.trim().toLowerCase())
+          .filter(Boolean)
+      )
+    );
+
     await authedFetch("/projects", {
       method: "POST",
       body: JSON.stringify({
         name: newProjectName,
         description: newProjectDescription,
-        clientId: newProjectClientId
+        clientId: newProjectClientId,
+        tags
       })
     });
     setNewProjectName("");
     setNewProjectDescription("");
+    setNewProjectTags("");
     createDialogRef.current?.close();
     await refreshProjects();
   }
@@ -426,6 +440,7 @@ export default function ProjectsPage() {
                       {renderProjectTitle(project.display_name ?? project.name)}
                     </Link>
                     <p className="projectDescription">{project.description?.trim() || "No description provided."}</p>
+                    <ProjectTagList tags={project.tags} className="projectTagListCompact" />
                   </div>
                   {/* <div className="projectLedgerMeta">
                     <span className="projectClientPill">{getProjectClientLabel(project)}</span>
@@ -638,6 +653,7 @@ export default function ProjectsPage() {
               <p className="projectsSpotlightBody">
                 {spotlightProject.description?.trim() || "No brief yet. Open the project workspace and shape the next move."}
               </p>
+              <ProjectTagList tags={spotlightProject.tags} className="projectsSpotlightTags" />
               <div className="projectsSpotlightMeta">
                 <span>{getProjectClientLabel(spotlightProject)}</span>
                 <span>{getProjectStatusLabel(spotlightProject)}</span>
@@ -837,6 +853,7 @@ export default function ProjectsPage() {
                               {renderProjectTitle(project.display_name ?? project.name)}
                             </Link>
                             <p className="projectDescription">{project.description?.trim() || "No description provided."}</p>
+                            <ProjectTagList tags={project.tags} className="projectTagListCompact" />
                           </div>
                           <div className="projectFlowCardFoot">
                             <span className="projectClientPill">
@@ -881,6 +898,11 @@ export default function ProjectsPage() {
               value={newProjectDescription}
               onChange={(e) => setNewProjectDescription(e.target.value)}
               placeholder="Description"
+            />
+            <input
+              value={newProjectTags}
+              onChange={(e) => setNewProjectTags(e.target.value)}
+              placeholder="Tags (comma separated)"
             />
             <select value={newProjectClientId} onChange={(e) => setNewProjectClientId(e.target.value)}>
               <option value="">Select client</option>

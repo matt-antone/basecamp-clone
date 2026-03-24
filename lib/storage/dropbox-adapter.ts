@@ -187,6 +187,26 @@ export class DropboxStorageAdapter implements StorageAdapter {
     return { projectDir, uploadsDir };
   }
 
+  async moveProjectFolder(args: { fromPath: string; toPath: string }) {
+    if (args.fromPath === args.toPath) {
+      return { projectDir: args.toPath };
+    }
+
+    const client = await this.getClient();
+    const parentDir = getParentDir(args.toPath);
+    if (parentDir) {
+      await this.ensureDirectoryChain(parentDir);
+    }
+
+    await client.filesMoveV2({
+      from_path: args.fromPath,
+      to_path: args.toPath,
+      autorename: false
+    });
+
+    return { projectDir: args.toPath };
+  }
+
   private async createProjectDirWithSuffix(args: { clientDir: string; projectFolderBaseName: string }) {
     const maxSuffixAttempts = 200;
     for (let attempt = 0; attempt < maxSuffixAttempts; attempt += 1) {
@@ -293,7 +313,7 @@ function getParentDir(path: string) {
   return normalized.slice(0, lastSlash);
 }
 
-function getDropboxErrorSummary(error: unknown) {
+export function getDropboxErrorSummary(error: unknown) {
   if (typeof error === "object" && error !== null) {
     const obj = error as Record<string, unknown>;
     const nestedError = obj.error;

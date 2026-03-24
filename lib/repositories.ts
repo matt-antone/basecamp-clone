@@ -1,4 +1,5 @@
 import slugify from "slugify";
+import { config } from "./config";
 import { query } from "./db";
 import { renderMarkdown } from "./markdown";
 
@@ -142,34 +143,36 @@ export async function createProject(args: {
     throw new Error("Selected client not found");
   }
 
-  const clientSlug = slugify(client.name, { lower: true, strict: true }) || slugify(client.code, { lower: true, strict: true }) || "client";
+  const clientSlug = slugify(client.name, { strict: true }) || slugify(client.code, { strict: true }) || "client";
   const projectSlug = slugify(projectTitle, { lower: true, strict: true }) || "project";
   const normalizedTags = normalizeProjectTags(args.tags);
+  const projectsRoot = config.dropboxProjectsRootFolder();
   const result = await query(
     `with lock as (
-       select pg_advisory_xact_lock(hashtext('project-seq:' || $4::text))
+       select pg_advisory_xact_lock(hashtext('project-seq:' || $4::uuid::text))
      ),
      next_seq as (
        select coalesce(max(project_seq), 0) + 1 as seq
        from projects
-       where client_id = $4
+       where client_id = $4::uuid
          and exists(select 1 from lock)
      )
      insert into projects (
-       name, slug, description, created_by, client_id, status, project_seq, project_code, client_slug, project_slug, tags
+       name, slug, description, created_by, client_id, status, project_seq, project_code, client_slug, project_slug, tags, storage_project_dir
      )
      select
        $1,
        lower($5 || '-' || lpad(next_seq.seq::text, 4, '0') || '-' || $7),
        $2,
        $3,
-       $4,
+       $4::uuid,
        'new',
        next_seq.seq,
        $5 || '-' || lpad(next_seq.seq::text, 4, '0'),
        $6,
        $7,
-       $8::text[]
+       $8::text[],
+       $9 || '/' || $6 || '/' || $5 || '-' || lpad(next_seq.seq::text, 4, '0') || '-' || $7
      from next_seq
      returning *`,
     [
@@ -180,7 +183,8 @@ export async function createProject(args: {
       client.code,
       clientSlug,
       projectSlug,
-      normalizedTags
+      normalizedTags,
+      projectsRoot
     ]
   );
   return result.rows[0];
@@ -254,6 +258,19 @@ export async function setProjectArchived(id: string, archived: boolean) {
      where id = $1
      returning *`,
     [id, archived]
+  );
+  return result.rows[0] ?? null;
+}
+
+export async function setProjectArchivedWithStorageDir(id: string, archived: boolean, storageProjectDir: string) {
+  const result = await query(
+    `update projects
+     set archived = $2,
+         storage_project_dir = $3,
+         updated_at = now()
+     where id = $1
+     returning *`,
+    [id, archived, storageProjectDir]
   );
   return result.rows[0] ?? null;
 }

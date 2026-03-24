@@ -136,8 +136,8 @@ async function wipeProjects(db) {
 
 async function createProject({ db, client, template, createdBy, createdAt }) {
   const clientSlug =
-    slugify(client.name, { lower: true, strict: true }) ||
-    slugify(client.code, { lower: true, strict: true }) ||
+    slugify(client.name, { strict: true }) ||
+    slugify(client.code, { strict: true }) ||
     "client";
   const projectSlug = slugify(template.name, { lower: true, strict: true }) || "project";
 

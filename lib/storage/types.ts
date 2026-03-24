@@ -16,4 +16,5 @@ export interface StorageAdapter {
     clientSlug: string;
     projectFolderBaseName: string;
   }): Promise<{ projectDir: string; uploadsDir: string }>;
+  moveProjectFolder(args: { fromPath: string; toPath: string }): Promise<{ projectDir: string }>;
 }
