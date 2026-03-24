@@ -27,6 +27,8 @@ export default function ThemeToggle() {
   const [user, setUser] = useState<SessionUser | null>(null);
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const [projectStats, setProjectStats] = useState<ProjectStats | null>(null);
+  const [isAuthReady, setIsAuthReady] = useState(false);
+  const [isSigningIn, setIsSigningIn] = useState(false);
 
   useEffect(() => {
     const saved = localStorage.getItem(THEME_KEY);
@@ -54,11 +56,14 @@ export default function ThemeToggle() {
       if (!mounted) return;
       setUser(data.session?.user ? { id: data.session.user.id, email: data.session.user.email } : null);
       setAccessToken(data.session?.access_token ?? null);
+      setIsAuthReady(true);
     });
 
     const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ? { id: session.user.id, email: session.user.email } : null);
       setAccessToken(session?.access_token ?? null);
+      setIsAuthReady(true);
+      setIsSigningIn(false);
     });
 
     return () => {
@@ -118,6 +123,16 @@ export default function ThemeToggle() {
     applyTheme(nextTheme);
   }
 
+  async function signIn() {
+    try {
+      setIsSigningIn(true);
+      const supabase = getSupabaseBrowserClient();
+      await supabase.auth.signInWithOAuth({ provider: "google", options: { redirectTo: window.location.origin } });
+    } catch {
+      setIsSigningIn(false);
+    }
+  }
+
   async function signOut() {
     try {
       const supabase = getSupabaseBrowserClient();
@@ -149,6 +164,16 @@ export default function ThemeToggle() {
         )}
       </div>
       <div className="themeTopBarActions">
+        {isAuthReady && !user && (
+          <button
+            type="button"
+            className="themeHeaderButton themeHeaderButtonPrimary"
+            onClick={signIn}
+            disabled={isSigningIn}
+          >
+            {isSigningIn ? "Signing in..." : "Sign in"}
+          </button>
+        )}
         {user && (
           <>
             <Link href="/settings" className="themeHeaderButton themeHeaderButtonSecondary">

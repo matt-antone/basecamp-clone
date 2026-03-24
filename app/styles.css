@@ -258,6 +258,12 @@ h3 {
   border-color: color-mix(in oklch, var(--panel-border) 84%, transparent);
 }
 
+.themeHeaderButtonPrimary {
+  background: var(--button-primary-bg);
+  color: var(--button-primary-text);
+  border-color: color-mix(in oklch, var(--button-primary-bg) 84%, black 6%);
+}
+
 .themeHeaderButtonGhost {
   background: transparent;
   color: var(--link-color);
