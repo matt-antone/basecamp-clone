@@ -1,12 +1,11 @@
 "use client";
 
 import Link from "next/link";
+import { DEFAULT_SITE_LOGO_URL, DEFAULT_SITE_TITLE, normalizeSiteLogoUrl, normalizeSiteTitle } from "@/lib/site-branding";
 import { useEffect, useState } from "react";
 import { authedJsonFetch, fetchAuthSession } from "@/lib/browser-auth";
 
 const THEME_KEY = "basecamp-clone-theme";
-const DEFAULT_SITE_TITLE = "Project Manager";
-const DEFAULT_LOGO_URL = "/gx-logo.webp";
 
 type Theme = "light" | "dark";
 type SessionUser = { id: string; email?: string };
@@ -34,7 +33,7 @@ export default function ThemeToggle() {
   const [projectStats, setProjectStats] = useState<ProjectStats | null>(null);
   const [siteSettings, setSiteSettings] = useState<SiteSettingsPayload>({
     siteTitle: DEFAULT_SITE_TITLE,
-    logoUrl: DEFAULT_LOGO_URL
+    logoUrl: DEFAULT_SITE_LOGO_URL
   });
   const [isAuthReady, setIsAuthReady] = useState(false);
   const [isSigningIn, setIsSigningIn] = useState(false);
@@ -80,12 +79,10 @@ export default function ThemeToggle() {
 
         const rawTitle = source.siteTitle ?? source.site_title ?? null;
         const rawLogo = source.logoUrl ?? source.logo_url ?? null;
-        const nextTitle = typeof rawTitle === "string" ? rawTitle.trim() : "";
-        const nextLogo = typeof rawLogo === "string" ? rawLogo.trim() : "";
 
         setSiteSettings({
-          siteTitle: nextTitle || DEFAULT_SITE_TITLE,
-          logoUrl: nextLogo || DEFAULT_LOGO_URL
+          siteTitle: normalizeSiteTitle(rawTitle),
+          logoUrl: normalizeSiteLogoUrl(rawLogo)
         });
       } catch {
         /* Keep fallback branding if settings cannot be loaded. */

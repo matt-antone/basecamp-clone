@@ -5,10 +5,13 @@ import { PageLoadingState } from "@/components/loading-shells";
 import { getAvatarProxyUrl } from "@/lib/avatar";
 import { authedJsonFetch, fetchAuthSession } from "@/lib/browser-auth";
 import { createClientResource } from "@/lib/client-resource";
+import {
+  DEFAULT_SITE_LOGO_URL,
+  DEFAULT_SITE_TITLE,
+  normalizeSiteLogoUrl,
+  normalizeSiteTitle
+} from "@/lib/site-branding";
 import { useEffect, useState } from "react";
-
-const DEFAULT_SITE_TITLE = "Project Manager";
-const DEFAULT_SITE_LOGO_URL = "/gx-logo.webp";
 
 type ClientRecord = {
   id: string;
@@ -182,8 +185,8 @@ async function loadSiteSettings(): Promise<SiteSettingsForm> {
     const rawLogo = source?.logoUrl ?? source?.logo_url ?? null;
 
     return {
-      siteTitle: typeof rawTitle === "string" && rawTitle.trim() ? rawTitle.trim() : DEFAULT_SITE_TITLE,
-      logoUrl: typeof rawLogo === "string" && rawLogo.trim() ? rawLogo.trim() : DEFAULT_SITE_LOGO_URL
+      siteTitle: normalizeSiteTitle(rawTitle),
+      logoUrl: normalizeSiteLogoUrl(rawLogo)
     };
   } catch {
     return {
@@ -304,8 +307,8 @@ function SettingsPageContent({ initial }: { initial: SettingsBootstrap }) {
       const rawTitle = payload?.siteTitle ?? payload?.site_title ?? null;
       const rawLogo = payload?.logoUrl ?? payload?.logo_url ?? null;
       setSiteSettings({
-        siteTitle: typeof rawTitle === "string" && rawTitle.trim() ? rawTitle.trim() : DEFAULT_SITE_TITLE,
-        logoUrl: typeof rawLogo === "string" && rawLogo.trim() ? rawLogo.trim() : DEFAULT_SITE_LOGO_URL
+        siteTitle: normalizeSiteTitle(rawTitle),
+        logoUrl: normalizeSiteLogoUrl(rawLogo)
       });
       setStatus("Site settings updated");
     } finally {

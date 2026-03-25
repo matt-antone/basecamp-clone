@@ -1,13 +1,26 @@
 import type { Metadata } from "next";
 import { Instrument_Sans, Newsreader } from "next/font/google";
 import Script from "next/script";
+import { getSiteSettings } from "@/lib/repositories";
+import { DEFAULT_SITE_TITLE, SITE_DESCRIPTION, normalizeSiteTitle } from "@/lib/site-branding";
 import "./styles.css";
 import ThemeToggle from "./theme-toggle";
 
-export const metadata: Metadata = {
-  title: "Basecamp Clone",
-  description: "Basecamp 2 replacement with Supabase + Dropbox"
-};
+export async function generateMetadata(): Promise<Metadata> {
+  try {
+    const siteSettings = await getSiteSettings();
+
+    return {
+      title: normalizeSiteTitle(siteSettings?.siteTitle),
+      description: SITE_DESCRIPTION
+    };
+  } catch {
+    return {
+      title: DEFAULT_SITE_TITLE,
+      description: SITE_DESCRIPTION
+    };
+  }
+}
 
 const instrumentSans = Instrument_Sans({
   subsets: ["latin"],
