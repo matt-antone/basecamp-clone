@@ -134,10 +134,13 @@ function ProjectPageContent({ projectId, initial }: { projectId: string; initial
   const [isFileDragActive, setIsFileDragActive] = useState(false);
   const [isSavingProject, setIsSavingProject] = useState(false);
   const [isSavingMyHours, setIsSavingMyHours] = useState(false);
+  const [isRestoringProject, setIsRestoringProject] = useState(false);
+  const [savingArchivedHoursUserId, setSavingArchivedHoursUserId] = useState<string | null>(null);
   const [projectForm, setProjectForm] = useState<ProjectDialogValues>(createProjectDialogValues());
   const [title, setTitle] = useState("");
   const [bodyMarkdown, setBodyMarkdown] = useState("");
   const [myHoursInput, setMyHoursInput] = useState("");
+  const [archivedHoursInputs, setArchivedHoursInputs] = useState<Record<string, string>>({});
   const [createDiscussionEditorKey, setCreateDiscussionEditorKey] = useState(0);
   const editProjectDialogRef = useRef<HTMLDialogElement | null>(null);
   const createDiscussionDialogRef = useRef<HTMLDialogElement | null>(null);
@@ -172,6 +175,12 @@ function ProjectPageContent({ projectId, initial }: { projectId: string; initial
     setProjectForm(createProjectDialogValues(project?.client_id ?? "", project));
     setMyHoursInput(formatHoursInput(project?.my_hours));
   }, [project]);
+
+  useEffect(() => {
+    setArchivedHoursInputs(
+      Object.fromEntries(userHours.map((entry) => [entry.userId, formatHoursInput(entry.hours)]))
+    );
+  }, [userHours]);
 
   useEffect(() => {
     previewUrlsRef.current = filePreviewUrls;
@@ -356,9 +365,55 @@ function ProjectPageContent({ projectId, initial }: { projectId: string; initial
     }
   }
 
+  async function saveArchivedHours(userId: string) {
+    if (!token || !projectId) return;
+
+    const inputValue = (archivedHoursInputs[userId] ?? "").trim();
+    const parsedHours = inputValue ? Number(inputValue) : Number.NaN;
+    if (inputValue && (!Number.isFinite(parsedHours) || parsedHours < 0)) {
+      throw new Error("Team hours must be a non-negative number");
+    }
+
+    setSavingArchivedHoursUserId(userId);
+    try {
+      const data = await authedFetch(token, `/projects/${projectId}/archived-hours`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          userId,
+          hours: inputValue ? parsedHours : null
+        })
+      });
+      setProject((data?.project ?? null) as Project | null);
+      setUserHours(((data?.userHours ?? []) as ProjectUserHoursEntry[]));
+      setStatus("Team hours saved");
+    } finally {
+      setSavingArchivedHoursUserId(null);
+    }
+  }
+
+  async function restoreArchivedProject() {
+    if (!token || !projectId) return;
+
+    setIsRestoringProject(true);
+    try {
+      await authedFetch(token, `/projects/${projectId}/restore`, { method: "POST" });
+      await load(token, projectId);
+      setStatus("Project restored");
+    } finally {
+      setIsRestoringProject(false);
+    }
+  }
+
   function openEditProjectDialog() {
     setProjectForm(createProjectDialogValues(project?.client_id ?? "", project));
     editProjectDialogRef.current?.showModal();
+  }
+
+  function openCreateDiscussionDialog() {
+    setTitle("");
+    setBodyMarkdown("");
+    setCreateDiscussionEditorKey((current) => current + 1);
+    createDiscussionDialogRef.current?.showModal();
   }
 
   async function uploadSelectedFile() {
@@ -453,13 +508,16 @@ function ProjectPageContent({ projectId, initial }: { projectId: string; initial
     <main className="page">
       <header className="header">
         <div className={`projectHeaderCopy projectStatusTone tone-${normalizeProjectColumn(project)}`}>
-          <h1 style={{ display: "flex", alignItems: "baseline", gap: 4, flexWrap: "wrap", margin: 0 }}>
+          <h1 className="projectHeaderTitle">
             <span>{projectTitle}</span>
             {requestor ? (
-              <>
-                <span aria-hidden="true">-</span>
-                <em>{requestor}</em>
-              </>
+              <span className="projectHeaderRequestor">
+                <span aria-hidden="true" className="projectHeaderRequestorSeparator">
+                  {" "}
+                  -
+                </span>
+                {requestor}
+              </span>
             ) : null}
           </h1>
           {project?.deadline ? <p className="headerSubtitle">Deadline: {formatDeadline(project.deadline)}</p> : null}
@@ -467,36 +525,62 @@ function ProjectPageContent({ projectId, initial }: { projectId: string; initial
           <ProjectTagList tags={project?.tags} className="projectHeaderTags" />
           <div className="projectHoursRow">
             {project?.archived ? (
-              <div style={{ display: "grid", gap: 8, width: "100%" }}>
-                <p style={{ margin: 0, fontSize: "0.78rem", fontWeight: 600, textTransform: "uppercase" }}>Team Hours</p>
+              <div className="projectArchivedHours">
+                <p className="projectArchivedHoursLabel">Team Hours</p>
                 {userHours.length > 0 ? (
-                  <>
-                    <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "grid", gap: 8 }}>
+                  <div className="projectArchivedHoursBody">
+                    <ul className="projectArchivedHoursList">
                       {userHours.map((entry) => (
-                        <li
-                          key={entry.userId}
-                          style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}
-                        >
-                          <span style={{ display: "inline-flex", alignItems: "center", gap: 10, minWidth: 0 }}>
+                        <li key={entry.userId} className="projectArchivedHoursRow">
+                          <span className="projectArchivedHoursUser">
                             {entry.avatarUrl ? (
                               <img src={getAvatarProxyUrl(entry.avatarUrl)} alt="" className="projectHoursAvatar" />
                             ) : (
                               <span className="projectHoursAvatar projectHoursAvatarFallback">{getHoursEntryInitials(entry)}</span>
                             )}
-                            <span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                            <span className="projectArchivedHoursName">
                               {getHoursEntryLabel(entry)}
                             </span>
                           </span>
-                          <strong>{formatHoursValue(entry.hours)}</strong>
+                          <div className="projectArchivedHoursEditor">
+                            <input
+                              type="number"
+                              min="0"
+                              step="0.25"
+                              inputMode="decimal"
+                              className="projectArchivedHoursInput"
+                              value={archivedHoursInputs[entry.userId] ?? ""}
+                              onChange={(event) =>
+                                setArchivedHoursInputs((current) => ({
+                                  ...current,
+                                  [entry.userId]: event.target.value
+                                }))
+                              }
+                              placeholder="0"
+                              aria-label={`${getHoursEntryLabel(entry)} hours`}
+                            />
+                            <button
+                              type="button"
+                              className="secondary projectArchivedHoursSave"
+                              disabled={
+                                savingArchivedHoursUserId === entry.userId ||
+                                (archivedHoursInputs[entry.userId] ?? "") === formatHoursInput(entry.hours)
+                              }
+                              onClick={() => saveArchivedHours(entry.userId).catch((error) => setStatus(error.message))}
+                            >
+                              {savingArchivedHoursUserId === entry.userId ? "Saving..." : "Save"}
+                            </button>
+                          </div>
                         </li>
                       ))}
                     </ul>
-                    <p style={{ margin: 0 }}>
-                      <strong>Total: {formatHoursValue(totalArchivedHours)}</strong>
-                    </p>
-                  </>
+                    <div className="projectArchivedHoursTotal">
+                      <span>Total</span>
+                      <strong>{formatHoursValue(totalArchivedHours)}</strong>
+                    </div>
+                  </div>
                 ) : (
-                  <p style={{ margin: 0, color: "var(--text-muted)" }}>No hours logged for this archived project.</p>
+                  <p className="projectArchivedHoursEmpty">No hours logged for this archived project.</p>
                 )}
               </div>
             ) : (
@@ -541,6 +625,16 @@ function ProjectPageContent({ projectId, initial }: { projectId: string; initial
           <Link href="/" className="linkButton">
             All Projects
           </Link>
+          {project?.archived ? (
+            <button
+              type="button"
+              className="secondary"
+              onClick={() => restoreArchivedProject().catch((error) => setStatus(error.message))}
+              disabled={isRestoringProject}
+            >
+              {isRestoringProject ? "Restoring..." : "Restore Project"}
+            </button>
+          ) : null}
           <button type="button" className="iconButton" aria-label="Edit project" onClick={openEditProjectDialog}>
             <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
               <path
@@ -558,7 +652,7 @@ function ProjectPageContent({ projectId, initial }: { projectId: string; initial
           <button
             className="iconButton"
             aria-label="Create discussion"
-            onClick={() => createDiscussionDialogRef.current?.showModal()}
+            onClick={openCreateDiscussionDialog}
           >
             <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
               <path fill="currentColor" d="M11 11V5h2v6h6v2h-6v6h-2v-6H5v-2h6Z" />
@@ -701,7 +795,7 @@ function ProjectPageContent({ projectId, initial }: { projectId: string; initial
         </ul>
       </section>
 
-      <dialog ref={createDiscussionDialogRef} className="dialog">
+      <dialog ref={createDiscussionDialogRef} className="dialog dialogCreateDiscussion">
         <form method="dialog" className="dialogForm">
           <h3>Create Discussion</h3>
           <div className="form">
@@ -711,6 +805,7 @@ function ProjectPageContent({ projectId, initial }: { projectId: string; initial
               markdown={bodyMarkdown}
               onChange={setBodyMarkdown}
               placeholder="Write the discussion body in markdown"
+              overlayContainer={createDiscussionDialogRef.current}
             />
           </div>
           <div className="row">

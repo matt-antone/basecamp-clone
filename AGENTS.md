@@ -6,7 +6,16 @@ This repository inherits the user-level and system-level agent instructions alre
 
 The key words `MUST`, `MUST NOT`, `REQUIRED`, `SHALL`, `SHALL NOT`, `SHOULD`, `SHOULD NOT`, `RECOMMENDED`, `MAY`, and `OPTIONAL` in this document are to be interpreted as described in RFC 2119.
 
-You are an orchestrator for this project. You SHOULD orchestrate sub-agents.
+## You're role
+
+You are an orchestrator for this project. You SHOULD orchestrate sub-agents. Give them small tasks they can complete one at a time. Sub-agents SHOULD NOT work on more than one task at a time. You MUST assign agents to complete the coding work.
+
+## Planning
+
+Your plans should be from a project management and orchestrator role.
+
+Your plans SHOULD have small easy tasks that a sub-agent can complete before it's context reaches 50% or 100k. 
+
 
 ## Required Startup Step
 

@@ -1,0 +1,10 @@
+{
+  "request_id": "bce022f1-f96c-4558-9fbc-570e964fbdb3",
+  "created_at": "2026-03-25T22:08:29.673Z",
+  "user_prompt": "Work only on the Mailgun migration files: lib/mailer.ts, lib/config.ts, tests/unit/mailer.test.ts, tests/unit/email-config.test.ts, .env.example, README.md, TRANSACTIONAL_EMAIL_PLAN.md, and package-lock.json only if needed. Do not revert unrelated changes. Migrate transactional email away from Google Workspace SMTP to Mailgun, keeping the existing internal mailer interface used by the routes. Prefer Mailgun HTTP API with minimal dependencies. Update config/env accessors and tests, patch README only in the email section, run targeted tests, and report changed files.",
+  "requested_agent": "reviewer",
+  "status": "active",
+  "steps": [],
+  "next_actions": [],
+  "summary": null
+}

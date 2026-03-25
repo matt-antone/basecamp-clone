@@ -1491,12 +1491,73 @@ button {
   box-shadow: var(--surface-shadow);
 }
 
+.dialogCreateDiscussion {
+  width: min(1024px, calc(100% - 32px));
+  max-width: min(1024px, calc(100% - 32px));
+  height: min(80vh, calc(100vh - 32px));
+  max-height: min(80vh, calc(100vh - 32px));
+  overflow: hidden;
+}
+
 .dialog::backdrop {
   background: var(--dialog-backdrop);
 }
 
 .dialogForm {
   padding: 18px;
+}
+
+.dialogCreateDiscussion .dialogForm {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  height: 100%;
+  max-height: 100%;
+  overflow: hidden;
+}
+
+.dialogCreateDiscussion .form {
+  display: grid;
+  grid-template-rows: auto auto;
+  align-content: start;
+  gap: 12px;
+  flex: 1 1 auto;
+  margin-bottom: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.dialogCreateDiscussion .commentMdxEditor {
+  display: flex;
+  flex-direction: column;
+  flex: 0 0 auto;
+  height: clamp(320px, 52vh, 640px);
+  min-height: 0;
+  overflow: hidden;
+}
+
+.dialogCreateDiscussion .commentMdxEditor .mdxeditor-root-contenteditable {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.dialogCreateDiscussion .commentMdxEditor .mdxeditor-root-contenteditable > div {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.dialogCreateDiscussion .commentMdxContent {
+  flex: 1 1 auto;
+  display: block;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 
 button:disabled {
@@ -1864,11 +1925,121 @@ li.active {
   min-width: 0;
 }
 
+.projectHeaderTitle {
+  display: flex;
+  align-items: baseline;
+  gap: 0.35rem;
+  flex-wrap: wrap;
+  margin: 0;
+  min-width: 0;
+}
+
+.projectHeaderRequestor {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.12em;
+  font-size: 0.52em;
+  font-weight: var(--weight-regular);
+  color: var(--text-muted);
+  line-height: 1.1;
+  letter-spacing: 0;
+}
+
+.projectHeaderRequestorSeparator {
+  font-size: 1em;
+}
+
 .projectHoursRow {
   display: flex;
   align-items: end;
   gap: 10px;
   flex-wrap: wrap;
+}
+
+.projectArchivedHours {
+  display: grid;
+  gap: 0.55rem;
+  width: 100%;
+  min-width: 0;
+}
+
+.projectArchivedHoursLabel {
+  margin: 0;
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.projectArchivedHoursBody {
+  display: grid;
+  gap: 0.55rem;
+  min-width: 0;
+}
+
+.projectArchivedHoursList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.5rem;
+}
+
+.projectArchivedHoursRow,
+.projectArchivedHoursTotal {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(13.5rem, auto);
+  align-items: center;
+  gap: 12px;
+}
+
+.projectArchivedHoursUser {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.projectArchivedHoursName {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.projectArchivedHoursEditor {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.projectArchivedHoursInput {
+  min-width: 0;
+  width: 100%;
+}
+
+.projectArchivedHoursSave {
+  white-space: nowrap;
+}
+
+.projectArchivedHoursTotal {
+  padding-top: 0.45rem;
+  border-top: 1px solid color-mix(in srgb, var(--panel-border) 78%, transparent);
+}
+
+.projectArchivedHoursTotal span {
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.projectArchivedHoursEmpty {
+  margin: 0;
+  color: var(--text-muted);
 }
 
 .projectHoursFieldInput{
@@ -2005,6 +2176,8 @@ li.active {
   min-height: 0;
   aspect-ratio: 1 / 1;
   align-content: center;
+  justify-items: center;
+  text-align: center;
 }
 
 .fileThumbEmptyState {
@@ -2292,6 +2465,7 @@ li.active {
   display: grid;
   gap: 2px;
   transition: border-color 140ms ease, background-color 140ms ease;
+  justify-items: start;
 }
 
 .commentDropZoneActive {
@@ -2375,9 +2549,11 @@ li.active {
   display: flex;
   flex-direction: row;
   flex-wrap: nowrap;
-  overflow-x: auto;
-  overflow-y: hidden;
+  overflow-x: visible;
+  overflow-y: visible;
   white-space: nowrap;
+  position: relative;
+  z-index: 2;
 }
 
 .commentMdxEditor [role="toolbar"] ul {

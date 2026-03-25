@@ -1,0 +1,10 @@
+{
+  "request_id": "74814a75-e7c5-4262-a0e1-a64217ec43f7",
+  "created_at": "2026-03-25T22:08:19.429Z",
+  "user_prompt": "You are working in the basecamp-clone repo. Follow the repo's context-mode operating rules explicitly and keep context minimal. You are not alone in the codebase: do not revert unrelated user changes, and adjust around any existing edits. Your ownership is limited to these files unless absolutely necessary: lib/mailer.ts, lib/config.ts, tests/unit/mailer.test.ts, tests/unit/email-config.test.ts, .env.example, README.md, TRANSACTIONAL_EMAIL_PLAN.md, and package-lock.json only if dependency changes are required. Task: migrate transactional email sending away from Google Workspace SMTP to Mailgun. Keep the existing internal mailer interface used by the routes. Prefer a minimal implementation that uses Mailgun's HTTP API (or an official supported Node path) and preserves best-effort behavior. Update config/env accessors to MAILGUN_* variables, update tests accordingly, and update docs/env examples so they no longer describe Google Workspace SMTP relay. Be careful editing README.md because it has unrelated local changes; make the smallest possible patch in the email section only. After changes, run the most targeted relevant tests and report exactly which files you changed.",
+  "requested_agent": "debugger",
+  "status": "active",
+  "steps": [],
+  "next_actions": [],
+  "summary": null
+}

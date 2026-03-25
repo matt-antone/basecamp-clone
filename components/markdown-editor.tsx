@@ -22,6 +22,7 @@ type MarkdownEditorProps = {
   markdown: string;
   onChange: (markdown: string) => void;
   placeholder: string;
+  overlayContainer?: HTMLElement | null;
 };
 
 export default function MarkdownEditor(props: MarkdownEditorProps) {
@@ -30,6 +31,7 @@ export default function MarkdownEditor(props: MarkdownEditorProps) {
       markdown={props.markdown}
       onChange={(nextMarkdown) => props.onChange(nextMarkdown)}
       placeholder={props.placeholder}
+      overlayContainer={props.overlayContainer ?? undefined}
       className="commentMdxEditor"
       contentEditableClassName="commentMdxContent"
       plugins={[

@@ -12,7 +12,11 @@ Next.js + Supabase + Dropbox implementation based on `PLAN.md`.
 - Dropbox project working directories: `/projects/<client-slug>/<project-code>-<project-slug>/uploads`
 - Basecamp 2 import job endpoints with idempotent mapping tables
 - Working authenticated UI with route-based navigation
-- Settings page at `/settings` with tabbed client management
+- Settings page at `/settings` with tabbed client and site branding management
+- Configurable site title and logo served through `/site-settings`
+- Optional project deadlines in create, edit, and project detail flows
+- Project detail payload includes archived user-hours roster data
+- Dropbox folder links are opened client-side from authenticated JSON responses
 - Navigation:
   - `/` list/create/edit projects
   - `/:id` project view and discussion creation
@@ -30,7 +34,9 @@ Next.js + Supabase + Dropbox implementation based on `PLAN.md`.
    - `supabase/migrations/0005_project_identity_and_storage.sql`
    - `supabase/migrations/0006_project_tags_taxonomy.sql`
    - `supabase/migrations/0007_comment_attachments.sql`
-   - `supabase/migrations/0006_project_tags_taxonomy.sql`
+   - `supabase/migrations/0008_project_requestor_personal_hours.sql`
+   - `supabase/migrations/0009_project_user_hours.sql`
+   - `supabase/migrations/0010_site_settings_and_project_deadline.sql`
 5. `npm run dev`
 
 Required server env vars:
@@ -70,6 +76,8 @@ Dropbox env vars:
 - `GET|POST /clients`
 - `GET /projects/:id`
 - `PATCH /projects/:id`
+- `GET|PATCH /site-settings`
+- `GET /projects/:id/folder-link`
 - `POST /projects/:id/archive`
 - `POST /projects/:id/restore`
 - `GET|POST /projects/:id/threads`
