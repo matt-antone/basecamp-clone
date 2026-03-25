@@ -425,6 +425,7 @@ function ProjectPageContent({ projectId, initial }: { projectId: string; initial
       <header className="header">
         <div className={`projectHeaderCopy projectStatusTone tone-${normalizeProjectColumn(project)}`}>
           <h1>{project?.display_name ?? project?.name ?? "Project"}</h1>
+          <ProjectTagList tags={project?.tags} className="projectHeaderTags" />
           <div className="projectHoursRow">
 
             <form
@@ -462,7 +463,6 @@ function ProjectPageContent({ projectId, initial }: { projectId: string; initial
               </button>
             </form>
           </div>
-          <ProjectTagList tags={project?.tags} className="projectHeaderTags" />
         </div>
         <div className="row">
           <Link href="/" className="linkButton">
@@ -478,8 +478,6 @@ function ProjectPageContent({ projectId, initial }: { projectId: string; initial
           </button>
         </div>
       </header>
-
-      <p className="status">{status}</p>
 
       <section className="stackSection">
         <div className="sectionHeader">
