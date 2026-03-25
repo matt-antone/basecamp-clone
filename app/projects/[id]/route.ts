@@ -1,6 +1,6 @@
 import { requireUser } from "@/lib/auth";
 import { badRequest, notFound, ok, serverError, unauthorized } from "@/lib/http";
-import { getProject, updateProject } from "@/lib/repositories";
+import { getProject, listProjectUserHours, updateProject } from "@/lib/repositories";
 import { z } from "zod";
 
 const patchProjectSchema = z.object({
@@ -8,6 +8,7 @@ const patchProjectSchema = z.object({
   description: z.string().optional(),
   clientId: z.string().uuid(),
   tags: z.array(z.string().min(1)).max(50).optional(),
+  deadline: z.string().date().optional().nullable(),
   requestor: z.string().optional().nullable()
 });
 
@@ -15,11 +16,11 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   try {
     const user = await requireUser(request);
     const { id } = await params;
-    const project = await getProject(id, user.id);
+    const [project, userHours] = await Promise.all([getProject(id, user.id), listProjectUserHours(id)]);
     if (!project) {
       return notFound("Project not found");
     }
-    return ok({ project });
+    return ok({ project, userHours });
   } catch (error) {
     if (error instanceof Error && /auth|token|workspace/i.test(error.message)) {
       return unauthorized(error.message);
@@ -39,6 +40,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       description: payload.description,
       clientId: payload.clientId,
       tags: payload.tags,
+      deadline: payload.deadline,
       requestor: payload.requestor
     });
     if (!project) {

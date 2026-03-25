@@ -7,6 +7,9 @@ import { authedJsonFetch, fetchAuthSession } from "@/lib/browser-auth";
 import { createClientResource } from "@/lib/client-resource";
 import { useEffect, useState } from "react";
 
+const DEFAULT_SITE_TITLE = "Project Manager";
+const DEFAULT_SITE_LOGO_URL = "/gx-logo.webp";
+
 type ClientRecord = {
   id: string;
   name: string;
@@ -33,6 +36,10 @@ type ProfileForm = {
   timezone: string;
   bio: string;
 };
+type SiteSettingsForm = {
+  siteTitle: string;
+  logoUrl: string;
+};
 
 const EMPTY_PROFILE: ProfileForm = {
   email: "",
@@ -50,6 +57,7 @@ type SettingsBootstrap = {
   status: string;
   clients: ClientRecord[];
   profile: ProfileForm;
+  siteSettings: SiteSettingsForm;
 };
 
 const settingsBootstrapResource = createClientResource(loadSettingsBootstrap, () => "settings");
@@ -105,6 +113,7 @@ async function loadSettingsBootstrap(): Promise<SettingsBootstrap> {
     const session = await fetchAuthSession();
     const accessToken = session.accessToken;
     const googleAvatarUrl = session.googleAvatarUrl;
+    const siteSettings = await loadSiteSettings();
 
     if (!accessToken) {
       return {
@@ -112,7 +121,8 @@ async function loadSettingsBootstrap(): Promise<SettingsBootstrap> {
         googleAvatarUrl,
         status: session.status || "Sign in first, then open settings",
         clients: [],
-        profile: EMPTY_PROFILE
+        profile: EMPTY_PROFILE,
+        siteSettings
       };
     }
 
@@ -126,7 +136,8 @@ async function loadSettingsBootstrap(): Promise<SettingsBootstrap> {
       googleAvatarUrl,
       status: session.status,
       clients: (clientsData.data?.clients ?? []) as ClientRecord[],
-      profile: profileRecordToForm((profileData.data?.profile ?? null) as UserProfileRecord | null)
+      profile: profileRecordToForm((profileData.data?.profile ?? null) as UserProfileRecord | null),
+      siteSettings
     };
   } catch (error) {
     return {
@@ -134,7 +145,50 @@ async function loadSettingsBootstrap(): Promise<SettingsBootstrap> {
       googleAvatarUrl: "",
       status: error instanceof Error ? error.message : "Failed to load",
       clients: [],
-      profile: EMPTY_PROFILE
+      profile: EMPTY_PROFILE,
+      siteSettings: {
+        siteTitle: DEFAULT_SITE_TITLE,
+        logoUrl: DEFAULT_SITE_LOGO_URL
+      }
+    };
+  }
+}
+
+async function loadSiteSettings(): Promise<SiteSettingsForm> {
+  try {
+    const response = await fetch("/site-settings", {
+      cache: "no-store",
+      credentials: "same-origin"
+    });
+    if (!response.ok) {
+      return {
+        siteTitle: DEFAULT_SITE_TITLE,
+        logoUrl: DEFAULT_SITE_LOGO_URL
+      };
+    }
+
+    const payload = (await response.json().catch(() => null)) as
+      | {
+          siteSettings?: {
+            siteTitle?: string | null;
+            logoUrl?: string | null;
+            site_title?: string | null;
+            logo_url?: string | null;
+          };
+        }
+      | null;
+    const source = payload?.siteSettings ?? null;
+    const rawTitle = source?.siteTitle ?? source?.site_title ?? null;
+    const rawLogo = source?.logoUrl ?? source?.logo_url ?? null;
+
+    return {
+      siteTitle: typeof rawTitle === "string" && rawTitle.trim() ? rawTitle.trim() : DEFAULT_SITE_TITLE,
+      logoUrl: typeof rawLogo === "string" && rawLogo.trim() ? rawLogo.trim() : DEFAULT_SITE_LOGO_URL
+    };
+  } catch {
+    return {
+      siteTitle: DEFAULT_SITE_TITLE,
+      logoUrl: DEFAULT_SITE_LOGO_URL
     };
   }
 }
@@ -143,14 +197,16 @@ function SettingsPageContent({ initial }: { initial: SettingsBootstrap }) {
   const [token, setToken] = useState(initial.token);
   const [googleAvatarUrl] = useState(initial.googleAvatarUrl);
   const [status, setStatus] = useState(initial.status);
-  const [tab, setTab] = useState<"clients" | "profile">("clients");
+  const [tab, setTab] = useState<"clients" | "profile" | "site">("clients");
 
   const [clients, setClients] = useState<ClientRecord[]>(initial.clients);
   const [name, setName] = useState("");
   const [code, setCode] = useState("");
 
   const [profile, setProfile] = useState<ProfileForm>(initial.profile);
+  const [siteSettings, setSiteSettings] = useState<SiteSettingsForm>(initial.siteSettings);
   const [savingProfile, setSavingProfile] = useState(false);
+  const [savingSiteSettings, setSavingSiteSettings] = useState(false);
   const displayedAvatarUrl = googleAvatarUrl || profile.avatarUrl;
 
   async function authedFetch(accessToken: string, path: string, options: RequestInit = {}) {
@@ -225,6 +281,38 @@ function SettingsPageContent({ initial }: { initial: SettingsBootstrap }) {
     }
   }
 
+  async function saveSiteSettings() {
+    if (!token) return;
+    setSavingSiteSettings(true);
+    try {
+      const nextSiteTitle = siteSettings.siteTitle.trim() || null;
+      const nextLogoUrl = siteSettings.logoUrl.trim() || null;
+      const data = await authedFetch(token, "/site-settings", {
+        method: "PATCH",
+        body: JSON.stringify({
+          siteTitle: nextSiteTitle,
+          logoUrl: nextLogoUrl
+        })
+      });
+
+      const payload = (data?.siteSettings ?? null) as {
+        siteTitle?: string | null;
+        logoUrl?: string | null;
+        site_title?: string | null;
+        logo_url?: string | null;
+      } | null;
+      const rawTitle = payload?.siteTitle ?? payload?.site_title ?? null;
+      const rawLogo = payload?.logoUrl ?? payload?.logo_url ?? null;
+      setSiteSettings({
+        siteTitle: typeof rawTitle === "string" && rawTitle.trim() ? rawTitle.trim() : DEFAULT_SITE_TITLE,
+        logoUrl: typeof rawLogo === "string" && rawLogo.trim() ? rawLogo.trim() : DEFAULT_SITE_LOGO_URL
+      });
+      setStatus("Site settings updated");
+    } finally {
+      setSavingSiteSettings(false);
+    }
+  }
+
   return (
     <main className="page">
       <header className="header">
@@ -242,6 +330,9 @@ function SettingsPageContent({ initial }: { initial: SettingsBootstrap }) {
         </button>
         <button className={tab === "profile" ? "tabButton activeTab" : "tabButton"} onClick={() => setTab("profile")}>
           Profile
+        </button>
+        <button className={tab === "site" ? "tabButton activeTab" : "tabButton"} onClick={() => setTab("site")}>
+          Site
         </button>
       </div>
 
@@ -337,6 +428,47 @@ function SettingsPageContent({ initial }: { initial: SettingsBootstrap }) {
 
             <button onClick={() => saveProfile().catch((error) => setStatus(error.message))} disabled={savingProfile}>
               {savingProfile ? "Saving..." : "Save Profile"}
+            </button>
+          </div>
+        </section>
+      )}
+
+      {tab === "site" && (
+        <section className="stackSection">
+          <h2>Site Branding</h2>
+          <p>Set a workspace-wide title and logo used in the top navigation.</p>
+
+          <div className="form">
+            <label>
+              Site title
+              <input
+                value={siteSettings.siteTitle}
+                onChange={(e) => setSiteSettings((prev) => ({ ...prev, siteTitle: e.target.value }))}
+                placeholder={DEFAULT_SITE_TITLE}
+              />
+            </label>
+
+            <label>
+              Logo URL or path
+              <input
+                value={siteSettings.logoUrl}
+                onChange={(e) => setSiteSettings((prev) => ({ ...prev, logoUrl: e.target.value }))}
+                placeholder={DEFAULT_SITE_LOGO_URL}
+              />
+            </label>
+
+            <p className="siteBrandPreviewLabel">Preview</p>
+            <div className="siteBrandPreview" aria-label="Site branding preview">
+              <img
+                src={siteSettings.logoUrl.trim() || DEFAULT_SITE_LOGO_URL}
+                alt={`${siteSettings.siteTitle.trim() || DEFAULT_SITE_TITLE} logo preview`}
+                className="siteBrandPreviewLogo"
+              />
+              <span className="siteBrandPreviewTitle">{siteSettings.siteTitle.trim() || DEFAULT_SITE_TITLE}</span>
+            </div>
+
+            <button onClick={() => saveSiteSettings().catch((error) => setStatus(error.message))} disabled={savingSiteSettings || !token}>
+              {savingSiteSettings ? "Saving..." : "Save Site Settings"}
             </button>
           </div>
         </section>

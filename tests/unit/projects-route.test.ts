@@ -99,6 +99,7 @@ describe("POST /projects", () => {
         body: JSON.stringify({
           name: "Website Refresh",
           clientId: "11111111-1111-1111-1111-111111111111",
+          deadline: "2026-05-30",
           requestor: "Jane Producer"
         })
       })
@@ -107,6 +108,7 @@ describe("POST /projects", () => {
     expect(response.status).toBe(201);
     expect(createProjectMock).toHaveBeenCalledWith(
       expect.objectContaining({
+        deadline: "2026-05-30",
         requestor: "Jane Producer"
       })
     );

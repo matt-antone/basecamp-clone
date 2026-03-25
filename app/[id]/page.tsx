@@ -21,13 +21,24 @@ type Project = {
   name: string;
   display_name?: string | null;
   description: string | null;
+  deadline?: string | null;
   tags?: string[] | null;
   status?: string | null;
+  archived?: boolean;
   client_id: string | null;
   client_name?: string | null;
   client_code?: string | null;
   requestor?: string | null;
   my_hours?: number | string | null;
+};
+
+type ProjectUserHoursEntry = {
+  userId: string;
+  firstName: string | null;
+  lastName: string | null;
+  email: string;
+  avatarUrl: string | null;
+  hours: number | string;
 };
 
 type Thread = {
@@ -65,6 +76,7 @@ type ProjectPageBootstrap = {
   token: string | null;
   status: string;
   project: Project | null;
+  userHours: ProjectUserHoursEntry[];
   clients: ClientRecord[];
   viewerProfile: ViewerProfile | null;
   threads: Thread[];
@@ -111,6 +123,7 @@ function ProjectPageContent({ projectId, initial }: { projectId: string; initial
   const [status, setStatus] = useState(initial.status);
 
   const [project, setProject] = useState<Project | null>(initial.project);
+  const [userHours, setUserHours] = useState<ProjectUserHoursEntry[]>(initial.userHours);
   const [clients, setClients] = useState<ClientRecord[]>(initial.clients);
   const [viewerProfile, setViewerProfile] = useState<ViewerProfile | null>(initial.viewerProfile);
   const [threads, setThreads] = useState<Thread[]>(initial.threads);
@@ -147,6 +160,7 @@ function ProjectPageContent({ projectId, initial }: { projectId: string; initial
   async function load(accessToken: string, id: string) {
     const nextState = await loadProjectData(accessToken, id);
     setProject(nextState.project);
+    setUserHours(nextState.userHours);
     setThreads(nextState.threads);
     setFiles(nextState.files);
     setClients(nextState.clients);
@@ -304,6 +318,7 @@ function ProjectPageContent({ projectId, initial }: { projectId: string; initial
         body: JSON.stringify({
           name: projectForm.name,
           description: projectForm.description,
+          deadline: projectForm.deadline || null,
           clientId: project.client_id,
           tags: parseProjectTags(projectForm.tags),
           requestor: projectForm.requestor.trim() || null
@@ -394,6 +409,15 @@ function ProjectPageContent({ projectId, initial }: { projectId: string; initial
     }
   }
 
+  async function openProjectFolder() {
+    if (!token || !projectId) return;
+    const data = await authedFetch(token, `/projects/${projectId}/folder-link`);
+    const folderUrl = typeof data?.url === "string" ? data.url : "";
+    if (folderUrl) {
+      window.open(folderUrl, "_blank", "noopener,noreferrer");
+    }
+  }
+
   function handleFileInputSelection(list: FileList | null) {
     setSelectedFile(list?.[0] ?? null);
   }
@@ -420,48 +444,97 @@ function ProjectPageContent({ projectId, initial }: { projectId: string; initial
     return "new";
   }
 
+  const projectTitle = project?.display_name ?? project?.name ?? "Project";
+  const requestor = project?.requestor?.trim() ?? "";
+  const projectDescription = project?.description?.trim() ?? "";
+  const totalArchivedHours = userHours.reduce((sum, entry) => sum + parseHoursNumber(entry.hours), 0);
+
   return (
     <main className="page">
       <header className="header">
         <div className={`projectHeaderCopy projectStatusTone tone-${normalizeProjectColumn(project)}`}>
-          <h1>{project?.display_name ?? project?.name ?? "Project"}</h1>
+          <h1 style={{ display: "flex", alignItems: "baseline", gap: 4, flexWrap: "wrap", margin: 0 }}>
+            <span>{projectTitle}</span>
+            {requestor ? (
+              <>
+                <span aria-hidden="true">-</span>
+                <em>{requestor}</em>
+              </>
+            ) : null}
+          </h1>
+          {project?.deadline ? <p className="headerSubtitle">Deadline: {formatDeadline(project.deadline)}</p> : null}
+          {projectDescription ? <p className="headerSubtitle">{projectDescription}</p> : null}
           <ProjectTagList tags={project?.tags} className="projectHeaderTags" />
           <div className="projectHoursRow">
-
-            <form
-              className="projectHoursForm"
-              onSubmit={(event) => {
-                event.preventDefault();
-                saveMyHours().catch((error) => setStatus(error.message));
-              }}
-            >
-              <label className="projectHoursField">
-                <span>My Hours</span>
-                <span className="projectHoursFieldInput">
-                  {viewerProfile?.avatar_url ? (
-                    <img src={getAvatarProxyUrl(viewerProfile.avatar_url)} alt="Your avatar" className="projectHoursAvatar" />
-                  ) : (
-                    <span className="projectHoursAvatar projectHoursAvatarFallback">{getViewerInitials(viewerProfile)}</span>
-                  )}
-                  <input
-                    type="number"
-                    min="0"
-                    step="0.25"
-                    inputMode="decimal"
-                    value={myHoursInput}
-                    onChange={(event) => setMyHoursInput(event.target.value)}
-                    placeholder="0"
-                  />
-                </span>
-              </label>
-              <button
-                type="submit"
-                className="secondary"
-                disabled={isSavingMyHours || myHoursInput === formatHoursInput(project?.my_hours)}
+            {project?.archived ? (
+              <div style={{ display: "grid", gap: 8, width: "100%" }}>
+                <p style={{ margin: 0, fontSize: "0.78rem", fontWeight: 600, textTransform: "uppercase" }}>Team Hours</p>
+                {userHours.length > 0 ? (
+                  <>
+                    <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "grid", gap: 8 }}>
+                      {userHours.map((entry) => (
+                        <li
+                          key={entry.userId}
+                          style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}
+                        >
+                          <span style={{ display: "inline-flex", alignItems: "center", gap: 10, minWidth: 0 }}>
+                            {entry.avatarUrl ? (
+                              <img src={getAvatarProxyUrl(entry.avatarUrl)} alt="" className="projectHoursAvatar" />
+                            ) : (
+                              <span className="projectHoursAvatar projectHoursAvatarFallback">{getHoursEntryInitials(entry)}</span>
+                            )}
+                            <span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                              {getHoursEntryLabel(entry)}
+                            </span>
+                          </span>
+                          <strong>{formatHoursValue(entry.hours)}</strong>
+                        </li>
+                      ))}
+                    </ul>
+                    <p style={{ margin: 0 }}>
+                      <strong>Total: {formatHoursValue(totalArchivedHours)}</strong>
+                    </p>
+                  </>
+                ) : (
+                  <p style={{ margin: 0, color: "var(--text-muted)" }}>No hours logged for this archived project.</p>
+                )}
+              </div>
+            ) : (
+              <form
+                className="projectHoursForm"
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  saveMyHours().catch((error) => setStatus(error.message));
+                }}
               >
-                {isSavingMyHours ? "Saving..." : "Save"}
-              </button>
-            </form>
+                <label className="projectHoursField">
+                  <span>My Hours</span>
+                  <span className="projectHoursFieldInput">
+                    {viewerProfile?.avatar_url ? (
+                      <img src={getAvatarProxyUrl(viewerProfile.avatar_url)} alt="Your avatar" className="projectHoursAvatar" />
+                    ) : (
+                      <span className="projectHoursAvatar projectHoursAvatarFallback">{getViewerInitials(viewerProfile)}</span>
+                    )}
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.25"
+                      inputMode="decimal"
+                      value={myHoursInput}
+                      onChange={(event) => setMyHoursInput(event.target.value)}
+                      placeholder="0"
+                    />
+                  </span>
+                </label>
+                <button
+                  type="submit"
+                  className="secondary"
+                  disabled={isSavingMyHours || myHoursInput === formatHoursInput(project?.my_hours)}
+                >
+                  {isSavingMyHours ? "Saving..." : "Save"}
+                </button>
+              </form>
+            )}
           </div>
         </div>
         <div className="row">
@@ -513,14 +586,13 @@ function ProjectPageContent({ projectId, initial }: { projectId: string; initial
         <div className="sectionHeader">
           <div className="sectionHeaderTitle">
             <h2>Files</h2>
-            <a
-              href={`/projects/${projectId}/folder-link`}
+            <button
+              type="button"
               className="filesFolderLink"
-              target="_blank"
-              rel="noreferrer"
+              onClick={() => openProjectFolder().catch((error) => setStatus(error.message))}
             >
               Open Dropbox folder
-            </a>
+            </button>
           </div>
           <small className="filesCount">{files.length} total</small>
         </div>
@@ -709,6 +781,19 @@ function formatBytes(size: number) {
   return `${value.toFixed(value >= 10 ? 0 : 1)} ${units[unitIndex]}`;
 }
 
+function formatDeadline(value: string) {
+  const date = new Date(`${value}T00:00:00`);
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+
+  return new Intl.DateTimeFormat(undefined, {
+    month: "short",
+    day: "numeric",
+    year: "numeric"
+  }).format(date);
+}
+
 function formatHoursInput(value: number | string | null | undefined) {
   if (value === null || value === undefined || value === "") {
     return "";
@@ -716,6 +801,20 @@ function formatHoursInput(value: number | string | null | undefined) {
 
   const numericValue = typeof value === "number" ? value : Number(value);
   return Number.isFinite(numericValue) ? String(numericValue) : "";
+}
+
+function parseHoursNumber(value: number | string | null | undefined) {
+  if (value === null || value === undefined || value === "") {
+    return 0;
+  }
+
+  const numericValue = typeof value === "number" ? value : Number(value);
+  return Number.isFinite(numericValue) ? numericValue : 0;
+}
+
+function formatHoursValue(value: number | string | null | undefined) {
+  const numericValue = parseHoursNumber(value);
+  return `${numericValue.toFixed(numericValue % 1 === 0 ? 0 : 2)}h`;
 }
 
 function parseProjectTags(value: string) {
@@ -733,6 +832,7 @@ function createProjectDialogValues(clientId = "", project?: Project | null): Pro
   return {
     name: project?.name ?? "",
     description: project?.description ?? "",
+    deadline: project?.deadline ?? "",
     requestor: project?.requestor ?? "",
     tags: (project?.tags ?? []).join(", "),
     clientId
@@ -750,6 +850,21 @@ function getViewerInitials(profile: ViewerProfile | null) {
   return emailLocalPart.slice(0, 2).toUpperCase() || "U";
 }
 
+function getHoursEntryLabel(entry: ProjectUserHoursEntry) {
+  const fullName = `${entry.firstName ?? ""} ${entry.lastName ?? ""}`.trim();
+  return fullName || entry.email;
+}
+
+function getHoursEntryInitials(entry: ProjectUserHoursEntry) {
+  const firstName = (entry.firstName ?? "").trim();
+  const lastName = (entry.lastName ?? "").trim();
+  if (firstName || lastName) {
+    return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase() || "U";
+  }
+
+  return entry.email.split("@")[0].slice(0, 2).toUpperCase() || "U";
+}
+
 async function loadProjectData(accessToken: string, projectId: string) {
   const [projectRes, threadsRes, filesRes, clientsRes, profileRes] = await Promise.all([
     authedJsonFetch({ accessToken, path: `/projects/${projectId}` }),
@@ -762,6 +877,7 @@ async function loadProjectData(accessToken: string, projectId: string) {
   return {
     accessToken: projectRes.accessToken,
     project: (projectRes.data?.project ?? null) as Project | null,
+    userHours: (projectRes.data?.userHours ?? []) as ProjectUserHoursEntry[],
     threads: (threadsRes.data?.threads ?? []) as Thread[],
     files: (filesRes.data?.files ?? []) as ProjectFile[],
     clients: (clientsRes.data?.clients ?? []) as ClientRecord[],
@@ -775,6 +891,7 @@ async function loadProjectBootstrap(projectId: string): Promise<ProjectPageBoots
       token: null,
       status: "Loading project…",
       project: null,
+      userHours: [],
       clients: [],
       viewerProfile: null,
       threads: [],
@@ -791,6 +908,7 @@ async function loadProjectBootstrap(projectId: string): Promise<ProjectPageBoots
         token: null,
         status: session.status || "Sign in first",
         project: null,
+        userHours: [],
         clients: [],
         viewerProfile: null,
         threads: [],
@@ -809,6 +927,7 @@ async function loadProjectBootstrap(projectId: string): Promise<ProjectPageBoots
       token: null,
       status: error instanceof Error ? error.message : "Load failed",
       project: null,
+      userHours: [],
       clients: [],
       viewerProfile: null,
       threads: [],

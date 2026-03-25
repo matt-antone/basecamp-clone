@@ -9,6 +9,7 @@ export type ProjectDialogClient = {
 export type ProjectDialogValues = {
   name: string;
   description: string;
+  deadline: string;
   requestor: string;
   tags: string;
   clientId: string;
@@ -64,6 +65,14 @@ export function ProjectDialogForm({
             value={values.description}
             onChange={(event) => updateField("description", event.target.value)}
             placeholder="Description"
+          />
+        </label>
+        <label className="dialogField">
+          <span>Deadline</span>
+          <input
+            type="date"
+            value={values.deadline}
+            onChange={(event) => updateField("deadline", event.target.value)}
           />
         </label>
         <label className="dialogField">

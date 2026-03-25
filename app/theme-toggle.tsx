@@ -1,11 +1,12 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { authedJsonFetch, fetchAuthSession } from "@/lib/browser-auth";
 
 const THEME_KEY = "basecamp-clone-theme";
+const DEFAULT_SITE_TITLE = "Project Manager";
+const DEFAULT_LOGO_URL = "/gx-logo.webp";
 
 type Theme = "light" | "dark";
 type SessionUser = { id: string; email?: string };
@@ -13,6 +14,10 @@ type ProjectStats = {
   active: number;
   blocked: number;
   archived: number;
+};
+type SiteSettingsPayload = {
+  siteTitle: string | null;
+  logoUrl: string | null;
 };
 
 function applyTheme(theme: Theme) {
@@ -27,6 +32,10 @@ export default function ThemeToggle() {
   const [user, setUser] = useState<SessionUser | null>(null);
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const [projectStats, setProjectStats] = useState<ProjectStats | null>(null);
+  const [siteSettings, setSiteSettings] = useState<SiteSettingsPayload>({
+    siteTitle: DEFAULT_SITE_TITLE,
+    logoUrl: DEFAULT_LOGO_URL
+  });
   const [isAuthReady, setIsAuthReady] = useState(false);
   const [isSigningIn, setIsSigningIn] = useState(false);
 
@@ -40,6 +49,56 @@ export default function ThemeToggle() {
     const systemTheme: Theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
     setTheme(systemTheme);
     applyTheme(systemTheme);
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadSiteSettings() {
+      try {
+        const response = await fetch("/site-settings", {
+          cache: "no-store",
+          credentials: "same-origin"
+        });
+        if (!response.ok) {
+          return;
+        }
+        const payload = (await response.json().catch(() => null)) as
+          | {
+              siteSettings?: {
+                siteTitle?: string | null;
+                logoUrl?: string | null;
+                site_title?: string | null;
+                logo_url?: string | null;
+              };
+            }
+          | null;
+        const source = payload?.siteSettings ?? null;
+        if (!source || cancelled) {
+          return;
+        }
+
+        const rawTitle = source.siteTitle ?? source.site_title ?? null;
+        const rawLogo = source.logoUrl ?? source.logo_url ?? null;
+        const nextTitle = typeof rawTitle === "string" ? rawTitle.trim() : "";
+        const nextLogo = typeof rawLogo === "string" ? rawLogo.trim() : "";
+
+        setSiteSettings({
+          siteTitle: nextTitle || DEFAULT_SITE_TITLE,
+          logoUrl: nextLogo || DEFAULT_LOGO_URL
+        });
+      } catch {
+        /* Keep fallback branding if settings cannot be loaded. */
+      }
+    }
+
+    loadSiteSettings().catch(() => {
+      /* Keep fallback branding if settings cannot be loaded. */
+    });
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   useEffect(() => {
@@ -132,11 +191,11 @@ export default function ThemeToggle() {
   return (
     <div className="themeTopBar">
       <Link href="/" className="brandHomeLink" aria-label="Go to home">
-        <Image src="/gx-logo.webp" alt="GX Logo" width={120} height={28} priority className="brandLogo" />
+        <img src={siteSettings.logoUrl || DEFAULT_LOGO_URL} alt={`${siteSettings.siteTitle} logo`} className="brandLogo" />
       </Link>
       <div className="brandCluster">
-        <Link href="/" className="brandLink" aria-label="Project Manager home">
-          Project Manager
+        <Link href="/" className="brandLink" aria-label={`${siteSettings.siteTitle} home`}>
+          {siteSettings.siteTitle}
         </Link>
         {user && projectStats && (
           <div className="brandStats" aria-label="Project summary">

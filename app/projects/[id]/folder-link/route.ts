@@ -1,5 +1,5 @@
 import { requireUser } from "@/lib/auth";
-import { notFound, serverError, unauthorized } from "@/lib/http";
+import { notFound, ok, serverError, unauthorized } from "@/lib/http";
 import { getProjectStorageDir } from "@/lib/project-storage";
 import { getProject } from "@/lib/repositories";
 import { DropboxStorageAdapter, isTeamSelectUserRequiredError } from "@/lib/storage/dropbox-adapter";
@@ -15,7 +15,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
 
     const adapter = new DropboxStorageAdapter();
     const url = await adapter.createFolderLink(getProjectStorageDir(project));
-    return Response.redirect(url, 302);
+    return ok({ url });
   } catch (error) {
     if (error instanceof Error && /auth|token|workspace/i.test(error.message)) {
       return unauthorized(error.message);

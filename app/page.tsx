@@ -25,6 +25,7 @@ type Project = {
   name: string;
   display_name?: string | null;
   description: string | null;
+  deadline?: string | null;
   tags?: string[] | null;
   archived: boolean;
   status?: string | null;
@@ -179,6 +180,7 @@ function ProjectsPageContent({ initial }: { initial: ProjectsBootstrap }) {
         body: JSON.stringify({
           name: projectForm.name,
           description: projectForm.description,
+          deadline: projectForm.deadline || null,
           clientId: projectForm.clientId,
           tags: parseProjectTags(projectForm.tags),
           requestor: projectForm.requestor.trim() || null
@@ -836,6 +838,7 @@ function createProjectDialogValues(clientId = ""): ProjectDialogValues {
   return {
     name: "",
     description: "",
+    deadline: "",
     requestor: "",
     tags: "",
     clientId

@@ -37,6 +37,7 @@ describe("createProject", () => {
       createdBy: "user-1",
       clientId: "client-1",
       tags: ["Marketing", "Launch"],
+      deadline: "2026-04-30",
       requestor: "Jane Producer"
     });
 
@@ -44,10 +45,12 @@ describe("createProject", () => {
     const [sql, params] = queryMock.mock.calls[1];
     expect(sql).toContain("requestor");
     expect(sql).toContain("storage_project_dir");
+    expect(sql).toContain("deadline");
     expect(sql).toContain("where client_id = $4::uuid");
     expect(sql).toContain("$4::uuid::text");
     expect(params[5]).toBe("Bright-Ridge");
     expect(params[8]).toBe("/projects");
-    expect(params[9]).toBe("Jane Producer");
+    expect(params[9]).toBe("2026-04-30");
+    expect(params[10]).toBe("Jane Producer");
   });
 });

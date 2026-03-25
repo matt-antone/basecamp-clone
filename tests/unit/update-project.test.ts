@@ -17,6 +17,7 @@ describe("project metadata repository fields", () => {
         {
           id: "project-1",
           name: "Website Refresh",
+          deadline: "2026-04-30",
           requestor: "Client Services",
           my_hours: "12.5"
         }
@@ -28,6 +29,7 @@ describe("project metadata repository fields", () => {
 
     expect(project).toMatchObject({
       id: "project-1",
+      deadline: "2026-04-30",
       requestor: "Client Services",
       my_hours: "12.5"
     });
@@ -66,6 +68,7 @@ describe("project metadata repository fields", () => {
             id: "project-1",
             client_id: "client-1",
             tags: ["ops"],
+            deadline: null,
             requestor: null
           }
         ]
@@ -74,6 +77,7 @@ describe("project metadata repository fields", () => {
         rows: [
           {
             id: "project-1",
+            deadline: "2026-05-15",
             requestor: "Jane Producer"
           }
         ]
@@ -86,17 +90,20 @@ describe("project metadata repository fields", () => {
       description: "Updated brief",
       clientId: "client-1",
       tags: ["ops"],
+      deadline: "2026-05-15",
       requestor: "Jane Producer"
     });
 
     expect(queryMock).toHaveBeenCalledTimes(2);
     const [sql, params] = queryMock.mock.calls[1];
-    expect(sql).toContain("requestor = $5");
+    expect(sql).toContain("deadline = $5::date");
+    expect(sql).toContain("requestor = $6");
     expect(params).toEqual([
       "project-1",
       "Website Refresh",
       "Updated brief",
       ["ops"],
+      "2026-05-15",
       "Jane Producer"
     ]);
   });
@@ -108,7 +115,8 @@ describe("project metadata repository fields", () => {
           {
             id: "project-1",
             client_id: "client-1",
-            tags: ["ops"]
+            tags: ["ops"],
+            deadline: null
           }
         ]
       })
@@ -117,7 +125,8 @@ describe("project metadata repository fields", () => {
         rows: [
           {
             id: "project-1",
-            name: "Website Refresh"
+            name: "Website Refresh",
+            deadline: "2026-05-15"
           }
         ]
       });
@@ -129,12 +138,54 @@ describe("project metadata repository fields", () => {
       description: "Updated brief",
       clientId: "client-1",
       tags: ["ops"],
+      deadline: "2026-05-15",
       requestor: "Jane Producer"
     });
 
     expect(queryMock).toHaveBeenCalledTimes(3);
     const [fallbackSql, fallbackParams] = queryMock.mock.calls[2];
     expect(fallbackSql).not.toContain("requestor =");
+    expect(fallbackSql).toContain("deadline = $5::date");
+    expect(fallbackParams).toEqual(["project-1", "Website Refresh", "Updated brief", ["ops"], "2026-05-15"]);
+  });
+
+  it("falls back when the deadline column has not been migrated yet", async () => {
+    queryMock
+      .mockResolvedValueOnce({
+        rows: [
+          {
+            id: "project-1",
+            client_id: "client-1",
+            tags: ["ops"],
+            requestor: "Jane Producer"
+          }
+        ]
+      })
+      .mockRejectedValueOnce(new Error('column "deadline" does not exist'))
+      .mockResolvedValueOnce({
+        rows: [
+          {
+            id: "project-1",
+            name: "Website Refresh",
+            requestor: "Jane Producer"
+          }
+        ]
+      });
+
+    const { updateProject } = await import("@/lib/repositories");
+    await updateProject({
+      id: "project-1",
+      name: "Website Refresh",
+      description: "Updated brief",
+      clientId: "client-1",
+      tags: ["ops"],
+      deadline: "2026-05-15",
+      requestor: "Jane Producer"
+    });
+
+    expect(queryMock).toHaveBeenCalledTimes(3);
+    const [fallbackSql, fallbackParams] = queryMock.mock.calls[2];
+    expect(fallbackSql).not.toContain("deadline =");
     expect(fallbackSql).toContain("tags = $4::text[]");
     expect(fallbackParams).toEqual(["project-1", "Website Refresh", "Updated brief", ["ops"]]);
   });
@@ -156,5 +207,60 @@ describe("project metadata repository fields", () => {
     expect(sql).toContain("insert into project_user_hours");
     expect(sql).toContain("on conflict (project_id, user_id)");
     expect(params).toEqual(["project-1", "user-1", 6.5]);
+  });
+
+  it("lists project user hours with joined profile details", async () => {
+    queryMock.mockResolvedValueOnce({
+      rows: [
+        {
+          userId: "user-1",
+          firstName: "Jane",
+          lastName: "Doe",
+          email: "jane@example.com",
+          avatarUrl: "https://example.com/avatar.jpg",
+          hours: "7.25"
+        }
+      ]
+    });
+
+    const { listProjectUserHours } = await import("@/lib/repositories");
+    const userHours = await listProjectUserHours("project-1");
+
+    expect(queryMock).toHaveBeenCalledTimes(1);
+    expect(userHours).toEqual([
+      {
+        userId: "user-1",
+        firstName: "Jane",
+        lastName: "Doe",
+        email: "jane@example.com",
+        avatarUrl: "https://example.com/avatar.jpg",
+        hours: "7.25"
+      }
+    ]);
+  });
+
+  it("reads and updates site settings", async () => {
+    queryMock
+      .mockResolvedValueOnce({
+        rows: [{ siteTitle: "Studio Portal", logoUrl: "/logo.png" }]
+      })
+      .mockResolvedValueOnce({
+        rows: [{ siteTitle: "Studio Portal", logoUrl: "https://cdn.example.com/logo.png" }]
+      });
+
+    const { getSiteSettings, upsertSiteSettings } = await import("@/lib/repositories");
+    await expect(getSiteSettings()).resolves.toEqual({
+      siteTitle: "Studio Portal",
+      logoUrl: "/logo.png"
+    });
+    await expect(
+      upsertSiteSettings({
+        siteTitle: "Studio Portal",
+        logoUrl: "https://cdn.example.com/logo.png"
+      })
+    ).resolves.toEqual({
+      siteTitle: "Studio Portal",
+      logoUrl: "https://cdn.example.com/logo.png"
+    });
   });
 });

@@ -9,6 +9,7 @@ const createProjectSchema = z.object({
   description: z.string().optional(),
   clientId: z.string().uuid(),
   tags: z.array(z.string().min(1)).max(50).optional(),
+  deadline: z.string().date().optional().nullable(),
   requestor: z.string().optional().nullable()
 });
 
@@ -39,6 +40,7 @@ export async function POST(request: Request) {
       createdBy: user.id,
       clientId: payload.clientId,
       tags: payload.tags,
+      deadline: payload.deadline,
       requestor: payload.requestor
     });
 

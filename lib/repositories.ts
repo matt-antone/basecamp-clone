@@ -15,6 +15,19 @@ export type UserProfile = {
 };
 
 export type NotificationRecipient = Pick<UserProfile, "id" | "email" | "firstName" | "lastName">;
+export type SiteSettings = {
+  siteTitle: string | null;
+  logoUrl: string | null;
+};
+
+export type ProjectUserHours = {
+  userId: string;
+  firstName: string | null;
+  lastName: string | null;
+  email: string;
+  avatarUrl: string | null;
+  hours: number | string;
+};
 
 export async function getUserProfileById(id: string) {
   const result = await query("select * from user_profiles where id = $1", [id]);
@@ -152,6 +165,7 @@ export async function createProject(args: {
   createdBy: string;
   clientId?: string;
   tags?: string[];
+  deadline?: string | null;
   requestor?: string | null;
 }) {
   const projectTitle = args.name.trim();
@@ -170,51 +184,95 @@ export async function createProject(args: {
   const clientSlug = slugify(client.name, { strict: true }) || slugify(client.code, { strict: true }) || "client";
   const projectSlug = slugify(projectTitle, { lower: true, strict: true }) || "project";
   const normalizedTags = normalizeProjectTags(args.tags);
+  const deadline = typeof args.deadline === "string" ? args.deadline.trim() || null : null;
   const requestor = typeof args.requestor === "string" ? args.requestor.trim() || null : null;
   const projectsRoot = config.dropboxProjectsRootFolder();
-  const result = await query(
-    `with lock as (
-       select pg_advisory_xact_lock(hashtext('project-seq:' || $4::uuid::text))
-     ),
-     next_seq as (
-       select coalesce(max(project_seq), 0) + 1 as seq
-       from projects
-       where client_id = $4::uuid
-         and exists(select 1 from lock)
-     )
-     insert into projects (
-       name, slug, description, created_by, client_id, status, project_seq, project_code, client_slug, project_slug, tags, storage_project_dir, requestor
-     )
-     select
-       $1,
-       lower($5 || '-' || lpad(next_seq.seq::text, 4, '0') || '-' || $7),
-       $2,
-       $3,
-       $4::uuid,
-       'new',
-       next_seq.seq,
-       $5 || '-' || lpad(next_seq.seq::text, 4, '0'),
-       $6,
-       $7,
-       $8::text[],
-       $9 || '/' || $6 || '/' || $5 || '-' || lpad(next_seq.seq::text, 4, '0') || '-' || $7,
-       $10
-     from next_seq
-     returning *`,
-    [
-      projectTitle,
-      args.description ?? null,
-      args.createdBy,
-      args.clientId,
-      client.code,
-      clientSlug,
-      projectSlug,
-      normalizedTags,
-      projectsRoot,
-      requestor
-    ]
-  );
-  return result.rows[0];
+  const values = [
+    projectTitle,
+    args.description ?? null,
+    args.createdBy,
+    args.clientId,
+    client.code,
+    clientSlug,
+    projectSlug,
+    normalizedTags,
+    projectsRoot,
+    deadline,
+    requestor
+  ];
+
+  try {
+    const result = await query(
+      `with lock as (
+         select pg_advisory_xact_lock(hashtext('project-seq:' || $4::uuid::text))
+       ),
+       next_seq as (
+         select coalesce(max(project_seq), 0) + 1 as seq
+         from projects
+         where client_id = $4::uuid
+           and exists(select 1 from lock)
+       )
+       insert into projects (
+         name, slug, description, created_by, client_id, status, project_seq, project_code, client_slug, project_slug, tags, storage_project_dir, deadline, requestor
+       )
+       select
+         $1,
+         lower($5 || '-' || lpad(next_seq.seq::text, 4, '0') || '-' || $7),
+         $2,
+         $3,
+         $4::uuid,
+         'new',
+         next_seq.seq,
+         $5 || '-' || lpad(next_seq.seq::text, 4, '0'),
+         $6,
+         $7,
+         $8::text[],
+         $9 || '/' || $6 || '/' || $5 || '-' || lpad(next_seq.seq::text, 4, '0') || '-' || $7,
+         $10::date,
+         $11
+       from next_seq
+       returning *`,
+      values
+    );
+    return result.rows[0];
+  } catch (error) {
+    if (!isMissingProjectDeadlineColumnError(error)) {
+      throw error;
+    }
+
+    const fallback = await query(
+      `with lock as (
+         select pg_advisory_xact_lock(hashtext('project-seq:' || $4::uuid::text))
+       ),
+       next_seq as (
+         select coalesce(max(project_seq), 0) + 1 as seq
+         from projects
+         where client_id = $4::uuid
+           and exists(select 1 from lock)
+       )
+       insert into projects (
+         name, slug, description, created_by, client_id, status, project_seq, project_code, client_slug, project_slug, tags, storage_project_dir, requestor
+       )
+       select
+         $1,
+         lower($5 || '-' || lpad(next_seq.seq::text, 4, '0') || '-' || $7),
+         $2,
+         $3,
+         $4::uuid,
+         'new',
+         next_seq.seq,
+         $5 || '-' || lpad(next_seq.seq::text, 4, '0'),
+         $6,
+         $7,
+         $8::text[],
+         $9 || '/' || $6 || '/' || $5 || '-' || lpad(next_seq.seq::text, 4, '0') || '-' || $7,
+         $10
+       from next_seq
+       returning *`,
+      [...values.slice(0, 9), requestor]
+    );
+    return fallback.rows[0];
+  }
 }
 
 export async function getProject(id: string, viewerUserId?: string | null) {
@@ -268,6 +326,7 @@ export async function updateProject(args: {
   description?: string;
   clientId: string;
   tags?: string[];
+  deadline?: string | null;
   requestor?: string | null;
 }) {
   const current = await getProject(args.id);
@@ -279,6 +338,14 @@ export async function updateProject(args: {
   }
 
   const nextTags = args.tags === undefined ? current.tags ?? [] : normalizeProjectTags(args.tags);
+  const nextDeadline =
+    args.deadline === undefined
+      ? typeof current.deadline === "string"
+        ? current.deadline
+        : current.deadline ?? null
+      : typeof args.deadline === "string"
+        ? args.deadline.trim() || null
+        : null;
   const nextRequestor =
     args.requestor === undefined
       ? current.requestor ?? null
@@ -292,16 +359,33 @@ export async function updateProject(args: {
        set name = $2,
            description = $3,
            tags = $4::text[],
-           requestor = $5,
+           deadline = $5::date,
+           requestor = $6,
            updated_at = now()
        where id = $1
        returning *`,
-      [args.id, args.name.trim(), args.description ?? null, nextTags, nextRequestor]
+      [args.id, args.name.trim(), args.description ?? null, nextTags, nextDeadline, nextRequestor]
     );
 
     return result.rows[0] ?? null;
   } catch (error) {
-    if (!isMissingProjectRequestorColumnError(error)) {
+    if (isMissingProjectRequestorColumnError(error)) {
+      const fallback = await query(
+        `update projects
+         set name = $2,
+             description = $3,
+             tags = $4::text[],
+             deadline = $5::date,
+             updated_at = now()
+         where id = $1
+         returning *`,
+        [args.id, args.name.trim(), args.description ?? null, nextTags, nextDeadline]
+      );
+
+      return fallback.rows[0] ?? null;
+    }
+
+    if (!isMissingProjectDeadlineColumnError(error)) {
       throw error;
     }
 
@@ -317,6 +401,76 @@ export async function updateProject(args: {
     );
 
     return fallback.rows[0] ?? null;
+  }
+}
+
+export async function listProjectUserHours(projectId: string): Promise<ProjectUserHours[]> {
+  try {
+    const result = await query(
+      `select
+         puh.user_id as "userId",
+         up.first_name as "firstName",
+         up.last_name as "lastName",
+         up.email,
+         up.avatar_url as "avatarUrl",
+         puh.hours
+       from project_user_hours puh
+       left join user_profiles up on up.id = puh.user_id
+       where puh.project_id = $1
+       order by coalesce(up.first_name, ''), coalesce(up.last_name, ''), up.email, puh.user_id`,
+      [projectId]
+    );
+
+    return result.rows as ProjectUserHours[];
+  } catch (error) {
+    if (isMissingProjectUserHoursTableError(error)) {
+      return [];
+    }
+    throw error;
+  }
+}
+
+export async function getSiteSettings(): Promise<SiteSettings | null> {
+  try {
+    const result = await query(
+      `select
+         site_title as "siteTitle",
+         logo_url as "logoUrl"
+       from site_settings
+       where id = 'default'`,
+      []
+    );
+    return (result.rows[0] as SiteSettings | undefined) ?? null;
+  } catch (error) {
+    if (isMissingSiteSettingsTableError(error)) {
+      return null;
+    }
+    throw error;
+  }
+}
+
+export async function upsertSiteSettings(settings: SiteSettings): Promise<SiteSettings> {
+  try {
+    const result = await query(
+      `insert into site_settings (id, site_title, logo_url)
+       values ('default', $1, $2)
+       on conflict (id)
+       do update set
+         site_title = excluded.site_title,
+         logo_url = excluded.logo_url,
+         updated_at = now()
+       returning
+         site_title as "siteTitle",
+         logo_url as "logoUrl"`,
+      [settings.siteTitle, settings.logoUrl]
+    );
+    return result.rows[0] as SiteSettings;
+  } catch (error) {
+    if (!isMissingSiteSettingsTableError(error)) {
+      throw error;
+    }
+
+    throw new Error("site_settings table is not available. Apply migration 0010_site_settings_and_project_deadline.sql first.");
   }
 }
 
@@ -355,6 +509,22 @@ function isMissingProjectRequestorColumnError(error: unknown) {
   }
 
   return /requestor/i.test(error.message) && /does not exist|undefined column/i.test(error.message);
+}
+
+function isMissingProjectDeadlineColumnError(error: unknown) {
+  if (!(error instanceof Error)) {
+    return false;
+  }
+
+  return /deadline/i.test(error.message) && /does not exist|undefined column/i.test(error.message);
+}
+
+function isMissingSiteSettingsTableError(error: unknown) {
+  if (!(error instanceof Error)) {
+    return false;
+  }
+
+  return /site_settings/i.test(error.message) && /does not exist|undefined table/i.test(error.message);
 }
 
 export async function setProjectStorageDir(id: string, storageProjectDir: string) {
