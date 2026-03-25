@@ -2115,8 +2115,8 @@ li.active {
   letter-spacing: 0.02em;
 }
 
-.filesFolderLink {
-  color: var(--link-color);
+/* .filesFolderLink {
+  color: var(--text-primary);
   text-decoration: none;
   font-size: 0.82rem;
   font-weight: 600;
@@ -2125,7 +2125,7 @@ li.active {
 
 .filesFolderLink:hover {
   text-decoration: underline;
-}
+} */
 
 .fileUploadShell {
   border: 1px solid color-mix(in srgb, var(--panel-border) 82%, transparent);

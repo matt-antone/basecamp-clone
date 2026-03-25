@@ -682,7 +682,7 @@ function ProjectPageContent({ projectId, initial }: { projectId: string; initial
             <h2>Files</h2>
             <button
               type="button"
-              className="filesFolderLink"
+              className="filesFolderLink linkButton"
               onClick={() => openProjectFolder().catch((error) => setStatus(error.message))}
             >
               Open Dropbox folder
