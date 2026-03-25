@@ -1440,7 +1440,7 @@ textarea {
 }
 
 .projectMain {
-  display: flex;
+  display: grid;
   gap: 4px;
 }
 
