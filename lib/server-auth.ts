@@ -20,6 +20,37 @@ function cookieOptions(maxAge?: number) {
   };
 }
 
+function firstHeaderValue(value: string | null) {
+  if (!value) {
+    return null;
+  }
+
+  const first = value
+    .split(",")[0]
+    ?.trim();
+
+  return first || null;
+}
+
+function normalizeProto(value: string | null, fallback: string) {
+  const normalized = firstHeaderValue(value)?.replace(/:$/, "").toLowerCase();
+  return normalized === "http" || normalized === "https" ? normalized : fallback;
+}
+
+function originFromHeaders(request: NextRequest) {
+  const host =
+    firstHeaderValue(request.headers.get("x-forwarded-host")) ??
+    firstHeaderValue(request.headers.get("host"));
+
+  if (!host) {
+    return null;
+  }
+
+  const fallbackProtocol = request.nextUrl.protocol.replace(/:$/, "") || "https";
+  const proto = normalizeProto(request.headers.get("x-forwarded-proto"), fallbackProtocol);
+  return `${proto}://${host}`;
+}
+
 function createMemoryStorage(initial: PkceStorageSnapshot = {}) {
   const values = { ...initial };
 
@@ -114,10 +145,9 @@ function requestOrigin(request: NextRequest) {
     return configured;
   }
 
-  const forwardedHost = request.headers.get("x-forwarded-host");
-  if (forwardedHost) {
-    const forwardedProto = request.headers.get("x-forwarded-proto") ?? "https";
-    return `${forwardedProto}://${forwardedHost}`;
+  const headerOrigin = originFromHeaders(request);
+  if (headerOrigin) {
+    return headerOrigin;
   }
 
   return new URL(request.url).origin;

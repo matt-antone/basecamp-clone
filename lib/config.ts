@@ -3,7 +3,7 @@ import "server-only";
 const required = ["DATABASE_URL", "SUPABASE_SERVICE_ROLE_KEY", "WORKSPACE_DOMAIN"] as const;
 const supabaseUrlKeys = ["SUPABASE_URL", "NEXT_PUBLIC_SUPABASE_URL"] as const;
 const supabaseAnonKeyKeys = ["SUPABASE_ANON_KEY", "NEXT_PUBLIC_SUPABASE_ANON_KEY"] as const;
-const siteUrlKeys = ["SITE_URL", "NEXT_PUBLIC_SITE_URL", "URL"] as const;
+const siteUrlKeys = ["NEXT_PUBLIC_SITE_URL", "URL"] as const;
 
 type RequiredKey = (typeof required)[number];
 

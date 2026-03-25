@@ -844,7 +844,23 @@ function createProjectDialogValues(clientId = ""): ProjectDialogValues {
 
 function getProjectsPageAuthErrorStatus() {
   const params = new URLSearchParams(window.location.search);
-  return params.get("authError") === "workspace-domain" ? "Blocked: non-workspace account" : null;
+  const authError = params.get("authError");
+  if (authError === "workspace-domain") {
+    return "Only workspace accounts can sign in.";
+  }
+  if (authError === "oauth-session-exchange") {
+    return "Google sign-in completed, but the session exchange failed. Try again.";
+  }
+  if (authError === "oauth-session-missing") {
+    return "Google sign-in completed without a session. Try again.";
+  }
+  if (authError === "oauth-missing-email") {
+    return "Google did not return an email address for this account.";
+  }
+  if (authError === "oauth-callback-failed") {
+    return "Google sign-in did not complete successfully.";
+  }
+  return null;
 }
 
 async function loadProjectsBootstrap(): Promise<ProjectsBootstrap> {

@@ -10,14 +10,19 @@ import {
 } from "@/lib/server-auth";
 import { badRequest, forbidden, ok } from "@/lib/http";
 
+function redirectWithAuthError(request: NextRequest, code: string) {
+  const response = NextResponse.redirect(buildAppRedirectUrl(request, `/?authError=${code}`));
+  clearAuthSessionCookies(response);
+  clearPkceStorageCookie(response);
+  return response;
+}
+
 export async function GET(request: NextRequest) {
   const code = request.nextUrl.searchParams.get("code");
   const authError = request.nextUrl.searchParams.get("error");
 
   if (authError || !code) {
-    const response = NextResponse.redirect(buildAppRedirectUrl(request, "/?authError=oauth-callback-failed"));
-    clearAuthSessionCookies(response);
-    return response;
+    return redirectWithAuthError(request, "oauth-callback-failed");
   }
 
   const { client } = createServerSupabaseAuthClient(getPkceStorageFromRequest(request));
@@ -25,10 +30,23 @@ export async function GET(request: NextRequest) {
   const response = NextResponse.redirect(buildAppRedirectUrl(request));
   clearPkceStorageCookie(response);
 
-  if (error || !data.session || !data.user?.email || !isAllowedWorkspaceEmail(data.user.email)) {
-    clearAuthSessionCookies(response);
-    response.headers.set("location", buildAppRedirectUrl(request, "/?authError=workspace-domain").toString());
-    return response;
+  if (error) {
+    console.error("Google OAuth session exchange failed", error);
+    return redirectWithAuthError(request, "oauth-session-exchange");
+  }
+
+  if (!data.session) {
+    console.error("Google OAuth callback completed without a session");
+    return redirectWithAuthError(request, "oauth-session-missing");
+  }
+
+  if (!data.user?.email) {
+    console.error("Google OAuth callback completed without a user email");
+    return redirectWithAuthError(request, "oauth-missing-email");
+  }
+
+  if (!isAllowedWorkspaceEmail(data.user.email)) {
+    return redirectWithAuthError(request, "workspace-domain");
   }
 
   setAuthSessionCookies(response, data.session);
