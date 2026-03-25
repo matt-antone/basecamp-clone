@@ -1,12 +1,26 @@
 import { requireUser } from "@/lib/auth";
+import { sendThreadCreatedEmail } from "@/lib/mailer";
 import { badRequest, notFound, ok, serverError, unauthorized } from "@/lib/http";
-import { createThread, getProject, listThreads } from "@/lib/repositories";
+import { createThread, getProject, getUserProfileById, listNotificationRecipients, listThreads } from "@/lib/repositories";
 import { z } from "zod";
 
 const createThreadSchema = z.object({
   title: z.string().min(1),
   bodyMarkdown: z.string().min(1)
 });
+
+function getDisplayName(profile: {
+  first_name?: string | null;
+  last_name?: string | null;
+  firstName?: string | null;
+  lastName?: string | null;
+  email?: string | null;
+}) {
+  const firstName = (profile.first_name ?? profile.firstName ?? "").trim();
+  const lastName = (profile.last_name ?? profile.lastName ?? "").trim();
+  const fullName = `${firstName} ${lastName}`.trim();
+  return fullName || profile.email || "Teammate";
+}
 
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -42,6 +56,47 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       bodyMarkdown: payload.bodyMarkdown,
       authorUserId: user.id
     });
+
+    let recipientCount = 0;
+    try {
+      const [actorProfile, recipients] = await Promise.all([
+        getUserProfileById(user.id),
+        listNotificationRecipients(user.id)
+      ]);
+      recipientCount = recipients.length;
+
+      if (recipients.length > 0) {
+        const threadUrl = new URL(`/${id}/${thread.id}`, request.url).toString();
+        await sendThreadCreatedEmail({
+          recipients: recipients.map((recipient) => ({
+            email: recipient.email,
+            name: getDisplayName(recipient)
+          })),
+          actor: {
+            name: getDisplayName({ ...(actorProfile ?? {}), email: user.email }),
+            email: user.email
+          },
+          project: {
+            id: project.id,
+            name: project.name
+          },
+          thread: {
+            id: thread.id,
+            title: thread.title
+          },
+          threadUrl
+        });
+      }
+    } catch (error) {
+      console.error("transactional_email_failed", {
+        eventType: "thread_created",
+        actorId: user.id,
+        projectId: id,
+        threadId: thread.id,
+        recipientCount,
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
 
     return ok({ thread }, 201);
   } catch (error) {

@@ -14,6 +14,8 @@ export type UserProfile = {
   bio: string | null;
 };
 
+export type NotificationRecipient = Pick<UserProfile, "id" | "email" | "firstName" | "lastName">;
+
 export async function getUserProfileById(id: string) {
   const result = await query("select * from user_profiles where id = $1", [id]);
   return result.rows[0] ?? null;
@@ -63,6 +65,27 @@ export async function updateUserProfile(args: {
     [args.id, args.firstName, args.lastName, args.avatarUrl, args.jobTitle, args.timezone, args.bio]
   );
   return result.rows[0] ?? null;
+}
+
+export async function listNotificationRecipients(excludeUserId: string): Promise<NotificationRecipient[]> {
+  const result = await query(
+    `select id,
+            email,
+            first_name as "firstName",
+            last_name as "lastName"
+     from user_profiles
+     where id <> $1
+       and lower(split_part(email, '@', 2)) = $2
+     order by coalesce(first_name, ''), coalesce(last_name, ''), email`,
+    [excludeUserId, config.workspaceDomain()]
+  );
+
+  return result.rows.map((row) => ({
+    id: String(row.id),
+    email: String(row.email),
+    firstName: typeof row.firstName === "string" ? row.firstName : null,
+    lastName: typeof row.lastName === "string" ? row.lastName : null
+  }));
 }
 
 export async function listClients() {

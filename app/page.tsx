@@ -17,6 +17,7 @@ import {
   useState
 } from "react";
 import type { FeaturedFeedPost } from "@/lib/featured-feed";
+import { getPublicSiteUrl } from "@/lib/public-site-url";
 import { getSupabaseBrowserClient } from "@/lib/supabase-browser";
 
 type ClientRecord = { id: string; name: string; code: string };
@@ -157,7 +158,8 @@ function ProjectsPageContent({ initial }: { initial: ProjectsBootstrap }) {
 
   async function signIn() {
     const supabase = getSupabaseBrowserClient();
-    await supabase.auth.signInWithOAuth({ provider: "google", options: { redirectTo: window.location.origin } });
+    const redirectTo = getPublicSiteUrl(window.location.origin) ?? window.location.origin;
+    await supabase.auth.signInWithOAuth({ provider: "google", options: { redirectTo } });
   }
 
   async function signOut() {
