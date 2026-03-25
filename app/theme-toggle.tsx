@@ -188,7 +188,7 @@ export default function ThemeToggle() {
   return (
     <div className="themeTopBar">
       <Link href="/" className="brandHomeLink" aria-label="Go to home">
-        <img src={siteSettings.logoUrl || DEFAULT_LOGO_URL} alt={`${siteSettings.siteTitle} logo`} className="brandLogo" />
+        <img src={siteSettings.logoUrl || DEFAULT_SITE_LOGO_URL} alt={`${siteSettings.siteTitle} logo`} className="brandLogo" />
       </Link>
       <div className="brandCluster">
         <Link href="/" className="brandLink" aria-label={`${siteSettings.siteTitle} home`}>
