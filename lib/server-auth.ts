@@ -99,7 +99,10 @@ export function createServerSupabaseAuthClient(initialPkceStorage: PkceStorageSn
       autoRefreshToken: false,
       detectSessionInUrl: false,
       flowType: "pkce",
-      persistSession: false,
+      // Supabase only honors a custom auth storage adapter when persistSession is enabled.
+      // We still keep the storage request-scoped via createMemoryStorage, but this allows
+      // the PKCE code verifier to survive the /start -> /callback roundtrip in our cookie.
+      persistSession: true,
       storage: memoryStorage.storage
     }
   });
