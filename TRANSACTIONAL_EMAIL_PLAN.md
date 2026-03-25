@@ -1,7 +1,7 @@
 # Transactional Email v1 via Google Workspace
 
 ## Summary
-Add internal transactional email notifications for new discussion threads and new comments using Google Workspace SMTP relay. Emails will go to all other signed-in teammates in `user_profiles` except the actor, from a shared sender address such as `notifications@glyphix.com`. Email delivery is best-effort: the main API action succeeds even if email sending fails, and failures are logged server-side.
+Add internal transactional email notifications for new discussion threads and new comments using Google Workspace SMTP relay. Emails will go to all other signed-in teammates in `user_profiles` except the actor, from a shared sender address such as `notifications@yourcompany.com`. Email delivery is best-effort: the main API action succeeds even if email sending fails, and failures are logged server-side.
 
 ## Key Changes
 - Add a mailer module built around `nodemailer` with a narrow internal interface:

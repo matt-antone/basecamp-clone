@@ -62,7 +62,7 @@ Dropbox env vars:
 
 ## Google Workspace SMTP Relay
 - Configure Google Workspace SMTP relay to allow your app host or SMTP-authenticated sends.
-- Set `EMAIL_FROM` to your shared sender, for example `notifications@glyphix.com`.
+- Set `EMAIL_FROM` to your shared sender, for example `notifications@yourcompany.com`.
 - Leave `SMTP_USERNAME` and `SMTP_PASSWORD` blank if your relay is IP-allowlisted; otherwise provide both.
 - Thread and comment API writes still succeed if email delivery fails. Failures are logged server-side as `transactional_email_failed`.
 
