@@ -3,10 +3,10 @@
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import { InlineLoadingState, PageLoadingState } from "@/components/loading-shells";
+import { authedJsonFetch, ensureAccessToken, fetchAuthSession } from "@/lib/browser-auth";
 import { createClientResource } from "@/lib/client-resource";
 import { useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
-import { getSupabaseBrowserClient } from "@/lib/supabase-browser";
 
 const MarkdownEditor = dynamic(() => import("@/components/markdown-editor"), {
   ssr: false,
@@ -110,7 +110,7 @@ function DiscussionPageContent(props: {
 }) {
   const { projectId, discussionId, initial } = props;
   const [currentUser] = useState<SessionUser | null>(initial.currentUser);
-  const token = initial.token;
+  const [token, setToken] = useState(initial.token);
   const [status, setStatus] = useState(initial.status);
   const [thread, setThread] = useState<ThreadDetail | null>(initial.thread);
   const [commentBody, setCommentBody] = useState("");
@@ -125,12 +125,21 @@ function DiscussionPageContent(props: {
   const previewUrlsRef = useRef<Record<string, string>>({});
 
   async function authedFetch(accessToken: string, path: string, options: RequestInit = {}) {
-    return authedFetchDiscussion(accessToken, path, options);
+    const { accessToken: nextToken, data } = await authedJsonFetch({
+      accessToken,
+      init: options,
+      onToken: setToken,
+      path
+    });
+    if (nextToken !== token) {
+      setToken(nextToken);
+    }
+    return data;
   }
 
   async function load(accessToken: string, id: string, discussion: string) {
     const data = await authedFetch(accessToken, `/projects/${id}/threads/${discussion}`);
-    setThread(data.thread ?? null);
+    setThread((data?.thread ?? null) as ThreadDetail | null);
     setStatus("Ready");
   }
 
@@ -254,7 +263,10 @@ function DiscussionPageContent(props: {
       method: "POST",
       body: JSON.stringify({ bodyMarkdown: commentBody })
     });
-    const createdCommentId = created.comment?.id as string | undefined;
+    const createdCommentId =
+      created && typeof created === "object" && "comment" in created
+        ? ((created.comment as { id?: string } | null | undefined)?.id ?? undefined)
+        : undefined;
     if (createdCommentId && attachmentsToUpload.length > 0) {
       setIsUploadingAttachments(true);
       try {
@@ -263,6 +275,7 @@ function DiscussionPageContent(props: {
             setPendingAttachmentState(attachment.id, { stage: "hashing", progress: 10, error: undefined });
             await uploadAttachmentForComment({
               token,
+              onToken: setToken,
               projectId,
               threadId: discussionId,
               commentId: createdCommentId,
@@ -321,8 +334,9 @@ function DiscussionPageContent(props: {
   async function openDownload(fileId: string) {
     if (!token || !projectId) return;
     const data = await authedFetch(token, `/projects/${projectId}/files/${fileId}/download-link`);
-    if (typeof data.url === "string" && data.url.length > 0) {
-      window.open(data.url, "_blank", "noopener,noreferrer");
+    const downloadUrl = typeof data?.url === "string" ? data.url : "";
+    if (downloadUrl) {
+      window.open(downloadUrl, "_blank", "noopener,noreferrer");
     }
   }
 
@@ -630,40 +644,49 @@ function DiscussionPageContent(props: {
 
 async function uploadAttachmentForComment(args: {
   token: string;
+  onToken: (token: string | null) => void;
   projectId: string;
   threadId: string;
   commentId: string;
   file: File;
   onUploadProgress: (value: number) => void;
 }) {
-  const { token, projectId, threadId, commentId, file, onUploadProgress } = args;
-  const initResponse = await fetch(`/projects/${projectId}/files/upload-init`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`
+  const { token, onToken, projectId, threadId, commentId, file, onUploadProgress } = args;
+  const resolvedToken = await ensureAccessToken(token, onToken);
+  const initResult = await authedJsonFetch({
+    accessToken: resolvedToken,
+    init: {
+      method: "POST",
+      body: JSON.stringify({
+        filename: file.name,
+        sizeBytes: file.size,
+        mimeType: file.type || "application/octet-stream"
+      })
     },
-    body: JSON.stringify({
-      filename: file.name,
-      sizeBytes: file.size,
-      mimeType: file.type || "application/octet-stream"
-    })
+    onToken,
+    path: `/projects/${projectId}/files/upload-init`
   });
-  const initPayload = await initResponse.json();
-  if (!initResponse.ok) {
-    throw new Error(initPayload.error ?? "Unable to initialize attachment upload");
+  const upload = initResult.data && "upload" in initResult.data ? initResult.data.upload : null;
+  const sessionId =
+    upload && typeof upload === "object" && "sessionId" in upload ? String(upload.sessionId ?? "") : "";
+  const targetPath =
+    upload && typeof upload === "object" && "targetPath" in upload ? String(upload.targetPath ?? "") : "";
+  if (!sessionId || !targetPath) {
+    throw new Error("Unable to initialize attachment upload");
   }
 
-  const formData = new FormData();
-  formData.append("file", file);
-  formData.append("sessionId", initPayload.upload.sessionId);
-  formData.append("targetPath", initPayload.upload.targetPath);
-  formData.append("threadId", threadId);
-  formData.append("commentId", commentId);
   await postFormDataWithUploadProgress({
     path: `/projects/${projectId}/files/upload-complete`,
-    token,
-    body: formData,
+    token: initResult.accessToken,
+    body: (() => {
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("sessionId", sessionId);
+      formData.append("targetPath", targetPath);
+      formData.append("threadId", threadId);
+      formData.append("commentId", commentId);
+      return formData;
+    })(),
     onProgress: onUploadProgress
   });
 }
@@ -744,22 +767,6 @@ async function postFormDataWithUploadProgress(args: {
   });
 }
 
-async function authedFetchDiscussion(accessToken: string, path: string, options: RequestInit = {}) {
-  const response = await fetch(path, {
-    ...options,
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${accessToken}`,
-      ...(options.headers ?? {})
-    }
-  });
-  const data = await response.json();
-  if (!response.ok) {
-    throw new Error(data.error ?? "Request failed");
-  }
-  return data;
-}
-
 async function loadDiscussionBootstrap(params: {
   projectId: string;
   discussionId: string;
@@ -776,25 +783,27 @@ async function loadDiscussionBootstrap(params: {
   }
 
   try {
-    const supabase = getSupabaseBrowserClient();
-    const { data } = await supabase.auth.getSession();
-    const accessToken = data.session?.access_token ?? null;
+    const session = await fetchAuthSession();
+    const accessToken = session.accessToken;
 
     if (!accessToken) {
       return {
         currentUser: null,
         token: null,
-        status: "Sign in first",
+        status: session.status || "Sign in first",
         thread: null
       };
     }
 
-    const threadResponse = await authedFetchDiscussion(accessToken, `/projects/${projectId}/threads/${discussionId}`);
+    const threadResponse = await authedJsonFetch({
+      accessToken,
+      path: `/projects/${projectId}/threads/${discussionId}`
+    });
     return {
-      currentUser: data.session?.user ? { id: data.session.user.id, email: data.session.user.email } : null,
-      token: accessToken,
-      status: "Ready",
-      thread: (threadResponse.thread ?? null) as ThreadDetail | null
+      currentUser: session.user,
+      token: threadResponse.accessToken,
+      status: session.status,
+      thread: (threadResponse.data?.thread ?? null) as ThreadDetail | null
     };
   } catch (error) {
     return {

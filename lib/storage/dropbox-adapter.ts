@@ -13,11 +13,11 @@ export class DropboxStorageAdapter implements StorageAdapter {
   private readonly dropboxFetch: typeof fetch;
 
   constructor() {
-    this.clientId = process.env.DROPBOX_APP_KEY?.trim();
-    this.clientSecret = process.env.DROPBOX_APP_SECRET?.trim();
-    this.refreshToken = process.env.DROPBOX_REFRESH_TOKEN?.trim();
-    this.selectUser = process.env.DROPBOX_SELECT_USER?.trim();
-    this.selectAdmin = process.env.DROPBOX_SELECT_ADMIN?.trim();
+    this.clientId = config.dropboxAppKey() ?? undefined;
+    this.clientSecret = config.dropboxAppSecret() ?? undefined;
+    this.refreshToken = config.dropboxRefreshToken() ?? undefined;
+    this.selectUser = config.dropboxSelectUser() ?? undefined;
+    this.selectAdmin = config.dropboxSelectAdmin() ?? undefined;
 
     this.dropboxFetch = async (...args) => {
       if (typeof globalThis.fetch !== "function") {

@@ -1,4 +1,9 @@
+import "server-only";
+
 const required = ["DATABASE_URL", "SUPABASE_SERVICE_ROLE_KEY", "WORKSPACE_DOMAIN"] as const;
+const supabaseUrlKeys = ["SUPABASE_URL", "NEXT_PUBLIC_SUPABASE_URL"] as const;
+const supabaseAnonKeyKeys = ["SUPABASE_ANON_KEY", "NEXT_PUBLIC_SUPABASE_ANON_KEY"] as const;
+const siteUrlKeys = ["SITE_URL", "NEXT_PUBLIC_SITE_URL", "URL"] as const;
 
 type RequiredKey = (typeof required)[number];
 
@@ -11,9 +16,9 @@ function getEnv(key: RequiredKey): string {
 }
 
 function getSupabaseUrl(): string {
-  const value = process.env.NEXT_PUBLIC_SUPABASE_URL ?? process.env.SUPABASE_URL;
+  const value = getFirstEnv(supabaseUrlKeys);
   if (!value) {
-    throw new Error("Missing required env var: NEXT_PUBLIC_SUPABASE_URL");
+    throw new Error("Missing required env var: SUPABASE_URL");
   }
   return value;
 }
@@ -26,6 +31,39 @@ function getOptionalEnv(key: string): string | null {
 
   const trimmed = value.trim();
   return trimmed.length > 0 ? trimmed : null;
+}
+
+function getFirstEnv(keys: readonly string[]): string | null {
+  for (const key of keys) {
+    const value = getOptionalEnv(key);
+    if (value) {
+      return value;
+    }
+  }
+
+  return null;
+}
+
+function getSupabaseAnonKey(): string {
+  const value = getFirstEnv(supabaseAnonKeyKeys);
+  if (!value) {
+    throw new Error("Missing required env var: SUPABASE_ANON_KEY");
+  }
+  return value;
+}
+
+function normalizeUrl(value: string | null) {
+  if (!value) {
+    return null;
+  }
+
+  const withProtocol = /^[a-z][a-z\d+\-.]*:\/\//i.test(value) ? value : `https://${value}`;
+
+  try {
+    return new URL(withProtocol).origin;
+  } catch {
+    return null;
+  }
 }
 
 function getBooleanEnv(key: string, fallback: boolean): boolean {
@@ -54,9 +92,16 @@ function getNumberEnv(key: string, fallback: number): number {
 export const config = {
   databaseUrl: () => getEnv("DATABASE_URL"),
   supabaseUrl: getSupabaseUrl,
+  supabaseAnonKey: getSupabaseAnonKey,
   supabaseServiceRoleKey: () => getEnv("SUPABASE_SERVICE_ROLE_KEY"),
   workspaceDomain: () => getEnv("WORKSPACE_DOMAIN").toLowerCase(),
-  dropboxProjectsRootFolder: () => process.env.DROPBOX_PROJECTS_ROOT_FOLDER ?? "/projects",
+  siteUrl: () => normalizeUrl(getFirstEnv(siteUrlKeys)),
+  dropboxAppKey: () => getOptionalEnv("DROPBOX_APP_KEY"),
+  dropboxAppSecret: () => getOptionalEnv("DROPBOX_APP_SECRET"),
+  dropboxRefreshToken: () => getOptionalEnv("DROPBOX_REFRESH_TOKEN"),
+  dropboxSelectUser: () => getOptionalEnv("DROPBOX_SELECT_USER"),
+  dropboxSelectAdmin: () => getOptionalEnv("DROPBOX_SELECT_ADMIN"),
+  dropboxProjectsRootFolder: () => getOptionalEnv("DROPBOX_PROJECTS_ROOT_FOLDER") ?? "/projects",
   emailEnabled: () => getBooleanEnv("EMAIL_ENABLED", true),
   emailFrom: () => {
     const value = getOptionalEnv("EMAIL_FROM");

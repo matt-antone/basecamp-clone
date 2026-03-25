@@ -17,8 +17,7 @@ import {
   useState
 } from "react";
 import type { FeaturedFeedPost } from "@/lib/featured-feed";
-import { getPublicSiteUrl } from "@/lib/public-site-url";
-import { getSupabaseBrowserClient } from "@/lib/supabase-browser";
+import { authedJsonFetch, fetchAuthSession } from "@/lib/browser-auth";
 
 type ClientRecord = { id: string; name: string; code: string };
 type Project = {
@@ -110,21 +109,14 @@ function ProjectsPageContent({ initial }: { initial: ProjectsBootstrap }) {
   const moveFlashTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   async function authedFetch(path: string, options: RequestInit = {}) {
-    if (!accessToken) {
-      throw new Error("Missing access token");
-    }
-
-    const response = await fetch(path, {
-      ...options,
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${accessToken}`,
-        ...(options.headers ?? {})
-      }
+    const { accessToken: nextToken, data } = await authedJsonFetch({
+      accessToken,
+      init: options,
+      onToken: setAccessToken,
+      path
     });
-    const data = await response.json();
-    if (!response.ok) {
-      throw new Error(data.error ?? `Request failed: ${response.status}`);
+    if (nextToken !== accessToken) {
+      setAccessToken(nextToken);
     }
     return data;
   }
@@ -134,8 +126,12 @@ function ProjectsPageContent({ initial }: { initial: ProjectsBootstrap }) {
       throw new Error("Missing access token");
     }
 
-    const data = await authedFetchWithToken(nextAccessToken, "/clients");
-    const loaded = data.clients ?? [];
+    const data = await authedFetch("/clients", {
+      headers: {
+        Authorization: `Bearer ${nextAccessToken}`
+      }
+    });
+    const loaded = (data?.clients ?? []) as ClientRecord[];
     setClients(loaded);
     setProjectForm((current) =>
       current.clientId || !loaded[0]?.id
@@ -152,19 +148,19 @@ function ProjectsPageContent({ initial }: { initial: ProjectsBootstrap }) {
       throw new Error("Missing access token");
     }
 
-    const data = await authedFetchWithToken(nextAccessToken, "/projects?includeArchived=true");
-    setProjects(data.projects ?? []);
+    const data = await authedFetch("/projects?includeArchived=true", {
+      headers: {
+        Authorization: `Bearer ${nextAccessToken}`
+      }
+    });
+    setProjects((data?.projects ?? []) as Project[]);
   }
 
   async function signIn() {
-    const supabase = getSupabaseBrowserClient();
-    const redirectTo = getPublicSiteUrl(window.location.origin) ?? window.location.origin;
-    await supabase.auth.signInWithOAuth({ provider: "google", options: { redirectTo } });
+    window.location.href = "/auth/google/start";
   }
 
   async function signOut() {
-    const supabase = getSupabaseBrowserClient();
-    await supabase.auth.signOut();
     setDomainAllowed(false);
     setAccessToken(null);
     setProjects([]);
@@ -172,6 +168,7 @@ function ProjectsPageContent({ initial }: { initial: ProjectsBootstrap }) {
     setLatestFeaturedPosts([]);
     setStatus("Please sign in");
     projectsBootstrapResource.clear();
+    window.location.href = "/auth/logout";
   }
 
   async function createProject() {
@@ -845,20 +842,9 @@ function createProjectDialogValues(clientId = ""): ProjectDialogValues {
   };
 }
 
-async function authedFetchWithToken(accessToken: string, path: string, options: RequestInit = {}) {
-  const response = await fetch(path, {
-    ...options,
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${accessToken}`,
-      ...(options.headers ?? {})
-    }
-  });
-  const data = await response.json();
-  if (!response.ok) {
-    throw new Error(data.error ?? `Request failed: ${response.status}`);
-  }
-  return data;
+function getProjectsPageAuthErrorStatus() {
+  const params = new URLSearchParams(window.location.search);
+  return params.get("authError") === "workspace-domain" ? "Blocked: non-workspace account" : null;
 }
 
 async function loadProjectsBootstrap(): Promise<ProjectsBootstrap> {
@@ -875,34 +861,15 @@ async function loadProjectsBootstrap(): Promise<ProjectsBootstrap> {
   }
 
   try {
-    const supabase = getSupabaseBrowserClient();
-    const { data } = await supabase.auth.getSession();
-    const accessToken = data.session?.access_token ?? null;
-    const email = data.session?.user?.email ?? null;
+    const session = await fetchAuthSession();
+    const accessToken = session.accessToken;
+    const email = session.user?.email ?? null;
 
     if (!accessToken || !email) {
       return {
         accessToken: null,
-        status: "Please sign in",
-        domainAllowed: false,
-        clients: [],
-        projects: [],
-        latestFeaturedPosts
-      };
-    }
-
-    const authResponse = await fetch("/auth/google/callback", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ provider: "google", email })
-    });
-
-    if (!authResponse.ok) {
-      await supabase.auth.signOut();
-      return {
-        accessToken: null,
-        status: "Blocked: non-workspace account",
-        domainAllowed: false,
+        status: getProjectsPageAuthErrorStatus() ?? session.status,
+        domainAllowed: session.domainAllowed,
         clients: [],
         projects: [],
         latestFeaturedPosts
@@ -910,16 +877,16 @@ async function loadProjectsBootstrap(): Promise<ProjectsBootstrap> {
     }
 
     const [clientsResponse, projectsResponse] = await Promise.all([
-      authedFetchWithToken(accessToken, "/clients"),
-      authedFetchWithToken(accessToken, "/projects?includeArchived=true")
+      authedJsonFetch({ accessToken, path: "/clients" }),
+      authedJsonFetch({ accessToken, path: "/projects?includeArchived=true" })
     ]);
 
     return {
-      accessToken,
-      status: `Signed in as ${email}`,
-      domainAllowed: true,
-      clients: clientsResponse.clients ?? [],
-      projects: projectsResponse.projects ?? [],
+      accessToken: clientsResponse.accessToken,
+      status: session.status,
+      domainAllowed: session.domainAllowed,
+      clients: (clientsResponse.data?.clients ?? []) as ClientRecord[],
+      projects: (projectsResponse.data?.projects ?? []) as Project[],
       latestFeaturedPosts
     };
   } catch (error) {

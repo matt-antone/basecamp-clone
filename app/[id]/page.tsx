@@ -6,10 +6,10 @@ import { InlineLoadingState, PageLoadingState } from "@/components/loading-shell
 import { ProjectDialogForm, type ProjectDialogValues } from "@/components/project-dialog-form";
 import { ProjectTagList } from "@/components/project-tag-list";
 import { getAvatarProxyUrl } from "@/lib/avatar";
+import { authedFormDataFetch, authedJsonFetch, fetchAuthSession } from "@/lib/browser-auth";
 import { createClientResource } from "@/lib/client-resource";
 import { useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
-import { getSupabaseBrowserClient } from "@/lib/supabase-browser";
 
 const MarkdownEditor = dynamic(() => import("@/components/markdown-editor"), {
   ssr: false,
@@ -107,7 +107,7 @@ export default function ProjectPage() {
 }
 
 function ProjectPageContent({ projectId, initial }: { projectId: string; initial: ProjectPageBootstrap }) {
-  const token = initial.token;
+  const [token, setToken] = useState(initial.token);
   const [status, setStatus] = useState(initial.status);
 
   const [project, setProject] = useState<Project | null>(initial.project);
@@ -132,7 +132,16 @@ function ProjectPageContent({ projectId, initial }: { projectId: string; initial
   const previewUrlsRef = useRef<Record<string, string>>({});
 
   async function authedFetch(accessToken: string, path: string, options: RequestInit = {}) {
-    return authedFetchProject(accessToken, path, options);
+    const { accessToken: nextToken, data } = await authedJsonFetch({
+      accessToken,
+      init: options,
+      onToken: setToken,
+      path
+    });
+    if (nextToken !== token) {
+      setToken(nextToken);
+    }
+    return data;
   }
 
   async function load(accessToken: string, id: string) {
@@ -325,7 +334,7 @@ function ProjectPageContent({ projectId, initial }: { projectId: string; initial
           hours: trimmedHours ? parsedHours : null
         })
       });
-      setProject(data.project ?? null);
+      setProject((data?.project ?? null) as Project | null);
       setStatus("My hours saved");
     } finally {
       setIsSavingMyHours(false);
@@ -349,11 +358,19 @@ function ProjectPageContent({ projectId, initial }: { projectId: string; initial
           mimeType: selectedFile.type || "application/octet-stream"
         })
       });
+      const upload = init && typeof init === "object" && "upload" in init ? init.upload : null;
+      const sessionId =
+        upload && typeof upload === "object" && "sessionId" in upload ? String(upload.sessionId ?? "") : "";
+      const targetPath =
+        upload && typeof upload === "object" && "targetPath" in upload ? String(upload.targetPath ?? "") : "";
+      if (!sessionId || !targetPath) {
+        throw new Error("Upload initialization failed");
+      }
 
       const formData = new FormData();
       formData.append("file", selectedFile);
-      formData.append("sessionId", init.upload.sessionId);
-      formData.append("targetPath", init.upload.targetPath);
+      formData.append("sessionId", sessionId);
+      formData.append("targetPath", targetPath);
 
       await authedMultipartFetch(token, `/projects/${projectId}/files/upload-complete`, formData);
 
@@ -371,8 +388,9 @@ function ProjectPageContent({ projectId, initial }: { projectId: string; initial
   async function downloadFile(fileId: string) {
     if (!token || !projectId) return;
     const data = await authedFetch(token, `/projects/${projectId}/files/${fileId}/download-link`);
-    if (typeof data.url === "string" && data.url.length > 0) {
-      window.open(data.url, "_blank", "noopener,noreferrer");
+    const downloadUrl = typeof data?.url === "string" ? data.url : "";
+    if (downloadUrl) {
+      window.open(downloadUrl, "_blank", "noopener,noreferrer");
     }
   }
 
@@ -381,16 +399,15 @@ function ProjectPageContent({ projectId, initial }: { projectId: string; initial
   }
 
   async function authedMultipartFetch(accessToken: string, path: string, body: FormData) {
-    const response = await fetch(path, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${accessToken}`
-      },
-      body
+    const { accessToken: nextToken, data } = await authedFormDataFetch({
+      accessToken,
+      body,
+      init: { method: "POST" },
+      onToken: setToken,
+      path
     });
-    const data = await response.json();
-    if (!response.ok) {
-      throw new Error(data.error ?? "Request failed");
+    if (nextToken !== token) {
+      setToken(nextToken);
     }
     return data;
   }
@@ -735,37 +752,22 @@ function getViewerInitials(profile: ViewerProfile | null) {
   return emailLocalPart.slice(0, 2).toUpperCase() || "U";
 }
 
-async function authedFetchProject(accessToken: string, path: string, options: RequestInit = {}) {
-  const response = await fetch(path, {
-    ...options,
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${accessToken}`,
-      ...(options.headers ?? {})
-    }
-  });
-  const data = await response.json();
-  if (!response.ok) {
-    throw new Error(data.error ?? "Request failed");
-  }
-  return data;
-}
-
 async function loadProjectData(accessToken: string, projectId: string) {
   const [projectRes, threadsRes, filesRes, clientsRes, profileRes] = await Promise.all([
-    authedFetchProject(accessToken, `/projects/${projectId}`),
-    authedFetchProject(accessToken, `/projects/${projectId}/threads`),
-    authedFetchProject(accessToken, `/projects/${projectId}/files`),
-    authedFetchProject(accessToken, "/clients"),
-    authedFetchProject(accessToken, "/profile")
+    authedJsonFetch({ accessToken, path: `/projects/${projectId}` }),
+    authedJsonFetch({ accessToken, path: `/projects/${projectId}/threads` }),
+    authedJsonFetch({ accessToken, path: `/projects/${projectId}/files` }),
+    authedJsonFetch({ accessToken, path: "/clients" }),
+    authedJsonFetch({ accessToken, path: "/profile" })
   ]);
 
   return {
-    project: (projectRes.project ?? null) as Project | null,
-    threads: (threadsRes.threads ?? []) as Thread[],
-    files: (filesRes.files ?? []) as ProjectFile[],
-    clients: (clientsRes.clients ?? []) as ClientRecord[],
-    viewerProfile: (profileRes.profile ?? null) as ViewerProfile | null
+    accessToken: projectRes.accessToken,
+    project: (projectRes.data?.project ?? null) as Project | null,
+    threads: (threadsRes.data?.threads ?? []) as Thread[],
+    files: (filesRes.data?.files ?? []) as ProjectFile[],
+    clients: (clientsRes.data?.clients ?? []) as ClientRecord[],
+    viewerProfile: (profileRes.data?.profile ?? null) as ViewerProfile | null
   };
 }
 
@@ -783,14 +785,13 @@ async function loadProjectBootstrap(projectId: string): Promise<ProjectPageBoots
   }
 
   try {
-    const supabase = getSupabaseBrowserClient();
-    const { data } = await supabase.auth.getSession();
-    const accessToken = data.session?.access_token ?? null;
+    const session = await fetchAuthSession();
+    const accessToken = session.accessToken;
 
     if (!accessToken) {
       return {
         token: null,
-        status: "Sign in first",
+        status: session.status || "Sign in first",
         project: null,
         clients: [],
         viewerProfile: null,
@@ -801,8 +802,8 @@ async function loadProjectBootstrap(projectId: string): Promise<ProjectPageBoots
 
     const nextState = await loadProjectData(accessToken, projectId);
     return {
-      token: accessToken,
-      status: "Ready",
+      token: nextState.accessToken,
+      status: session.status,
       ...nextState
     };
   } catch (error) {

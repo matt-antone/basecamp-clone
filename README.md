@@ -33,15 +33,13 @@ Next.js + Supabase + Dropbox implementation based on `PLAN.md`.
    - `supabase/migrations/0006_project_tags_taxonomy.sql`
 5. `npm run dev`
 
-Required browser auth env vars:
-- `NEXT_PUBLIC_SUPABASE_URL`
-- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
-- `NEXT_PUBLIC_SITE_URL` (recommended for production redirects; example `https://projects.yourcompany.com`)
-
 Required server env vars:
 - `DATABASE_URL`
+- `SUPABASE_URL`
+- `SUPABASE_ANON_KEY`
 - `SUPABASE_SERVICE_ROLE_KEY`
 - `WORKSPACE_DOMAIN`
+- `SITE_URL` (recommended for production redirects; example `https://projects.yourcompany.com`)
 
 Email env vars:
 - `EMAIL_ENABLED` (optional, defaults to `true`)
@@ -94,7 +92,7 @@ Dropbox env vars:
 - In Supabase Auth settings, enable Google provider.
 - In Supabase Auth URL Configuration, set `Site URL` to your production app URL.
 - Add every allowed app origin to Supabase redirect URLs, including local development (`http://localhost:3000`) and your production URL.
-- Set `NEXT_PUBLIC_SITE_URL` in production so OAuth always returns to the public app domain instead of a fallback host such as `localhost`.
+- Set `SITE_URL` in production so OAuth always returns to the public app domain instead of a fallback host such as `localhost`.
 
 ## Dropbox Refresh Token Helper
 - Script: `npm run dropbox:refresh-token -- --code <AUTH_CODE> --app-key <APP_KEY> --app-secret <APP_SECRET>`

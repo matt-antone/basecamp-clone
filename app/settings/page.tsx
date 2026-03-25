@@ -3,9 +3,9 @@
 import Link from "next/link";
 import { PageLoadingState } from "@/components/loading-shells";
 import { getAvatarProxyUrl } from "@/lib/avatar";
+import { authedJsonFetch, fetchAuthSession } from "@/lib/browser-auth";
 import { createClientResource } from "@/lib/client-resource";
 import { useEffect, useState } from "react";
-import { getSupabaseBrowserClient } from "@/lib/supabase-browser";
 
 type ClientRecord = {
   id: string;
@@ -84,22 +84,6 @@ export default function SettingsPage() {
   return <SettingsPageContent initial={initial} />;
 }
 
-async function authedFetchSettings(accessToken: string, path: string, options: RequestInit = {}) {
-  const response = await fetch(path, {
-    ...options,
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${accessToken}`,
-      ...(options.headers ?? {})
-    }
-  });
-  const data = await response.json();
-  if (!response.ok) {
-    throw new Error(data.error ?? "Request failed");
-  }
-  return data;
-}
-
 function profileRecordToForm(data: UserProfileRecord | null): ProfileForm {
   if (!data) {
     return EMPTY_PROFILE;
@@ -118,36 +102,31 @@ function profileRecordToForm(data: UserProfileRecord | null): ProfileForm {
 
 async function loadSettingsBootstrap(): Promise<SettingsBootstrap> {
   try {
-    const supabase = getSupabaseBrowserClient();
-    const { data } = await supabase.auth.getSession();
-    const accessToken = data.session?.access_token ?? null;
-    const metadata =
-      data.session?.user?.user_metadata && typeof data.session.user.user_metadata === "object"
-        ? (data.session.user.user_metadata as Record<string, unknown>)
-        : {};
-    const googleAvatarUrl = typeof metadata.avatar_url === "string" ? metadata.avatar_url : "";
+    const session = await fetchAuthSession();
+    const accessToken = session.accessToken;
+    const googleAvatarUrl = session.googleAvatarUrl;
 
     if (!accessToken) {
       return {
         token: null,
         googleAvatarUrl,
-        status: "Sign in first, then open settings",
+        status: session.status || "Sign in first, then open settings",
         clients: [],
         profile: EMPTY_PROFILE
       };
     }
 
     const [clientsData, profileData] = await Promise.all([
-      authedFetchSettings(accessToken, "/clients"),
-      authedFetchSettings(accessToken, "/profile")
+      authedJsonFetch({ accessToken, path: "/clients" }),
+      authedJsonFetch({ accessToken, path: "/profile" })
     ]);
 
     return {
-      token: accessToken,
+      token: clientsData.accessToken,
       googleAvatarUrl,
-      status: "Ready",
-      clients: (clientsData.clients ?? []) as ClientRecord[],
-      profile: profileRecordToForm((profileData.profile ?? null) as UserProfileRecord | null)
+      status: session.status,
+      clients: (clientsData.data?.clients ?? []) as ClientRecord[],
+      profile: profileRecordToForm((profileData.data?.profile ?? null) as UserProfileRecord | null)
     };
   } catch (error) {
     return {
@@ -161,7 +140,7 @@ async function loadSettingsBootstrap(): Promise<SettingsBootstrap> {
 }
 
 function SettingsPageContent({ initial }: { initial: SettingsBootstrap }) {
-  const token = initial.token;
+  const [token, setToken] = useState(initial.token);
   const [googleAvatarUrl] = useState(initial.googleAvatarUrl);
   const [status, setStatus] = useState(initial.status);
   const [tab, setTab] = useState<"clients" | "profile">("clients");
@@ -175,24 +154,21 @@ function SettingsPageContent({ initial }: { initial: SettingsBootstrap }) {
   const displayedAvatarUrl = googleAvatarUrl || profile.avatarUrl;
 
   async function authedFetch(accessToken: string, path: string, options: RequestInit = {}) {
-    const response = await fetch(path, {
-      ...options,
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${accessToken}`,
-        ...(options.headers ?? {})
-      }
+    const { accessToken: nextToken, data } = await authedJsonFetch({
+      accessToken,
+      init: options,
+      onToken: setToken,
+      path
     });
-    const data = await response.json();
-    if (!response.ok) {
-      throw new Error(data.error ?? "Request failed");
+    if (nextToken !== token) {
+      setToken(nextToken);
     }
     return data;
   }
 
   async function loadClients(accessToken: string) {
     const data = await authedFetch(accessToken, "/clients");
-    setClients(data.clients ?? []);
+    setClients((data?.clients ?? []) as ClientRecord[]);
   }
 
   function profileToForm(data: UserProfileRecord | null): ProfileForm {
@@ -213,7 +189,7 @@ function SettingsPageContent({ initial }: { initial: SettingsBootstrap }) {
 
   async function loadProfile(accessToken: string) {
     const data = await authedFetch(accessToken, "/profile");
-    setProfile(profileToForm((data.profile ?? null) as UserProfileRecord | null));
+    setProfile(profileToForm((data?.profile ?? null) as UserProfileRecord | null));
   }
 
   async function createClient() {
@@ -242,7 +218,7 @@ function SettingsPageContent({ initial }: { initial: SettingsBootstrap }) {
           bio: profile.bio
         })
       });
-      setProfile(profileToForm((data.profile ?? null) as UserProfileRecord | null));
+      setProfile(profileToForm((data?.profile ?? null) as UserProfileRecord | null));
       setStatus("Profile updated");
     } finally {
       setSavingProfile(false);

@@ -3,8 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { getPublicSiteUrl } from "@/lib/public-site-url";
-import { getSupabaseBrowserClient } from "@/lib/supabase-browser";
+import { authedJsonFetch, fetchAuthSession } from "@/lib/browser-auth";
 
 const THEME_KEY = "basecamp-clone-theme";
 
@@ -44,32 +43,26 @@ export default function ThemeToggle() {
   }, []);
 
   useEffect(() => {
-    let mounted = true;
-    let supabase: ReturnType<typeof getSupabaseBrowserClient> | null = null;
+    let cancelled = false;
 
-    try {
-      supabase = getSupabaseBrowserClient();
-    } catch {
-      return;
-    }
-
-    supabase.auth.getSession().then(({ data }) => {
-      if (!mounted) return;
-      setUser(data.session?.user ? { id: data.session.user.id, email: data.session.user.email } : null);
-      setAccessToken(data.session?.access_token ?? null);
-      setIsAuthReady(true);
-    });
-
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ? { id: session.user.id, email: session.user.email } : null);
-      setAccessToken(session?.access_token ?? null);
-      setIsAuthReady(true);
-      setIsSigningIn(false);
-    });
+    fetchAuthSession()
+      .then((session) => {
+        if (cancelled) return;
+        setUser(session.user);
+        setAccessToken(session.accessToken);
+        setIsAuthReady(true);
+        setIsSigningIn(false);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setUser(null);
+        setAccessToken(null);
+        setIsAuthReady(true);
+        setIsSigningIn(false);
+      });
 
     return () => {
-      mounted = false;
-      listener.subscription.unsubscribe();
+      cancelled = true;
     };
   }, []);
 
@@ -82,19 +75,15 @@ export default function ThemeToggle() {
     let canceled = false;
 
     async function loadProjectStats() {
-      const response = await fetch("/projects?includeArchived=true", {
-        headers: {
-          Authorization: `Bearer ${accessToken}`
-        }
+      const response = await authedJsonFetch({
+        accessToken,
+        onToken: setAccessToken,
+        path: "/projects?includeArchived=true"
       });
-      if (!response.ok) {
-        throw new Error(`Unable to load project stats (${response.status})`);
-      }
-
-      const data = (await response.json()) as {
+      const data = (response.data ?? null) as {
         projects?: Array<{ archived?: boolean; status?: string | null }>;
       };
-      if (canceled) {
+      if (canceled || !data) {
         return;
       }
 
@@ -127,25 +116,17 @@ export default function ThemeToggle() {
   async function signIn() {
     try {
       setIsSigningIn(true);
-      const supabase = getSupabaseBrowserClient();
-      const redirectTo = getPublicSiteUrl(window.location.origin) ?? window.location.origin;
-      await supabase.auth.signInWithOAuth({ provider: "google", options: { redirectTo } });
+      window.location.href = "/auth/google/start";
     } catch {
       setIsSigningIn(false);
     }
   }
 
   async function signOut() {
-    try {
-      const supabase = getSupabaseBrowserClient();
-      await supabase.auth.signOut();
-      setUser(null);
-      setAccessToken(null);
-      setProjectStats(null);
-      window.location.href = "/";
-    } catch {
-      // Keep header controls stable if sign-out fails.
-    }
+    setUser(null);
+    setAccessToken(null);
+    setProjectStats(null);
+    window.location.href = "/auth/logout";
   }
 
   return (
