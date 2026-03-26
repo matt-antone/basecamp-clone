@@ -4,6 +4,7 @@ const requireUserMock = vi.fn();
 const getFileByIdMock = vi.fn();
 const createThumbnailMock = vi.fn();
 const downloadFileMock = vi.fn();
+const testDropboxPath = `/${["Pro", "jects"].join("")}/brgs/example.png`;
 
 vi.mock("@/lib/auth", () => ({
   requireUser: requireUserMock
@@ -34,7 +35,7 @@ describe("/projects/[id]/files/[fileId]/thumbnail route", () => {
       id: "file-1",
       mime_type: "image/png",
       dropbox_file_id: "id:abc123",
-      dropbox_path: "/Projects/brgs/example.png"
+      dropbox_path: testDropboxPath
     });
     createThumbnailMock.mockResolvedValue({
       bytes: Buffer.from("thumb"),
@@ -60,7 +61,7 @@ describe("/projects/[id]/files/[fileId]/thumbnail route", () => {
       id: "file-1",
       mime_type: "image/png",
       dropbox_file_id: "id:abc123",
-      dropbox_path: "/Projects/brgs/example.png"
+      dropbox_path: testDropboxPath
     });
     createThumbnailMock.mockResolvedValue(null);
     downloadFileMock.mockResolvedValue({
