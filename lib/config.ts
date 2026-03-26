@@ -101,7 +101,10 @@ export const config = {
   dropboxRefreshToken: () => getOptionalEnv("DROPBOX_REFRESH_TOKEN"),
   dropboxSelectUser: () => getOptionalEnv("DROPBOX_SELECT_USER"),
   dropboxSelectAdmin: () => getOptionalEnv("DROPBOX_SELECT_ADMIN"),
-  dropboxProjectsRootFolder: () => getOptionalEnv("DROPBOX_PROJECTS_ROOT_FOLDER") ?? "/projects",
+  dropboxProjectsRootFolder: () =>
+    getOptionalEnv("DROPBOX_PROJECTS_ROOT_FOLDER") ??
+    getOptionalEnv("DROPBOX_ROOT_FOLDER") ??
+    "/projects",
   emailEnabled: () => getBooleanEnv("EMAIL_ENABLED", true),
   emailFrom: () => {
     const value = getOptionalEnv("EMAIL_FROM");

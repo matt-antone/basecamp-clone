@@ -1,7 +1,11 @@
 import { requireUser } from "@/lib/auth";
 import { notFound, serverError, unauthorized } from "@/lib/http";
 import { getFileById } from "@/lib/repositories";
-import { DropboxStorageAdapter } from "@/lib/storage/dropbox-adapter";
+import {
+  DropboxStorageAdapter,
+  getDropboxErrorSummary,
+  isTeamSelectUserRequiredError
+} from "@/lib/storage/dropbox-adapter";
 import { NextResponse } from "next/server";
 
 const allowedSizes = new Set(["w64h64", "w128h128", "w256h256", "w480h320", "w640h480"]);
@@ -25,39 +29,76 @@ export async function GET(
     const url = new URL(request.url);
     const requestedSize = url.searchParams.get("size") ?? "w256h256";
     const size = allowedSizes.has(requestedSize) ? requestedSize : "w256h256";
-    const dropboxTarget =
-      typeof file.dropbox_file_id === "string" && file.dropbox_file_id.trim().length > 0
-        ? file.dropbox_file_id
-        : file.dropbox_path;
-
     const adapter = new DropboxStorageAdapter();
-    const thumbnail = await adapter.createThumbnail(
-      dropboxTarget,
-      size as "w64h64" | "w128h128" | "w256h256" | "w480h320" | "w640h480"
-    );
+    const dropboxTargets = getDropboxTargets(file);
+    let lastError: unknown = null;
 
-    if (!thumbnail) {
-      const fallback = await adapter.downloadFile(dropboxTarget);
-      return new NextResponse(new Uint8Array(fallback.bytes), {
-        status: 200,
-        headers: {
-          "Content-Type": fallback.contentType,
-          "Cache-Control": "private, max-age=600"
+    for (const target of dropboxTargets) {
+      try {
+        const thumbnail = await adapter.createThumbnail(
+          target,
+          size as "w64h64" | "w128h128" | "w256h256" | "w480h320" | "w640h480"
+        );
+
+        if (thumbnail) {
+          return new NextResponse(new Uint8Array(thumbnail.bytes), {
+            status: 200,
+            headers: {
+              "Content-Type": thumbnail.contentType,
+              "Cache-Control": "private, max-age=600"
+            }
+          });
         }
-      });
+      } catch (error) {
+        if (shouldRethrowThumbnailError(error)) {
+          throw error;
+        }
+        lastError = error;
+      }
+
+      try {
+        const fallback = await adapter.downloadFile(target);
+        return new NextResponse(new Uint8Array(fallback.bytes), {
+          status: 200,
+          headers: {
+            "Content-Type": fallback.contentType,
+            "Cache-Control": "private, max-age=600"
+          }
+        });
+      } catch (error) {
+        if (shouldRethrowThumbnailError(error)) {
+          throw error;
+        }
+        lastError = error;
+      }
     }
 
-    return new NextResponse(new Uint8Array(thumbnail.bytes), {
-      status: 200,
-      headers: {
-        "Content-Type": thumbnail.contentType,
-        "Cache-Control": "private, max-age=600"
-      }
-    });
+    throw lastError ?? new Error("Unable to generate thumbnail");
   } catch (error) {
     if (error instanceof Error && /auth|token|workspace/i.test(error.message)) {
       return unauthorized(error.message);
     }
+    if (isTeamSelectUserRequiredError(error)) {
+      return serverError("Dropbox team token requires DROPBOX_SELECT_USER (team member id) or DROPBOX_SELECT_ADMIN.");
+    }
     return serverError(error instanceof Error ? error.message : "Unable to generate thumbnail");
   }
+}
+
+function getDropboxTargets(file: Record<string, unknown>) {
+  const targets = [
+    typeof file.dropbox_file_id === "string" ? file.dropbox_file_id.trim() : "",
+    typeof file.dropbox_path === "string" ? file.dropbox_path.trim() : ""
+  ].filter(Boolean);
+
+  return [...new Set(targets)];
+}
+
+function shouldRethrowThumbnailError(error: unknown) {
+  if (isTeamSelectUserRequiredError(error)) {
+    return true;
+  }
+
+  const summary = getDropboxErrorSummary(error);
+  return /auth|token|workspace/i.test(summary);
 }
