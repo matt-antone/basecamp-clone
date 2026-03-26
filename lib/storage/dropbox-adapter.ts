@@ -47,10 +47,6 @@ export class DropboxStorageAdapter implements StorageAdapter {
     }
 
     this.clientPromise = (async () => {
-      if (!this.selectUser) {
-        return this.baseClient;
-      }
-
       const account = await this.baseClient.usersGetCurrentAccount();
       const rootInfo = account.result.root_info;
       if (rootInfo.root_namespace_id === rootInfo.home_namespace_id) {
@@ -183,8 +179,8 @@ export class DropboxStorageAdapter implements StorageAdapter {
       typeof payload.content_type === "string"
         ? payload.content_type
         : typeof metadata?.content_type === "string"
-        ? metadata.content_type
-        : "application/octet-stream";
+          ? metadata.content_type
+          : "application/octet-stream";
 
     return {
       bytes: this.ensureBuffer(binary, "Dropbox file download response did not include binary data"),

@@ -16,7 +16,11 @@ export async function GET(
     }
 
     const adapter = new DropboxStorageAdapter();
-    const url = await adapter.createTemporaryDownloadLink(file.dropbox_path);
+    const dropboxTarget =
+      typeof file.dropbox_file_id === "string" && file.dropbox_file_id.trim().length > 0
+        ? file.dropbox_file_id
+        : file.dropbox_path;
+    const url = await adapter.createTemporaryDownloadLink(dropboxTarget);
     return ok({ url, expiresInSeconds: 14400 });
   } catch (error) {
     if (error instanceof Error && /auth|token|workspace/i.test(error.message)) {
