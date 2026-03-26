@@ -27,10 +27,20 @@ export async function GET(
     const size = allowedSizes.has(requestedSize) ? requestedSize : "w256h256";
 
     const adapter = new DropboxStorageAdapter();
-    const thumbnail = await adapter.createThumbnail(file.dropbox_path, size as "w64h64" | "w128h128" | "w256h256" | "w480h320" | "w640h480");
+    const thumbnail = await adapter.createThumbnail(
+      file.dropbox_path,
+      size as "w64h64" | "w128h128" | "w256h256" | "w480h320" | "w640h480"
+    );
 
     if (!thumbnail) {
-      return notFound("Thumbnail unavailable");
+      const fallback = await adapter.downloadFile(file.dropbox_path);
+      return new NextResponse(new Uint8Array(fallback.bytes), {
+        status: 200,
+        headers: {
+          "Content-Type": fallback.contentType,
+          "Cache-Control": "private, max-age=600"
+        }
+      });
     }
 
     return new NextResponse(new Uint8Array(thumbnail.bytes), {

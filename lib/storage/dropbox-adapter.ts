@@ -154,22 +154,42 @@ export class DropboxStorageAdapter implements StorageAdapter {
       });
       const payload = response.result as unknown as Record<string, unknown>;
       const binary = payload.fileBinary ?? payload.fileBlob;
-      if (Buffer.isBuffer(binary)) {
-        return { bytes: binary, contentType: "image/jpeg" };
+      if (!binary) {
+        throw new Error("Dropbox thumbnail response did not include binary image data");
       }
-      if (binary instanceof ArrayBuffer) {
-        return { bytes: Buffer.from(binary), contentType: "image/jpeg" };
-      }
-      if (typeof binary === "string") {
-        return { bytes: Buffer.from(binary), contentType: "image/jpeg" };
-      }
-      throw new Error("Dropbox thumbnail response did not include binary image data");
+      return {
+        bytes: this.ensureBuffer(binary, "Dropbox thumbnail response did not include binary image data"),
+        contentType: "image/jpeg"
+      };
     } catch (error) {
       if (isThumbnailUnavailableError(error) || isNotFoundError(error)) {
         return null;
       }
       throw error;
     }
+  }
+
+  async downloadFile(path: string) {
+    const client = await this.getClient();
+    const response = await client.filesDownload({ path });
+    const payload = response.result as unknown as Record<string, unknown>;
+    const binary = payload.fileBinary ?? payload.fileBlob;
+    if (!binary) {
+      throw new Error("Dropbox file download response did not include binary data");
+    }
+
+    const metadata = payload.metadata as Record<string, unknown> | undefined;
+    const contentType =
+      typeof payload.content_type === "string"
+        ? payload.content_type
+        : typeof metadata?.content_type === "string"
+        ? metadata.content_type
+        : "application/octet-stream";
+
+    return {
+      bytes: this.ensureBuffer(binary, "Dropbox file download response did not include binary data"),
+      contentType
+    };
   }
 
   async ensureProjectFolders(args: { clientSlug: string; projectFolderBaseName: string }) {
@@ -273,6 +293,23 @@ export class DropboxStorageAdapter implements StorageAdapter {
         throw new Error(`Failed to create Dropbox folder at ${currentPath}`);
       }
     }
+  }
+
+  private ensureBuffer(value: unknown, errorMessage: string) {
+    if (Buffer.isBuffer(value)) {
+      return value;
+    }
+    if (value instanceof ArrayBuffer) {
+      return Buffer.from(value);
+    }
+    if (ArrayBuffer.isView(value)) {
+      const view = value as ArrayBufferView;
+      return Buffer.from(view.buffer, view.byteOffset, view.byteLength);
+    }
+    if (typeof value === "string") {
+      return Buffer.from(value);
+    }
+    throw new Error(errorMessage);
   }
 }
 
