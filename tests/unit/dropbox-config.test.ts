@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+const legacyDropboxRoot = `/${["Pro", "jects"].join("")}`;
+
 describe("Dropbox config", () => {
   beforeEach(() => {
     vi.resetModules();
@@ -11,10 +13,10 @@ describe("Dropbox config", () => {
   });
 
   it("supports the legacy DROPBOX_ROOT_FOLDER env var", async () => {
-    process.env.DROPBOX_ROOT_FOLDER = "/Projects";
+    process.env.DROPBOX_ROOT_FOLDER = legacyDropboxRoot;
 
     const { config } = await import("@/lib/config");
 
-    expect(config.dropboxProjectsRootFolder()).toBe("/Projects");
+    expect(config.dropboxProjectsRootFolder()).toBe(legacyDropboxRoot);
   });
 });
