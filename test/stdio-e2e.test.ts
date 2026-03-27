@@ -1,11 +1,16 @@
 import { createServer } from "node:http";
+import { existsSync, mkdtempSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
 import { afterEach, describe, expect, it } from "vitest";
 
-const repoRoot = "/Users/matthewantone/Current Dev Projects/BasecampClient";
+const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const nodeCommand = existsSync(process.execPath) ? process.execPath : "node";
+const tsxCliPath = path.join(repoRoot, "node_modules/tsx/dist/cli.mjs");
 
 function inheritedEnv(): Record<string, string> {
   return Object.fromEntries(
@@ -13,6 +18,28 @@ function inheritedEnv(): Record<string, string> {
       return typeof entry[1] === "string";
     })
   );
+}
+
+function createStdioTransport(baseUrl: string): StdioClientTransport {
+  if (!existsSync(tsxCliPath)) {
+    throw new Error(`tsx CLI not found at ${tsxCliPath}`);
+  }
+
+  return new StdioClientTransport({
+    command: nodeCommand,
+    args: [tsxCliPath, "src/index.ts"],
+    cwd: repoRoot,
+    stderr: "pipe",
+    env: {
+      ...inheritedEnv(),
+      BASECAMP_ACCOUNT_ID: "999999999",
+      BASECAMP_BASE_URL: baseUrl,
+      BASECAMP_AUTH_MODE: "basic",
+      BASECAMP_USERNAME: "user",
+      BASECAMP_PASSWORD: "pass",
+      BASECAMP_USER_AGENT: "Test Agent"
+    }
+  });
 }
 
 async function startMockBasecampServer(): Promise<{
@@ -67,6 +94,28 @@ async function startMockBasecampServer(): Promise<{
           id: 42,
           name: "Matt",
           email_address: "matt@example.com"
+        })
+      );
+      return;
+    }
+
+    if (url.pathname.endsWith("/attachments.json") && request.method === "POST") {
+      response.statusCode = 200;
+      response.end(JSON.stringify({ token: "e2e-attachment-token" }));
+      return;
+    }
+
+    if (
+      url.pathname.endsWith("/projects/10/messages/100/comments.json") &&
+      request.method === "POST"
+    ) {
+      response.statusCode = 201;
+      response.end(
+        JSON.stringify({
+          id: 888,
+          content: "E2E comment with attachment",
+          created_at: "2026-03-03T12:00:00Z",
+          topic_url: "https://basecamp.com/999999999/api/v1/messages/100.json"
         })
       );
       return;
@@ -168,21 +217,7 @@ describe("stdio MCP server", () => {
 
   it("serves tools over stdio against mocked Basecamp responses", async () => {
     const mockBasecamp = await startMockBasecampServer();
-    const transport = new StdioClientTransport({
-      command: process.execPath,
-      args: [path.join(repoRoot, "node_modules/tsx/dist/cli.mjs"), "src/index.ts"],
-      cwd: repoRoot,
-      stderr: "pipe",
-      env: {
-        ...inheritedEnv(),
-        BASECAMP_ACCOUNT_ID: "999999999",
-        BASECAMP_BASE_URL: mockBasecamp.url,
-        BASECAMP_AUTH_MODE: "basic",
-        BASECAMP_USERNAME: "user",
-        BASECAMP_PASSWORD: "pass",
-        BASECAMP_USER_AGENT: "Test Agent"
-      }
-    });
+    const transport = createStdioTransport(mockBasecamp.url);
     const client = new Client({
       name: "test-client",
       version: "1.0.0"
@@ -203,7 +238,9 @@ describe("stdio MCP server", () => {
         "get_project_activity",
         "get_project_messages",
         "get_project_documents",
-        "get_open_todos"
+        "get_open_todos",
+        "list_project_members",
+        "post_comment"
       ])
     );
 
@@ -223,5 +260,43 @@ describe("stdio MCP server", () => {
       assigneeId: 42,
       count: 1
     });
+  });
+
+  it("post_comment with attachmentPaths uploads file and creates comment", async () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "e2e-attach-"));
+    const filePath = path.join(dir, "e2e-file.txt");
+    writeFileSync(filePath, "e2e attachment content");
+
+    const mockBasecamp = await startMockBasecampServer();
+    const transport = createStdioTransport(mockBasecamp.url);
+    const client = new Client({
+      name: "test-client",
+      version: "1.0.0"
+    });
+
+    cleanup = async () => {
+      await client.close();
+      await transport.close();
+      await mockBasecamp.close();
+    };
+
+    await client.connect(transport);
+
+    const result = await client.callTool({
+      name: "post_comment",
+      arguments: {
+        projectId: 10,
+        messageId: 100,
+        content: "E2E comment with attachment",
+        attachmentPaths: [filePath]
+      }
+    });
+
+    expect(result.isError).toBeFalsy();
+    if (result.structuredContent && typeof result.structuredContent === "object") {
+      const content = result.structuredContent as { id?: number; content?: string };
+      expect(content.id).toBe(888);
+      expect(content.content).toBe("E2E comment with attachment");
+    }
   });
 });
