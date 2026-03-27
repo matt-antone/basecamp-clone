@@ -214,11 +214,21 @@ export class DropboxStorageAdapter implements StorageAdapter {
       await this.ensureDirectoryChain(parentDir);
     }
 
-    await client.filesMoveV2({
-      from_path: args.fromPath,
-      to_path: args.toPath,
-      autorename: false
-    });
+    try {
+      await client.filesMoveV2({
+        from_path: args.fromPath,
+        to_path: args.toPath,
+        autorename: false
+      });
+    } catch (error) {
+      if (isNotFoundError(error)) {
+        const destinationExists = await this.pathExists(args.toPath);
+        if (destinationExists) {
+          return { projectDir: args.toPath };
+        }
+      }
+      throw error;
+    }
 
     return { projectDir: args.toPath };
   }

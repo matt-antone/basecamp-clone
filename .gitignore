@@ -9,4 +9,4 @@ node_modules/
 coverage/
 tmp.json
 *.tsbuildinfo
-.temp
+.temp 

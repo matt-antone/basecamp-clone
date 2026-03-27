@@ -29,6 +29,22 @@ export type ProjectUserHours = {
   hours: number | string;
 };
 
+function parseProjectFileSizeBytes(value: unknown) {
+  const numericValue = typeof value === "number" ? value : Number(value);
+  return Number.isFinite(numericValue) && numericValue >= 0 ? numericValue : 0;
+}
+
+function normalizeProjectFileSizeRow<T extends Record<string, unknown>>(row: T): T {
+  if (!Object.prototype.hasOwnProperty.call(row, "size_bytes")) {
+    return row;
+  }
+
+  return {
+    ...row,
+    size_bytes: parseProjectFileSizeBytes((row as { size_bytes?: unknown }).size_bytes)
+  } as T;
+}
+
 export async function getUserProfileById(id: string) {
   const result = await query("select * from user_profiles where id = $1", [id]);
   return result.rows[0] ?? null;
@@ -653,12 +669,13 @@ export async function getThread(projectId: string, threadId: string) {
 
   const filesByComment = new Map<string, typeof attachmentsResult.rows>();
   for (const attachment of attachmentsResult.rows) {
+    const normalizedAttachment = normalizeProjectFileSizeRow(attachment);
     const commentId = String(attachment.comment_id ?? "");
     if (!commentId) {
       continue;
     }
     const current = filesByComment.get(commentId) ?? [];
-    current.push(attachment);
+    current.push(normalizedAttachment);
     filesByComment.set(commentId, current);
   }
 
@@ -719,7 +736,7 @@ export async function listFiles(projectId: string) {
     "select * from project_files where project_id = $1 order by created_at desc",
     [projectId]
   );
-  return result.rows;
+  return result.rows.map((row) => normalizeProjectFileSizeRow(row));
 }
 
 export async function createFileMetadata(args: {
@@ -756,7 +773,7 @@ export async function createFileMetadata(args: {
        returning *`,
       values
     );
-    return result.rows[0];
+    return result.rows[0] ? normalizeProjectFileSizeRow(result.rows[0]) : null;
   } catch (error) {
     if (!isMissingProjectFileAttachmentColumnError(error)) {
       throw error;
@@ -774,7 +791,7 @@ export async function createFileMetadata(args: {
        returning *`,
       values.slice(0, 8)
     );
-    return result.rows[0];
+    return result.rows[0] ? normalizeProjectFileSizeRow(result.rows[0]) : null;
   }
 }
 
@@ -783,7 +800,7 @@ export async function getFileById(projectId: string, fileId: string) {
     "select * from project_files where project_id = $1 and id = $2",
     [projectId, fileId]
   );
-  return result.rows[0] ?? null;
+  return result.rows[0] ? normalizeProjectFileSizeRow(result.rows[0]) : null;
 }
 
 function isMissingProjectFileAttachmentColumnError(error: unknown) {
