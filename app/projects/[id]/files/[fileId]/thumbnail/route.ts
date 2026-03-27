@@ -1,6 +1,8 @@
 import { requireUser } from "@/lib/auth";
 import { notFound, serverError, unauthorized } from "@/lib/http";
-import { getFileById } from "@/lib/repositories";
+import { getFileById, getProject } from "@/lib/repositories";
+import { getProjectStorageDir } from "@/lib/project-storage";
+import { ensureImportedFileThumbnail, isSupportedImportThumbnailSource } from "@/lib/import-thumbnail";
 import {
   DropboxStorageAdapter,
   getDropboxErrorSummary,
@@ -17,9 +19,30 @@ export async function GET(
   try {
     await requireUser(request);
     const { id, fileId } = await params;
-    const file = await getFileById(id, fileId);
+    const [project, file] = await Promise.all([getProject(id), getFileById(id, fileId)]);
+    if (!project) {
+      return notFound("Project not found");
+    }
     if (!file) {
       return notFound("File not found");
+    }
+
+    const adapter = new DropboxStorageAdapter();
+    const projectStorageDir = getProjectStorageDir(project);
+    const savedThumbnailPath = `${projectStorageDir}/uploads/.thumbnails/${file.id}.jpg`;
+    const savedThumbnail = await downloadSavedThumbnail(adapter, savedThumbnailPath);
+    if (savedThumbnail) {
+      return imageResponse(savedThumbnail.bytes, savedThumbnail.contentType);
+    }
+
+    const generatedSavedThumbnail = await generateSavedThumbnailOnDemand({
+      adapter,
+      file,
+      projectStorageDir,
+      savedThumbnailPath
+    });
+    if (generatedSavedThumbnail) {
+      return imageResponse(generatedSavedThumbnail.bytes, generatedSavedThumbnail.contentType);
     }
 
     if (typeof file.mime_type !== "string" || !file.mime_type.toLowerCase().startsWith("image/")) {
@@ -29,7 +52,6 @@ export async function GET(
     const url = new URL(request.url);
     const requestedSize = url.searchParams.get("size") ?? "w256h256";
     const size = allowedSizes.has(requestedSize) ? requestedSize : "w256h256";
-    const adapter = new DropboxStorageAdapter();
     const dropboxTargets = getDropboxTargets(file);
     let lastError: unknown = null;
 
@@ -85,6 +107,20 @@ export async function GET(
   }
 }
 
+async function downloadSavedThumbnail(adapter: DropboxStorageAdapter, path: string) {
+  try {
+    return await adapter.downloadFile(path);
+  } catch (error) {
+    if (shouldRethrowThumbnailError(error)) {
+      throw error;
+    }
+    if (isMissingThumbnailError(error)) {
+      return null;
+    }
+    throw error;
+  }
+}
+
 function getDropboxTargets(file: Record<string, unknown>) {
   const targets = [
     typeof file.dropbox_file_id === "string" ? file.dropbox_file_id.trim() : "",
@@ -101,4 +137,101 @@ function shouldRethrowThumbnailError(error: unknown) {
 
   const summary = getDropboxErrorSummary(error);
   return /auth|token|workspace/i.test(summary);
+}
+
+function isMissingThumbnailError(error: unknown) {
+  const summary = getDropboxErrorSummary(error);
+  return /not[_-]?found|path\/not_found|path not found/i.test(summary);
+}
+
+function imageResponse(bytes: Buffer, contentType: string) {
+  const normalizedContentType = contentType.toLowerCase().startsWith("image/") ? contentType : "image/jpeg";
+  return new NextResponse(new Uint8Array(bytes), {
+    status: 200,
+    headers: {
+      "Content-Type": normalizedContentType,
+      "Cache-Control": "private, max-age=600"
+    }
+  });
+}
+
+function getNonEmptyString(value: unknown) {
+  if (typeof value !== "string") {
+    return null;
+  }
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
+async function generateSavedThumbnailOnDemand({
+  adapter,
+  file,
+  projectStorageDir,
+  savedThumbnailPath
+}: {
+  adapter: DropboxStorageAdapter;
+  file: Record<string, unknown>;
+  projectStorageDir: string;
+  savedThumbnailPath: string;
+}) {
+  const filename = getNonEmptyString(file.name);
+  const mimeType = getNonEmptyString(file.mime_type);
+  const dropboxPath = getNonEmptyString(file.dropbox_path);
+  const projectFileId = getNonEmptyString(file.id);
+
+  if (!filename || !mimeType || !dropboxPath || !projectFileId) {
+    return null;
+  }
+  if (!isSupportedImportThumbnailSource({ filename, mimeType })) {
+    return null;
+  }
+
+  try {
+    const thumbnailRequest = {
+      projectStorageDir,
+      projectFileId,
+      filename,
+      mimeType,
+      dropboxPath
+    };
+
+    const workerResult = await ensureImportedFileThumbnail(thumbnailRequest);
+    if (workerResult.action !== "generated" && workerResult.action !== "reused") {
+      return null;
+    }
+    return await downloadSavedThumbnail(adapter, savedThumbnailPath);
+  } catch (error) {
+    console.warn("on_demand_thumbnail_generation_failed", {
+      fileId: projectFileId,
+      dropboxPath,
+      error: error instanceof Error ? error.message : String(error)
+    });
+
+    try {
+      const localResult = await ensureImportedFileThumbnail(
+        {
+          projectStorageDir,
+          projectFileId,
+          filename,
+          mimeType,
+          dropboxPath
+        },
+        {
+          // Explicitly disable worker to allow local generation fallback in this request path.
+          workerUrl: ""
+        }
+      );
+      if (localResult.action !== "generated" && localResult.action !== "reused") {
+        return null;
+      }
+      return await downloadSavedThumbnail(adapter, savedThumbnailPath);
+    } catch (fallbackError) {
+      console.warn("on_demand_thumbnail_generation_fallback_failed", {
+        fileId: projectFileId,
+        dropboxPath,
+        error: fallbackError instanceof Error ? fallbackError.message : String(fallbackError)
+      });
+      return null;
+    }
+  }
 }

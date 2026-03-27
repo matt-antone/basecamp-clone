@@ -64,6 +64,11 @@ Dropbox env vars:
 - `DROPBOX_SELECT_ADMIN` (optional alternative for admin-oriented team access)
 - `DROPBOX_PROJECTS_ROOT_FOLDER` (optional, defaults to `/projects`)
 
+Thumbnail worker env vars (recommended for Office/PDF conversion in hosted deployments):
+- `THUMBNAIL_WORKER_URL` (when set, app delegates thumbnail generation to external worker)
+- `THUMBNAIL_WORKER_TOKEN` (required when `THUMBNAIL_WORKER_URL` is set)
+- `THUMBNAIL_WORKER_TIMEOUT_MS` (optional, defaults to `15000`)
+
 ## Google Workspace SMTP Relay
 - Configure Google Workspace SMTP relay to allow your app host or SMTP-authenticated sends.
 - Set `EMAIL_FROM` to your shared sender, for example `notifications@yourcompany.com`.

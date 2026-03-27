@@ -1,5 +1,7 @@
 import { query } from "../db";
 import { createComment, createFileMetadata, createProject, createThread, getProject } from "../repositories";
+import { getProjectStorageDir } from "../project-storage";
+import { ensureImportedFileThumbnail } from "../import-thumbnail";
 
 type BasecampFile = {
   id: string;
@@ -248,20 +250,60 @@ export async function runBasecampImport(jobId: string, payload: BasecampImportPa
         throw new Error(`File ${file.id} references unknown project ${file.projectId}`);
       }
 
-      const created = await createFileMetadata({
-        projectId,
-        uploaderUserId: file.uploaderUserId,
+      const project = await getProject(projectId);
+      if (!project) {
+        throw new Error(`File ${file.id} references missing local project ${projectId}`);
+      }
+
+      const existingFile = await query(
+        "select * from project_files where project_id = $1 and dropbox_file_id = $2 limit 1",
+        [projectId, file.dropboxFileId]
+      );
+
+      const fileRecord =
+        existingFile.rows[0] ??
+        (await createFileMetadata({
+          projectId,
+          uploaderUserId: file.uploaderUserId,
+          filename: file.filename,
+          mimeType: file.mimeType,
+          sizeBytes: file.sizeBytes,
+          checksum: file.checksum,
+          dropboxFileId: file.dropboxFileId,
+          dropboxPath: file.dropboxPath
+        }));
+
+      const thumbnailRequest = {
+        projectStorageDir: getProjectStorageDir(project),
+        projectFileId: fileRecord.id,
         filename: file.filename,
         mimeType: file.mimeType,
-        sizeBytes: file.sizeBytes,
-        checksum: file.checksum,
-        dropboxFileId: file.dropboxFileId,
         dropboxPath: file.dropboxPath
-      });
+      };
+
+      try {
+        const thumbnailResult = await ensureImportedFileThumbnail(thumbnailRequest);
+        await appendLog({
+          jobId,
+          recordType: "file_thumbnail",
+          sourceRecordId: file.id,
+          status: "success",
+          message: thumbnailResult.message
+        });
+      } catch (error) {
+        await appendLog({
+          jobId,
+          recordType: "file_thumbnail",
+          sourceRecordId: file.id,
+          status: "failed",
+          message: error instanceof Error ? error.message : String(error)
+        });
+        throw error;
+      }
 
       await query(
         "insert into import_map_files (basecamp_file_id, local_file_id) values ($1, $2)",
-        [file.id, created.id]
+        [file.id, fileRecord.id]
       );
       await appendLog({ jobId, recordType: "file", sourceRecordId: file.id, status: "success" });
       await updateJobCounters(jobId, 1, 0);

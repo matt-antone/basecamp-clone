@@ -105,6 +105,9 @@ export const config = {
     getOptionalEnv("DROPBOX_PROJECTS_ROOT_FOLDER") ??
     getOptionalEnv("DROPBOX_ROOT_FOLDER") ??
     "/projects",
+  thumbnailWorkerUrl: () => normalizeUrl(getOptionalEnv("THUMBNAIL_WORKER_URL")),
+  thumbnailWorkerToken: () => getOptionalEnv("THUMBNAIL_WORKER_TOKEN"),
+  thumbnailWorkerTimeoutMs: () => getNumberEnv("THUMBNAIL_WORKER_TIMEOUT_MS", 15000),
   emailEnabled: () => getBooleanEnv("EMAIL_ENABLED", true),
   emailFrom: () => {
     const value = getOptionalEnv("EMAIL_FROM");
