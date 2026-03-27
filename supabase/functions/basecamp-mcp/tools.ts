@@ -6,11 +6,11 @@ import * as db from "./db.ts";
 import { marked } from "marked";
 
 interface ToolServer {
-  tool(
+  tool<S extends Record<string, z.ZodTypeAny>>(
     name: string,
     description: string,
-    shape: Record<string, z.ZodTypeAny>,
-    handler: (args: Record<string, unknown>) => Promise<unknown>
+    shape: S,
+    handler: (args: z.objectOutputType<S, z.ZodTypeAny>) => Promise<unknown>
   ): void;
 }
 
