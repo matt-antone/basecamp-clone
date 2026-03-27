@@ -1,10 +1,18 @@
 // supabase/functions/basecamp-mcp/tools.ts
-import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { AgentIdentity } from "./auth.ts";
 import * as db from "./db.ts";
 import { marked } from "marked";
+
+interface ToolServer {
+  tool(
+    name: string,
+    description: string,
+    shape: Record<string, z.ZodTypeAny>,
+    handler: (args: Record<string, unknown>) => Promise<unknown>
+  ): void;
+}
 
 function ok(data: unknown) {
   return { content: [{ type: "text" as const, text: JSON.stringify(data, null, 2) }] };
@@ -23,7 +31,7 @@ async function toHtml(markdown: string): Promise<string> {
 }
 
 export function registerTools(
-  server: McpServer,
+  server: ToolServer,
   supabase: SupabaseClient,
   agent: AgentIdentity
 ): void {

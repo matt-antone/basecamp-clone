@@ -48,20 +48,14 @@ supabase/
 ```
 MCP_ACCESS_KEY        # admin key (legacy single)
 MCP_ACCESS_KEYS       # comma-separated admin keys
-MCP_CLIENTS_JSON      # JSON array of per-agent client credentials
 MCP_RATE_LIMIT_RPM    # requests per minute per agent (default: 120)
 ```
 
-### `MCP_CLIENTS_JSON` shape
+No `MCP_CLIENTS_JSON` — agent credentials are stored in the `agent_clients` DB table instead. This means adding or disabling an agent is a SQL insert/update with no redeploy required.
 
-```json
-[
-  { "client_id": "claude",   "secret": "...", "role": "agent", "disabled": false },
-  { "client_id": "codex",    "secret": "...", "role": "agent", "disabled": false },
-  { "client_id": "cursor",   "secret": "...", "role": "agent", "disabled": false },
-  { "client_id": "openclaw", "secret": "...", "role": "agent", "disabled": false }
-]
-```
+### `agent_clients` table (see Section 4)
+
+Agent credentials live in the DB. The edge function loads the calling agent's row at auth time via the service role key.
 
 ### Request headers
 
@@ -70,7 +64,7 @@ Authorization: Bearer <secret>
 x-mcp-client-id: claude
 ```
 
-The edge function resolves headers → `{ client_id, role }`. This identity is used for:
+The edge function looks up `client_id` in `agent_clients`, does a timing-safe bcrypt compare against the stored `secret_hash`, and resolves → `{ client_id, role }`. This identity is used for:
 - Rate limiting (per `client_id`)
 - Stamping `author_user_id = client_id` on all writes
 - Profile lookup / auto-creation
@@ -80,20 +74,42 @@ The edge function resolves headers → `{ client_id, role }`. This identity is u
 - `agent` — full access to all 15 tools
 - `admin` — same as agent in v1; reserved for future elevated operations
 
+### Bootstrapping
+
+The admin key (`MCP_ACCESS_KEY`) is used to insert the first agent row directly via SQL or the Supabase dashboard. After that, agents are managed entirely through the DB.
+
 ### Agent profile auto-creation
 
-On first successful auth, if no profile row exists for the `client_id`, one is created automatically with defaults. The agent can then update it.
+On first successful auth, if no profile row exists for the `client_id`, one is created automatically with defaults. The agent can then read and update it via `get_my_profile` / `update_my_profile`.
 
 ---
 
 ## 4. Database Changes
 
+Two new tables, one migration.
+
+### New table: `agent_clients`
+
+Stores per-agent credentials. Replaces the `MCP_CLIENTS_JSON` env var approach — no redeploy needed to add/disable an agent.
+
+```sql
+-- migration: 0011_mcp_agents.sql
+create table if not exists agent_clients (
+  client_id   text primary key,
+  secret_hash text not null,       -- bcrypt hash of the agent's secret
+  role        text not null default 'agent',
+  disabled    boolean not null default false,
+  created_at  timestamptz not null default now()
+);
+```
+
+To add an agent: insert a row with a bcrypt-hashed secret. To disable: set `disabled = true`.
+
 ### New table: `agent_profiles`
 
 ```sql
--- migration: 0011_agent_profiles.sql
 create table if not exists agent_profiles (
-  client_id   text primary key,
+  client_id   text primary key references agent_clients(client_id) on delete cascade,
   name        text,
   avatar_url  text,
   bio         text,
@@ -103,7 +119,7 @@ create table if not exists agent_profiles (
 );
 ```
 
-No changes to existing tables. Agent writes stamp `author_user_id` with the agent's `client_id` — this reuses the existing text column already present on `discussion_threads` and `discussion_comments`.
+No changes to existing tables. Agent writes stamp `author_user_id` with the agent's `client_id` — reuses the existing `text` column on `discussion_threads` and `discussion_comments`.
 
 ---
 
@@ -240,12 +256,10 @@ All env vars for `.env.example`:
 MCP_ACCESS_KEY=
 MCP_ACCESS_KEYS=
 
-# MCP Server — Per-agent clients
-# JSON array: [{ "client_id": "claude", "secret": "...", "role": "agent", "disabled": false }]
-MCP_CLIENTS_JSON=
-
 # MCP Server — Rate limiting
 MCP_RATE_LIMIT_RPM=120
+
+# Agent credentials are managed in the agent_clients DB table — no env var needed
 
 # Integration smoke test
 MCP_SMOKE_URL=

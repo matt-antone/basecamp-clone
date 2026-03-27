@@ -3,9 +3,6 @@
     "bcryptjs": "npm:bcryptjs",
     "@supabase/supabase-js": "npm:@supabase/supabase-js",
     "marked": "npm:marked",
-    "zod": "npm:zod",
-    "@modelcontextprotocol/sdk/server/mcp.js": "npm:@modelcontextprotocol/sdk/server/mcp.js",
-    "@modelcontextprotocol/sdk/server/streamableHttp.js": "npm:@modelcontextprotocol/sdk/server/streamableHttp.js",
-    "@modelcontextprotocol/sdk/types.js": "npm:@modelcontextprotocol/sdk/types.js"
+    "zod": "npm:zod@^4"
   }
 }

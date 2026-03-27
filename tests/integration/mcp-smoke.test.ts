@@ -12,6 +12,7 @@ describe.skipIf(!SMOKE_URL || !CLIENT_ID || !SECRET)("MCP smoke tests (live)", (
       method: "POST",
       headers: {
         "Content-Type": "application/json",
+        "Accept": "application/json, text/event-stream",
         Authorization: `Bearer ${SECRET}`,
         "x-mcp-client-id": CLIENT_ID!,
       },
