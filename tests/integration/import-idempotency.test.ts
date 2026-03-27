@@ -6,6 +6,7 @@ const maps = {
   comments: new Map<string, string>(),
   files: new Map<string, string>()
 };
+const fileRecords = new Map<string, string>();
 
 const job = {
   status: "running",
@@ -13,6 +14,12 @@ const job = {
   success: 0,
   failed: 0
 };
+const ensureImportedFileThumbnail = vi.hoisted(() =>
+  vi.fn(async () => ({
+    action: "skipped" as const,
+    message: "Thumbnail skipped for unsupported type text/plain (a.txt)"
+  }))
+);
 
 vi.mock("@/lib/db", () => ({
   query: vi.fn(async (sql: string, values: unknown[] = []) => {
@@ -48,6 +55,10 @@ vi.mock("@/lib/db", () => ({
       maps.files.set(values[0] as string, values[1] as string);
       return { rows: [] };
     }
+    if (sql.includes("select * from project_files where project_id = $1 and dropbox_file_id = $2 limit 1")) {
+      const key = `${values[0] as string}:${values[1] as string}`;
+      return { rows: fileRecords.has(key) ? [{ id: fileRecords.get(key) }] : [] };
+    }
     if (sql.includes("select local_project_id from import_map_projects where basecamp_project_id")) {
       const id = values[0] as string;
       return { rows: maps.projects.get(id) ? [{ local_project_id: maps.projects.get(id) }] : [] };
@@ -76,7 +87,16 @@ vi.mock("@/lib/repositories", () => ({
   getProject: vi.fn(async () => ({ id: "local-project-1" })),
   createThread: vi.fn(async () => ({ id: "local-thread-1" })),
   createComment: vi.fn(async () => ({ id: "local-comment-1" })),
-  createFileMetadata: vi.fn(async () => ({ id: "local-file-1" }))
+  createFileMetadata: vi.fn(async (args: { projectId: string; dropboxFileId: string }) => {
+    const key = `${args.projectId}:${args.dropboxFileId}`;
+    const id = fileRecords.get(key) ?? "local-file-1";
+    fileRecords.set(key, id);
+    return { id };
+  })
+}));
+
+vi.mock("@/lib/import-thumbnail", () => ({
+  ensureImportedFileThumbnail
 }));
 
 beforeEach(() => {
@@ -84,6 +104,8 @@ beforeEach(() => {
   maps.threads.clear();
   maps.comments.clear();
   maps.files.clear();
+  fileRecords.clear();
+  ensureImportedFileThumbnail.mockClear();
   job.status = "running";
   job.total = 0;
   job.success = 0;
@@ -120,6 +142,7 @@ describe("basecamp import idempotency", () => {
     expect(maps.threads.size).toBe(1);
     expect(maps.comments.size).toBe(1);
     expect(maps.files.size).toBe(1);
+    expect(ensureImportedFileThumbnail).toHaveBeenCalledTimes(1);
     expect(job.status).toBe("completed");
   });
 });

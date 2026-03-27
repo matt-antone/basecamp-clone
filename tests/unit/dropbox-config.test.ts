@@ -10,6 +10,9 @@ describe("Dropbox config", () => {
     process.env.WORKSPACE_DOMAIN = "example.com";
     delete process.env.DROPBOX_PROJECTS_ROOT_FOLDER;
     delete process.env.DROPBOX_ROOT_FOLDER;
+    delete process.env.THUMBNAIL_WORKER_URL;
+    delete process.env.THUMBNAIL_WORKER_TOKEN;
+    delete process.env.THUMBNAIL_WORKER_TIMEOUT_MS;
   });
 
   it("supports the legacy DROPBOX_ROOT_FOLDER env var", async () => {
@@ -18,5 +21,17 @@ describe("Dropbox config", () => {
     const { config } = await import("@/lib/config");
 
     expect(config.dropboxProjectsRootFolder()).toBe(legacyDropboxRoot);
+  });
+
+  it("reads thumbnail worker settings when configured", async () => {
+    process.env.THUMBNAIL_WORKER_URL = "https://thumbs.example.internal";
+    process.env.THUMBNAIL_WORKER_TOKEN = "token-123";
+    process.env.THUMBNAIL_WORKER_TIMEOUT_MS = "20000";
+
+    const { config } = await import("@/lib/config");
+
+    expect(config.thumbnailWorkerUrl()).toBe("https://thumbs.example.internal");
+    expect(config.thumbnailWorkerToken()).toBe("token-123");
+    expect(config.thumbnailWorkerTimeoutMs()).toBe(20000);
   });
 });

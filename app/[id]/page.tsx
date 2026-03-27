@@ -217,11 +217,11 @@ function ProjectPageContent({ projectId, initial }: { projectId: string; initial
   useEffect(() => {
     if (!token || !projectId) return;
 
-    const imageFiles = files.filter((file) => file.mime_type.toLowerCase().startsWith("image/"));
+    const previewableFiles = files.filter((file) => canRequestThumbnail(file));
     let canceled = false;
 
     async function loadPreviews() {
-      const pending = imageFiles.filter((file) => !previewUrlsRef.current[file.id]);
+      const pending = previewableFiles.filter((file) => !previewUrlsRef.current[file.id]);
       if (!pending.length) {
         return;
       }
@@ -760,7 +760,7 @@ function ProjectPageContent({ projectId, initial }: { projectId: string; initial
             </div>
           </li>
           {files.map((file) => {
-            const isImage = file.mime_type.toLowerCase().startsWith("image/");
+            const supportsThumbnail = canRequestThumbnail(file);
             const previewUrl = filePreviewUrls[file.id];
             return (
               <li key={file.id} className="fileThumbItem">
@@ -769,7 +769,7 @@ function ProjectPageContent({ projectId, initial }: { projectId: string; initial
                   className="fileThumbHitArea"
                   onClick={() => downloadFile(file.id).catch((error) => setStatus(error.message))}
                 >
-                  {isImage && previewUrl ? (
+                  {supportsThumbnail && previewUrl ? (
                     <img src={previewUrl} alt={file.filename} className="fileThumbImage" loading="lazy" />
                   ) : (
                     <div className="fileThumbFallback">{getFileBadgeLabel(file)}</div>
@@ -857,6 +857,29 @@ function getFileBadgeLabel(file: ProjectFile) {
   if (mime.includes("zip") || mime.includes("compressed")) return "ZIP";
   const extension = file.filename.split(".").pop()?.trim().toUpperCase();
   return extension && extension.length <= 5 ? extension : "FILE";
+}
+
+function canRequestThumbnail(file: ProjectFile) {
+  const mime = file.mime_type.toLowerCase();
+  if (mime.startsWith("image/")) return true;
+  if (mime === "application/pdf") return true;
+  if (
+    mime === "application/msword" ||
+    mime === "application/vnd.ms-excel" ||
+    mime === "application/vnd.ms-powerpoint" ||
+    mime === "application/vnd.openxmlformats-officedocument.wordprocessingml.document" ||
+    mime === "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" ||
+    mime === "application/vnd.openxmlformats-officedocument.presentationml.presentation" ||
+    mime === "application/vnd.oasis.opendocument.text" ||
+    mime === "application/vnd.oasis.opendocument.spreadsheet" ||
+    mime === "application/vnd.oasis.opendocument.presentation" ||
+    mime === "application/rtf"
+  ) {
+    return true;
+  }
+
+  const extension = file.filename.split(".").pop()?.trim().toLowerCase() ?? "";
+  return ["pdf", "doc", "docx", "xls", "xlsx", "ppt", "pptx", "odt", "ods", "odp", "rtf"].includes(extension);
 }
 
 function formatBytes(size: number) {

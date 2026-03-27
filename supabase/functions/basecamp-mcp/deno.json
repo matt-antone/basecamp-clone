@@ -1,0 +1,8 @@
+{
+  "imports": {
+    "bcryptjs": "npm:bcryptjs",
+    "@supabase/supabase-js": "npm:@supabase/supabase-js",
+    "marked": "npm:marked",
+    "zod": "npm:zod@^4"
+  }
+}
