@@ -1,0 +1,329 @@
+// supabase/functions/basecamp-mcp/db.ts
+import type { SupabaseClient } from "@supabase/supabase-js";
+
+// ─── Read ────────────────────────────────────────────────────────────────────
+
+export async function listProjects(supabase: SupabaseClient) {
+  const { data, error } = await supabase
+    .from("projects")
+    .select("id, name, slug, description, deadline, status, created_at, clients(name)")
+    .eq("archived", false)
+    .order("created_at", { ascending: false });
+  if (error) throw error;
+  return data.map((p: any) => ({ ...p, client_name: p.clients?.name ?? null, clients: undefined }));
+}
+
+export async function getProject(supabase: SupabaseClient, projectId: string) {
+  const { data: project, error } = await supabase
+    .from("projects")
+    .select("id, name, slug, description, deadline, status, archived, created_at, clients(id, name)")
+    .eq("id", projectId)
+    .single();
+  if (error || !project) return null;
+
+  const { data: threads } = await supabase
+    .from("discussion_threads")
+    .select("id, title, created_at, discussion_comments(count)")
+    .eq("project_id", projectId)
+    .order("created_at", { ascending: false })
+    .limit(10);
+
+  const { count: fileCount } = await supabase
+    .from("project_files")
+    .select("id", { count: "exact", head: true })
+    .eq("project_id", projectId);
+
+  return {
+    project: { ...project, client: project.clients, clients: undefined },
+    threads: (threads ?? []).map((t: any) => ({
+      id: t.id,
+      title: t.title,
+      comment_count: t.discussion_comments?.[0]?.count ?? 0,
+      created_at: t.created_at,
+    })),
+    file_count: fileCount ?? 0,
+  };
+}
+
+export async function getThread(supabase: SupabaseClient, threadId: string) {
+  const { data: thread, error } = await supabase
+    .from("discussion_threads")
+    .select("id, project_id, title, body_markdown, author_user_id, created_at, updated_at")
+    .eq("id", threadId)
+    .single();
+  if (error || !thread) return null;
+
+  const { data: comments } = await supabase
+    .from("discussion_comments")
+    .select("id, body_markdown, author_user_id, edited_at, created_at")
+    .eq("thread_id", threadId)
+    .order("created_at", { ascending: true });
+
+  const { data: threadFiles } = await supabase
+    .from("project_files")
+    .select("id, filename, mime_type, size_bytes, dropbox_file_id, comment_id, created_at")
+    .eq("thread_id", threadId)
+    .is("comment_id", null);
+
+  const { data: commentFiles } = await supabase
+    .from("project_files")
+    .select("id, filename, mime_type, size_bytes, dropbox_file_id, comment_id, created_at")
+    .eq("thread_id", threadId)
+    .not("comment_id", "is", null);
+
+  const filesByComment = new Map<string, any[]>();
+  for (const f of commentFiles ?? []) {
+    const arr = filesByComment.get(f.comment_id) ?? [];
+    arr.push(f);
+    filesByComment.set(f.comment_id, arr);
+  }
+
+  return {
+    thread,
+    comments: (comments ?? []).map((c: any) => ({
+      ...c,
+      files: filesByComment.get(c.id) ?? [],
+    })),
+    files: threadFiles ?? [],
+  };
+}
+
+export async function listFiles(supabase: SupabaseClient, projectId: string, threadId?: string) {
+  let query = supabase
+    .from("project_files")
+    .select("id, filename, mime_type, size_bytes, dropbox_file_id, thread_id, comment_id, created_at")
+    .eq("project_id", projectId)
+    .order("created_at", { ascending: false });
+  if (threadId) query = query.eq("thread_id", threadId);
+  const { data, error } = await query;
+  if (error) throw error;
+  return data;
+}
+
+export async function getFile(supabase: SupabaseClient, fileId: string) {
+  const { data, error } = await supabase
+    .from("project_files")
+    .select("id, project_id, filename, mime_type, size_bytes, dropbox_file_id, dropbox_path, checksum, thread_id, comment_id, uploader_user_id, created_at")
+    .eq("id", fileId)
+    .single();
+  if (error || !data) return null;
+  return data;
+}
+
+export async function searchContent(
+  supabase: SupabaseClient,
+  query: string,
+  projectId?: string,
+  limit = 20
+) {
+  const { data, error } = await supabase.rpc("mcp_search_content", {
+    p_query: query,
+    p_project_id: projectId ?? null,
+    p_limit: Math.min(limit, 100),
+  });
+  if (error) throw error;
+  return data;
+}
+
+// ─── Write ───────────────────────────────────────────────────────────────────
+
+export async function createProject(
+  supabase: SupabaseClient,
+  params: { name: string; description?: string; deadline?: string; business_client_id?: string },
+  agentId: string
+) {
+  const { data, error } = await supabase
+    .from("projects")
+    .insert({
+      name: params.name,
+      slug: params.name.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
+      description: params.description ?? null,
+      deadline: params.deadline ?? null,
+      client_id: params.business_client_id ?? null,
+      created_by: agentId,
+    })
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+export async function updateProject(
+  supabase: SupabaseClient,
+  projectId: string,
+  params: { name?: string; description?: string; deadline?: string; status?: string; archived?: boolean }
+) {
+  const patch: Record<string, unknown> = { updated_at: new Date().toISOString() };
+  if (params.name !== undefined) patch.name = params.name;
+  if (params.description !== undefined) patch.description = params.description;
+  if (params.deadline !== undefined) patch.deadline = params.deadline;
+  if (params.status !== undefined) patch.status = params.status;
+  if (params.archived !== undefined) patch.archived = params.archived;
+
+  const { data, error } = await supabase
+    .from("projects")
+    .update(patch)
+    .eq("id", projectId)
+    .select()
+    .single();
+  if (error || !data) return null;
+  return data;
+}
+
+export async function createThread(
+  supabase: SupabaseClient,
+  params: { project_id: string; title: string; body_markdown: string; body_html: string },
+  agentId: string
+) {
+  const { data, error } = await supabase
+    .from("discussion_threads")
+    .insert({
+      project_id: params.project_id,
+      title: params.title,
+      body_markdown: params.body_markdown,
+      body_html: params.body_html,
+      author_user_id: agentId,
+    })
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+export async function updateThread(
+  supabase: SupabaseClient,
+  threadId: string,
+  params: { title?: string; body_markdown?: string; body_html?: string }
+) {
+  const patch: Record<string, unknown> = { updated_at: new Date().toISOString() };
+  if (params.title !== undefined) patch.title = params.title;
+  if (params.body_markdown !== undefined) patch.body_markdown = params.body_markdown;
+  if (params.body_html !== undefined) patch.body_html = params.body_html;
+
+  const { data, error } = await supabase
+    .from("discussion_threads")
+    .update(patch)
+    .eq("id", threadId)
+    .select()
+    .single();
+  if (error || !data) return null;
+  return data;
+}
+
+export async function createComment(
+  supabase: SupabaseClient,
+  params: { thread_id: string; body_markdown: string; body_html: string; project_id: string },
+  agentId: string
+) {
+  const { data, error } = await supabase
+    .from("discussion_comments")
+    .insert({
+      thread_id: params.thread_id,
+      project_id: params.project_id,
+      body_markdown: params.body_markdown,
+      body_html: params.body_html,
+      author_user_id: agentId,
+    })
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+export async function updateComment(
+  supabase: SupabaseClient,
+  commentId: string,
+  params: { body_markdown: string; body_html: string }
+) {
+  const { data, error } = await supabase
+    .from("discussion_comments")
+    .update({
+      body_markdown: params.body_markdown,
+      body_html: params.body_html,
+      edited_at: new Date().toISOString(),
+    })
+    .eq("id", commentId)
+    .select()
+    .single();
+  if (error || !data) return null;
+  return data;
+}
+
+// ─── Files ───────────────────────────────────────────────────────────────────
+
+export async function createFile(
+  supabase: SupabaseClient,
+  params: {
+    project_id: string;
+    filename: string;
+    mime_type: string;
+    size_bytes: number;
+    dropbox_file_id: string;
+    dropbox_path: string;
+    checksum: string;
+    thread_id?: string;
+    comment_id?: string;
+  },
+  agentId: string
+) {
+  const { data, error } = await supabase
+    .from("project_files")
+    .insert({
+      project_id: params.project_id,
+      filename: params.filename,
+      mime_type: params.mime_type,
+      size_bytes: params.size_bytes,
+      dropbox_file_id: params.dropbox_file_id,
+      dropbox_path: params.dropbox_path,
+      checksum: params.checksum,
+      thread_id: params.thread_id ?? null,
+      comment_id: params.comment_id ?? null,
+      uploader_user_id: agentId,
+    })
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+// ─── Profiles ────────────────────────────────────────────────────────────────
+
+export async function getProfile(supabase: SupabaseClient, clientId: string) {
+  const { data, error } = await supabase
+    .from("agent_profiles")
+    .select("client_id, name, avatar_url, bio, preferences, created_at, updated_at")
+    .eq("client_id", clientId)
+    .single();
+  if (error || !data) return null;
+  return data;
+}
+
+export async function updateProfile(
+  supabase: SupabaseClient,
+  clientId: string,
+  params: { name?: string; avatar_url?: string; bio?: string; preferences?: Record<string, unknown> }
+) {
+  // Fetch current preferences for key-merge
+  const { data: current } = await supabase
+    .from("agent_profiles")
+    .select("preferences")
+    .eq("client_id", clientId)
+    .single();
+
+  const patch: Record<string, unknown> = { updated_at: new Date().toISOString() };
+  if (params.name !== undefined) patch.name = params.name;
+  if (params.avatar_url !== undefined) patch.avatar_url = params.avatar_url;
+  if (params.bio !== undefined) patch.bio = params.bio;
+  if (params.preferences !== undefined) {
+    patch.preferences = { ...(current?.preferences ?? {}), ...params.preferences };
+  }
+
+  const { data, error } = await supabase
+    .from("agent_profiles")
+    .update(patch)
+    .eq("client_id", clientId)
+    .select()
+    .single();
+  if (error || !data) return null;
+  return data;
+}
