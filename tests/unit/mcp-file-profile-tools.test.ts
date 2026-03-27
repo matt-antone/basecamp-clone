@@ -26,7 +26,7 @@ describe("create_file", () => {
       mime_type: "application/pdf",
       size_bytes: 1024,
       dropbox_file_id: "id:abc",
-      dropbox_path: "/Projects/p-1/doc.pdf",
+      dropbox_path: "/test-uploads/p-1/doc.pdf",
       checksum: "sha256:abc",
     };
     await server.call("create_file", params);
@@ -43,7 +43,7 @@ describe("create_file", () => {
       mime_type: "image/png",
       size_bytes: 500,
       dropbox_file_id: "id:xyz",
-      dropbox_path: "/Projects/p-1/img.png",
+      dropbox_path: "/test-uploads/p-1/img.png",
       checksum: "sha256:xyz",
       thread_id: "t-1",
       comment_id: "c-1",
