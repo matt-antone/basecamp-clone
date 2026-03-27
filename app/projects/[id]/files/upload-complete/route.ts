@@ -141,6 +141,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       threadId: payload.threadId ?? null,
       commentId: payload.commentId ?? null
     });
+    if (!file) {
+      throw new Error("Failed to create file metadata");
+    }
 
     try {
       const thumbnailResult = await ensureImportedFileThumbnail({

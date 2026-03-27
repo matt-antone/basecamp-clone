@@ -10,3 +10,5 @@ coverage/
 tmp.json
 *.tsbuildinfo
 .temp 
+node-*
+orchestration/*
