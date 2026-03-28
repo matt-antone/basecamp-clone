@@ -65,8 +65,8 @@ Dropbox env vars:
 - `DROPBOX_PROJECTS_ROOT_FOLDER` (optional, defaults to `/projects`)
 
 Thumbnail worker env vars (recommended for Office/PDF conversion in hosted deployments):
-- `THUMBNAIL_WORKER_URL` (when set, app delegates thumbnail generation to external worker)
-- `THUMBNAIL_WORKER_TOKEN` (required when `THUMBNAIL_WORKER_URL` is set)
+- `THUMBNAIL_WORKER_URL` (when set, app delegates thumbnail generation to external worker; must be the worker origin only, for example `https://thumbs.example.internal`, with no `/thumbnails` path or other suffix)
+- `THUMBNAIL_WORKER_TOKEN` (required when `THUMBNAIL_WORKER_URL` is set; use the raw secret or `Bearer <secret>`)
 - `THUMBNAIL_WORKER_TIMEOUT_MS` (optional, defaults to `15000`)
 
 ## Google Workspace SMTP Relay

@@ -3,7 +3,7 @@ import { requireUser } from "@/lib/auth";
 import { badRequest, notFound, ok, serverError, unauthorized } from "@/lib/http";
 import { ensureImportedFileThumbnail, isSupportedImportThumbnailSource } from "@/lib/import-thumbnail";
 import { getProjectStorageDir } from "@/lib/project-storage";
-import { createFileMetadata, getComment, getProject, getThread } from "@/lib/repositories";
+import { createFileMetadata, getComment, getProject, getThread, setFileThumbnailUrl } from "@/lib/repositories";
 import { DropboxStorageAdapter } from "@/lib/storage/dropbox-adapter";
 import { isTeamSelectUserRequiredError } from "@/lib/storage/dropbox-adapter";
 import { mapDropboxMetadata } from "@/lib/storage/dropbox-adapter";
@@ -153,6 +153,16 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         mimeType: payload.mimeType,
         dropboxPath: completed.path
       });
+      if ((thumbnailResult.action === "generated" || thumbnailResult.action === "reused") && thumbnailResult.thumbnailUrl) {
+        const updatedFile = await setFileThumbnailUrl({
+          projectId: id,
+          fileId: file.id,
+          thumbnailUrl: thumbnailResult.thumbnailUrl
+        });
+        if (updatedFile) {
+          Object.assign(file, updatedFile);
+        }
+      }
       console.info("upload_thumbnail_result", {
         projectId: id,
         fileId: file.id,

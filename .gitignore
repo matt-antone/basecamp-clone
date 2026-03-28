@@ -12,3 +12,4 @@ tmp.json
 .temp 
 node-*
 orchestration/*
+thumbnail-*

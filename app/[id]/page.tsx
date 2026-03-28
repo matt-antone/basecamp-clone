@@ -56,6 +56,7 @@ type ProjectFile = {
   filename: string;
   mime_type: string;
   size_bytes: number;
+  thumbnail_url?: string | null;
   created_at: string;
 };
 
@@ -128,7 +129,6 @@ function ProjectPageContent({ projectId, initial }: { projectId: string; initial
   const [viewerProfile, setViewerProfile] = useState<ViewerProfile | null>(initial.viewerProfile);
   const [threads, setThreads] = useState<Thread[]>(initial.threads);
   const [files, setFiles] = useState<ProjectFile[]>(initial.files);
-  const [filePreviewUrls, setFilePreviewUrls] = useState<Record<string, string>>({});
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [isFileDragActive, setIsFileDragActive] = useState(false);
@@ -145,7 +145,6 @@ function ProjectPageContent({ projectId, initial }: { projectId: string; initial
   const editProjectDialogRef = useRef<HTMLDialogElement | null>(null);
   const createDiscussionDialogRef = useRef<HTMLDialogElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
-  const previewUrlsRef = useRef<Record<string, string>>({});
 
   async function authedFetch(accessToken: string, path: string, options: RequestInit = {}) {
     const { accessToken: nextToken, data } = await authedJsonFetch({
@@ -181,107 +180,6 @@ function ProjectPageContent({ projectId, initial }: { projectId: string; initial
       Object.fromEntries(userHours.map((entry) => [entry.userId, formatHoursInput(entry.hours)]))
     );
   }, [userHours]);
-
-  useEffect(() => {
-    previewUrlsRef.current = filePreviewUrls;
-  }, [filePreviewUrls]);
-
-  useEffect(() => {
-    setFilePreviewUrls((current) => {
-      const next: Record<string, string> = {};
-      let changed = false;
-      Object.entries(current).forEach(([id, url]) => {
-        if (files.some((file) => file.id === id)) {
-          next[id] = url;
-        } else {
-          if (url.startsWith("blob:")) {
-            URL.revokeObjectURL(url);
-          }
-          changed = true;
-        }
-      });
-      return changed ? next : current;
-    });
-  }, [files]);
-
-  useEffect(() => {
-    return () => {
-      Object.values(previewUrlsRef.current).forEach((url) => {
-        if (url.startsWith("blob:")) {
-          URL.revokeObjectURL(url);
-        }
-      });
-    };
-  }, []);
-
-  useEffect(() => {
-    if (!token || !projectId) return;
-
-    const previewableFiles = files.filter((file) => canRequestThumbnail(file));
-    let canceled = false;
-
-    async function loadPreviews() {
-      const pending = previewableFiles.filter((file) => !previewUrlsRef.current[file.id]);
-      if (!pending.length) {
-        return;
-      }
-
-      const previewEntries = await Promise.all(
-        pending.map(async (file) => {
-          try {
-            const response = await fetch(`/projects/${projectId}/files/${file.id}/thumbnail?size=w640h480`, {
-              headers: {
-                "Content-Type": "application/json",
-                Authorization: `Bearer ${token}`
-              }
-            });
-            if (!response.ok) {
-              return [file.id, ""] as const;
-            }
-            const blob = await response.blob();
-            const objectUrl = URL.createObjectURL(blob);
-            return [file.id, objectUrl] as const;
-          } catch {
-            return [file.id, ""] as const;
-          }
-        })
-      );
-
-      if (canceled) return;
-      setFilePreviewUrls((current) => {
-        const next: Record<string, string> = {};
-        let changed = false;
-        Object.entries(current).forEach(([id, url]) => {
-          if (files.some((file) => file.id === id)) {
-            next[id] = url;
-          }
-        });
-        previewEntries.forEach(([id, url]) => {
-          if (url) {
-            if (next[id] && next[id] !== url && next[id].startsWith("blob:")) {
-              URL.revokeObjectURL(next[id]);
-            }
-            if (next[id] !== url) changed = true;
-            next[id] = url;
-          }
-        });
-        const currentKeys = Object.keys(current);
-        const nextKeys = Object.keys(next);
-        if (!changed && currentKeys.length === nextKeys.length && currentKeys.every((key) => next[key] === current[key])) {
-          return current;
-        }
-        return next;
-      });
-    }
-
-    loadPreviews().catch(() => {
-      /* Preview loading failures should not block page use. */
-    });
-
-    return () => {
-      canceled = true;
-    };
-  }, [files, token, projectId]);
 
   function getStarterLabel(thread: Thread) {
     const fullName = `${thread.starter_first_name ?? ""} ${thread.starter_last_name ?? ""}`.trim();
@@ -701,7 +599,7 @@ function ProjectPageContent({ projectId, initial }: { projectId: string; initial
                 className="commentFileInputHidden"
                 onChange={(event) => handleFileInputSelection(event.target.files)}
               />
-              <div
+              {!selectedFile && (<div
                 className={`commentDropZone fileThumbUploadDropZone ${isFileDragActive ? "commentDropZoneActive" : ""}`}
                 onClick={() => fileInputRef.current?.click()}
                 onDragEnter={(event) => {
@@ -724,44 +622,45 @@ function ProjectPageContent({ projectId, initial }: { projectId: string; initial
               >
                 <p className="commentDropZoneTitle">Drop a file here</p>
                 <p className="commentDropZoneSubtle">or click to browse</p>
+              </div>)}
+              <div className="commentUploadQueueShell">
+                {selectedFile && (
+                  <ul className="commentUploadQueue">
+                    <li className="commentUploadQueueItem">
+                      <div className="commentUploadQueueHead">
+                        <span>{selectedFile.name}</span>
+                        <small>{formatBytes(selectedFile.size)} • ready to upload</small>
+                      </div>
+                      {!isUploading && (
+                        <button
+                          type="button"
+                          className="linkButton"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            setSelectedFile(null);
+                            if (fileInputRef.current) {
+                              fileInputRef.current.value = "";
+                            }
+                          }}
+                        >
+                          Remove
+                        </button>
+                      )}
+                    </li>
+                  </ul>
+                )}
+                <button
+                  type="button"
+                  onClick={() => uploadSelectedFile().catch((error) => setStatus(error.message))}
+                  disabled={!selectedFile || isUploading}
+                >
+                  {isUploading ? "Uploading..." : "Upload File"}
+                </button>
               </div>
-              {selectedFile && (
-                <ul className="commentUploadQueue">
-                  <li className="commentUploadQueueItem">
-                    <div className="commentUploadQueueHead">
-                      <span>{selectedFile.name}</span>
-                      <small>{formatBytes(selectedFile.size)} • ready to upload</small>
-                    </div>
-                    {!isUploading && (
-                      <button
-                        type="button"
-                        className="secondary"
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          setSelectedFile(null);
-                          if (fileInputRef.current) {
-                            fileInputRef.current.value = "";
-                          }
-                        }}
-                      >
-                        Remove
-                      </button>
-                    )}
-                  </li>
-                </ul>
-              )}
-              <button
-                type="button"
-                onClick={() => uploadSelectedFile().catch((error) => setStatus(error.message))}
-                disabled={!selectedFile || isUploading}
-              >
-                {isUploading ? "Uploading..." : "Upload File"}
-              </button>
             </div>
           </li>
           {files.map((file) => {
-            const supportsThumbnail = canRequestThumbnail(file);
-            const previewUrl = filePreviewUrls[file.id];
+            const previewUrl = typeof file.thumbnail_url === "string" ? file.thumbnail_url.trim() : "";
             return (
               <li key={file.id} className="fileThumbItem">
                 <button
@@ -769,7 +668,7 @@ function ProjectPageContent({ projectId, initial }: { projectId: string; initial
                   className="fileThumbHitArea"
                   onClick={() => downloadFile(file.id).catch((error) => setStatus(error.message))}
                 >
-                  {supportsThumbnail && previewUrl ? (
+                  {previewUrl ? (
                     <img src={previewUrl} alt={file.filename} className="fileThumbImage" loading="lazy" />
                   ) : (
                     <div className="fileThumbFallback">{getFileBadgeLabel(file)}</div>
@@ -845,7 +744,7 @@ function ProjectPageContent({ projectId, initial }: { projectId: string; initial
           onCancel={() => editProjectDialogRef.current?.close()}
         />
       </dialog>
-    </main>
+    </main >
   );
 }
 
@@ -857,29 +756,6 @@ function getFileBadgeLabel(file: ProjectFile) {
   if (mime.includes("zip") || mime.includes("compressed")) return "ZIP";
   const extension = file.filename.split(".").pop()?.trim().toUpperCase();
   return extension && extension.length <= 5 ? extension : "FILE";
-}
-
-function canRequestThumbnail(file: ProjectFile) {
-  const mime = file.mime_type.toLowerCase();
-  if (mime.startsWith("image/")) return true;
-  if (mime === "application/pdf") return true;
-  if (
-    mime === "application/msword" ||
-    mime === "application/vnd.ms-excel" ||
-    mime === "application/vnd.ms-powerpoint" ||
-    mime === "application/vnd.openxmlformats-officedocument.wordprocessingml.document" ||
-    mime === "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" ||
-    mime === "application/vnd.openxmlformats-officedocument.presentationml.presentation" ||
-    mime === "application/vnd.oasis.opendocument.text" ||
-    mime === "application/vnd.oasis.opendocument.spreadsheet" ||
-    mime === "application/vnd.oasis.opendocument.presentation" ||
-    mime === "application/rtf"
-  ) {
-    return true;
-  }
-
-  const extension = file.filename.split(".").pop()?.trim().toLowerCase() ?? "";
-  return ["pdf", "doc", "docx", "xls", "xlsx", "ppt", "pptx", "odt", "ods", "odp", "rtf"].includes(extension);
 }
 
 function formatBytes(size: number) {

@@ -8,7 +8,12 @@ The key words `MUST`, `MUST NOT`, `REQUIRED`, `SHALL`, `SHALL NOT`, `SHOULD`, `S
 
 ## You're role
 
-You are an orchestrator for this project. You SHOULD orchestrate sub-agents. Give them small tasks they can complete one at a time. Sub-agents SHOULD NOT work on more than one task at a time. You MUST assign agents to complete the coding work.
+  If you are the primary agent, you MUST orchestrate sub-agents.
+  Give them small tasks they can complete one at a time.
+  Sub-agents MUST NOT work on more than one task at a time.
+
+  If you are a sub-agent, you MUST execute the assigned task directly.
+  You MUST NOT spawn or delegate to additional sub-agents.
 
 ## Planning
 

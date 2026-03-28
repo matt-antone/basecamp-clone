@@ -15,6 +15,10 @@ describe("project file metadata schema compatibility", () => {
     queryMock
       .mockRejectedValueOnce({
         code: "42703",
+        message: 'column "thumbnail_url" of relation "project_files" does not exist'
+      })
+      .mockRejectedValueOnce({
+        code: "42703",
         message: 'column "thread_id" of relation "project_files" does not exist'
       })
       .mockResolvedValueOnce({ rows: [{ id: "file-1" }] });
@@ -32,16 +36,22 @@ describe("project file metadata schema compatibility", () => {
     });
 
     expect(created).toEqual({ id: "file-1" });
-    expect(queryMock).toHaveBeenCalledTimes(2);
-    expect(queryMock.mock.calls[1]?.[0]).not.toContain("thread_id");
-    expect(queryMock.mock.calls[1]?.[0]).not.toContain("comment_id");
+    expect(queryMock).toHaveBeenCalledTimes(3);
+    expect(queryMock.mock.calls[2]?.[0]).not.toContain("thread_id");
+    expect(queryMock.mock.calls[2]?.[0]).not.toContain("comment_id");
+    expect(queryMock.mock.calls[2]?.[0]).not.toContain("thumbnail_url");
   });
 
   it("throws a migration error when comment attachments need missing columns", async () => {
-    queryMock.mockRejectedValueOnce({
-      code: "42703",
-      message: 'column "thread_id" of relation "project_files" does not exist'
-    });
+    queryMock
+      .mockRejectedValueOnce({
+        code: "42703",
+        message: 'column "thumbnail_url" of relation "project_files" does not exist'
+      })
+      .mockRejectedValueOnce({
+        code: "42703",
+        message: 'column "thread_id" of relation "project_files" does not exist'
+      });
 
     const { createFileMetadata } = await import("@/lib/repositories");
 

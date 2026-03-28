@@ -36,6 +36,7 @@ type CommentAttachment = {
   filename: string;
   mime_type: string;
   size_bytes: number;
+  thumbnail_url?: string | null;
   created_at: string;
 };
 
@@ -120,9 +121,7 @@ function DiscussionPageContent(props: {
   const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
   const [editingBody, setEditingBody] = useState("");
   const [newCommentEditorKey, setNewCommentEditorKey] = useState(0);
-  const [attachmentPreviewUrls, setAttachmentPreviewUrls] = useState<Record<string, string>>({});
   const commentFileInputRef = useRef<HTMLInputElement | null>(null);
-  const previewUrlsRef = useRef<Record<string, string>>({});
 
   async function authedFetch(accessToken: string, path: string, options: RequestInit = {}) {
     const { accessToken: nextToken, data } = await authedJsonFetch({
@@ -142,118 +141,6 @@ function DiscussionPageContent(props: {
     setThread((data?.thread ?? null) as ThreadDetail | null);
     setStatus("Ready");
   }
-
-  useEffect(() => {
-    previewUrlsRef.current = attachmentPreviewUrls;
-  }, [attachmentPreviewUrls]);
-
-  useEffect(() => {
-    return () => {
-      Object.values(previewUrlsRef.current).forEach((url) => {
-        if (url.startsWith("blob:")) {
-          URL.revokeObjectURL(url);
-        }
-      });
-    };
-  }, []);
-
-  useEffect(() => {
-    const attachmentIds = new Set(
-      (thread?.comments ?? [])
-        .flatMap((comment) => comment.attachments ?? [])
-        .map((attachment) => attachment.id)
-    );
-
-    setAttachmentPreviewUrls((current) => {
-      const next: Record<string, string> = {};
-      let changed = false;
-
-      Object.entries(current).forEach(([id, url]) => {
-        if (attachmentIds.has(id)) {
-          next[id] = url;
-          return;
-        }
-
-        if (url.startsWith("blob:")) {
-          URL.revokeObjectURL(url);
-        }
-        changed = true;
-      });
-
-      return changed ? next : current;
-    });
-  }, [thread]);
-
-  useEffect(() => {
-    if (!thread || !token || !projectId) return;
-
-    const imageAttachments = thread.comments
-      .flatMap((comment) => comment.attachments ?? [])
-      .filter((attachment) => isImageAttachment(attachment.mime_type));
-    const pending = imageAttachments.filter((attachment) => !previewUrlsRef.current[attachment.id]);
-    if (!pending.length) {
-      return;
-    }
-
-    let canceled = false;
-
-    async function loadPreviews() {
-      const previewEntries = await Promise.all(
-        pending.map(async (attachment) => {
-          try {
-            const response = await fetch(`/projects/${projectId}/files/${attachment.id}/thumbnail?size=w256h256`, {
-              headers: {
-                "Content-Type": "application/json",
-                Authorization: `Bearer ${token}`
-              }
-            });
-            if (!response.ok) {
-              return [attachment.id, ""] as const;
-            }
-            const blob = await response.blob();
-            return [attachment.id, URL.createObjectURL(blob)] as const;
-          } catch {
-            return [attachment.id, ""] as const;
-          }
-        })
-      );
-
-      if (canceled) {
-        previewEntries.forEach(([, url]) => {
-          if (url.startsWith("blob:")) {
-            URL.revokeObjectURL(url);
-          }
-        });
-        return;
-      }
-
-      setAttachmentPreviewUrls((current) => {
-        const next = { ...current };
-        let changed = false;
-
-        previewEntries.forEach(([id, url]) => {
-          if (!url) return;
-          if (next[id] && next[id] !== url && next[id].startsWith("blob:")) {
-            URL.revokeObjectURL(next[id]);
-          }
-          if (next[id] !== url) {
-            next[id] = url;
-            changed = true;
-          }
-        });
-
-        return changed ? next : current;
-      });
-    }
-
-    loadPreviews().catch(() => {
-      /* Thumbnail failures should not block discussion use. */
-    });
-
-    return () => {
-      canceled = true;
-    };
-  }, [thread, token, projectId]);
 
   async function addComment() {
     if (!token || !projectId || !discussionId) return;
@@ -502,9 +389,9 @@ function DiscussionPageContent(props: {
                                         className="fileThumbHitArea commentAttachmentThumbButton"
                                         onClick={() => openDownload(attachment.id).catch((error) => setStatus(error.message))}
                                       >
-                                        {attachmentPreviewUrls[attachment.id] ? (
+                                        {typeof attachment.thumbnail_url === "string" && attachment.thumbnail_url.trim() ? (
                                           <img
-                                            src={attachmentPreviewUrls[attachment.id]}
+                                            src={attachment.thumbnail_url}
                                             alt={attachment.filename}
                                             className="fileThumbImage"
                                             loading="lazy"

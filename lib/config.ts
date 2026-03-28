@@ -52,7 +52,7 @@ function getSupabaseAnonKey(): string {
   return value;
 }
 
-function normalizeUrl(value: string | null) {
+function normalizeOriginUrl(value: string | null) {
   if (!value) {
     return null;
   }
@@ -64,6 +64,46 @@ function normalizeUrl(value: string | null) {
   } catch {
     return null;
   }
+}
+
+function normalizeBaseUrl(value: string | null) {
+  if (!value) {
+    return null;
+  }
+
+  const withProtocol = /^[a-z][a-z\d+\-.]*:\/\//i.test(value) ? value : `https://${value}`;
+
+  try {
+    const parsed = new URL(withProtocol);
+    const pathname = parsed.pathname.replace(/\/+$/, "");
+    return pathname ? `${parsed.origin}${pathname}` : parsed.origin;
+  } catch {
+    return null;
+  }
+}
+
+export function normalizeThumbnailWorkerUrl(value: string | null, source = "THUMBNAIL_WORKER_URL") {
+  if (!value) {
+    return null;
+  }
+
+  const withProtocol = /^[a-z][a-z\d+\-.]*:\/\//i.test(value) ? value : `https://${value}`;
+
+  let parsed: URL;
+  try {
+    parsed = new URL(withProtocol);
+  } catch {
+    throw new Error(`${source} must be a valid origin, for example https://thumbs.example.internal`);
+  }
+
+  const normalizedPath = parsed.pathname.replace(/\/+$/, "");
+  if (normalizedPath || parsed.search || parsed.hash) {
+    throw new Error(
+      `${source} must be origin-only, for example https://thumbs.example.internal. Remove any path such as /thumbnails.`
+    );
+  }
+
+  return parsed.origin;
 }
 
 function getBooleanEnv(key: string, fallback: boolean): boolean {
@@ -95,7 +135,7 @@ export const config = {
   supabaseAnonKey: getSupabaseAnonKey,
   supabaseServiceRoleKey: () => getEnv("SUPABASE_SERVICE_ROLE_KEY"),
   workspaceDomain: () => getEnv("WORKSPACE_DOMAIN").toLowerCase(),
-  siteUrl: () => normalizeUrl(getFirstEnv(siteUrlKeys)),
+  siteUrl: () => normalizeOriginUrl(getFirstEnv(siteUrlKeys)),
   dropboxAppKey: () => getOptionalEnv("DROPBOX_APP_KEY"),
   dropboxAppSecret: () => getOptionalEnv("DROPBOX_APP_SECRET"),
   dropboxRefreshToken: () => getOptionalEnv("DROPBOX_REFRESH_TOKEN"),
@@ -105,7 +145,7 @@ export const config = {
     getOptionalEnv("DROPBOX_PROJECTS_ROOT_FOLDER") ??
     getOptionalEnv("DROPBOX_ROOT_FOLDER") ??
     "/projects",
-  thumbnailWorkerUrl: () => normalizeUrl(getOptionalEnv("THUMBNAIL_WORKER_URL")),
+  thumbnailWorkerUrl: () => normalizeThumbnailWorkerUrl(getOptionalEnv("THUMBNAIL_WORKER_URL")),
   thumbnailWorkerToken: () => getOptionalEnv("THUMBNAIL_WORKER_TOKEN"),
   thumbnailWorkerTimeoutMs: () => getNumberEnv("THUMBNAIL_WORKER_TIMEOUT_MS", 15000),
   emailEnabled: () => getBooleanEnv("EMAIL_ENABLED", true),

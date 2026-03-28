@@ -660,7 +660,7 @@ export async function getThread(projectId: string, threadId: string) {
   );
 
   const attachmentsResult = await query(
-    `select id, project_id, thread_id, comment_id, filename, mime_type, size_bytes, created_at
+    `select id, project_id, thread_id, comment_id, filename, mime_type, size_bytes, thumbnail_url, created_at
      from project_files
      where project_id = $1 and thread_id = $2 and comment_id is not null
      order by created_at asc`,
@@ -750,6 +750,7 @@ export async function createFileMetadata(args: {
   checksum: string;
   threadId?: string | null;
   commentId?: string | null;
+  thumbnailUrl?: string | null;
 }) {
   const values = [
     args.projectId,
@@ -761,26 +762,43 @@ export async function createFileMetadata(args: {
     args.dropboxPath,
     args.checksum,
     args.threadId ?? null,
-    args.commentId ?? null
+    args.commentId ?? null,
+    args.thumbnailUrl ?? null
   ];
 
   try {
     const result = await query(
       `insert into project_files (
-        project_id, uploader_user_id, filename, mime_type, size_bytes, dropbox_file_id, dropbox_path, checksum, thread_id, comment_id
+        project_id, uploader_user_id, filename, mime_type, size_bytes, dropbox_file_id, dropbox_path, checksum, thread_id, comment_id, thumbnail_url
        )
-       values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+       values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
        returning *`,
       values
     );
     return result.rows[0] ? normalizeProjectFileSizeRow(result.rows[0]) : null;
   } catch (error) {
-    if (!isMissingProjectFileAttachmentColumnError(error)) {
+    if (!isMissingProjectFileColumnError(error)) {
       throw error;
     }
 
-    if (args.threadId || args.commentId) {
-      throw new Error("Comment attachments require database migration 0007_comment_attachments.sql");
+    try {
+      const result = await query(
+        `insert into project_files (
+          project_id, uploader_user_id, filename, mime_type, size_bytes, dropbox_file_id, dropbox_path, checksum, thread_id, comment_id
+         )
+         values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+         returning *`,
+        values.slice(0, 10)
+      );
+      return result.rows[0] ? normalizeProjectFileSizeRow(result.rows[0]) : null;
+    } catch (legacyError) {
+      if (!isMissingProjectFileColumnError(legacyError)) {
+        throw legacyError;
+      }
+
+      if (args.threadId || args.commentId) {
+        throw new Error("Comment attachments require database migration 0007_comment_attachments.sql");
+      }
     }
 
     const result = await query(
@@ -803,7 +821,22 @@ export async function getFileById(projectId: string, fileId: string) {
   return result.rows[0] ? normalizeProjectFileSizeRow(result.rows[0]) : null;
 }
 
-function isMissingProjectFileAttachmentColumnError(error: unknown) {
+export async function setFileThumbnailUrl(args: {
+  projectId: string;
+  fileId: string;
+  thumbnailUrl: string | null;
+}) {
+  const result = await query(
+    `update project_files
+     set thumbnail_url = $3
+     where project_id = $1 and id = $2
+     returning *`,
+    [args.projectId, args.fileId, args.thumbnailUrl]
+  );
+  return result.rows[0] ? normalizeProjectFileSizeRow(result.rows[0]) : null;
+}
+
+function isMissingProjectFileColumnError(error: unknown) {
   if (typeof error !== "object" || error === null) {
     return false;
   }
@@ -817,7 +850,9 @@ function isMissingProjectFileAttachmentColumnError(error: unknown) {
   return (
     message.includes('column "thread_id"') ||
     message.includes('column "comment_id"') ||
+    message.includes('column "thumbnail_url"') ||
     message.includes("project_files.thread_id") ||
-    message.includes("project_files.comment_id")
+    message.includes("project_files.comment_id") ||
+    message.includes("project_files.thumbnail_url")
   );
 }

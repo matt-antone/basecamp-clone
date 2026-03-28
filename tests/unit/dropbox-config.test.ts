@@ -24,7 +24,7 @@ describe("Dropbox config", () => {
   });
 
   it("reads thumbnail worker settings when configured", async () => {
-    process.env.THUMBNAIL_WORKER_URL = "https://thumbs.example.internal";
+    process.env.THUMBNAIL_WORKER_URL = "https://thumbs.example.internal/";
     process.env.THUMBNAIL_WORKER_TOKEN = "token-123";
     process.env.THUMBNAIL_WORKER_TIMEOUT_MS = "20000";
 
@@ -33,5 +33,15 @@ describe("Dropbox config", () => {
     expect(config.thumbnailWorkerUrl()).toBe("https://thumbs.example.internal");
     expect(config.thumbnailWorkerToken()).toBe("token-123");
     expect(config.thumbnailWorkerTimeoutMs()).toBe(20000);
+  });
+
+  it("rejects path-bearing thumbnail worker URLs with an actionable error", async () => {
+    process.env.THUMBNAIL_WORKER_URL = "https://thumbs.example.internal/thumbnails/";
+
+    const { config } = await import("@/lib/config");
+
+    expect(() => config.thumbnailWorkerUrl()).toThrow(
+      "THUMBNAIL_WORKER_URL must be origin-only, for example https://thumbs.example.internal. Remove any path such as /thumbnails."
+    );
   });
 });

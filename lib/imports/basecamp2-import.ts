@@ -1,5 +1,5 @@
 import { query } from "../db";
-import { createComment, createFileMetadata, createProject, createThread, getProject } from "../repositories";
+import { createComment, createFileMetadata, createProject, createThread, getProject, setFileThumbnailUrl } from "../repositories";
 import { getProjectStorageDir } from "../project-storage";
 import { ensureImportedFileThumbnail } from "../import-thumbnail";
 
@@ -283,6 +283,13 @@ export async function runBasecampImport(jobId: string, payload: BasecampImportPa
 
       try {
         const thumbnailResult = await ensureImportedFileThumbnail(thumbnailRequest);
+        if ((thumbnailResult.action === "generated" || thumbnailResult.action === "reused") && thumbnailResult.thumbnailUrl) {
+          await setFileThumbnailUrl({
+            projectId,
+            fileId: fileRecord.id,
+            thumbnailUrl: thumbnailResult.thumbnailUrl
+          });
+        }
         await appendLog({
           jobId,
           recordType: "file_thumbnail",

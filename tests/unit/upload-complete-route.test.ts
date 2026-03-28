@@ -5,6 +5,7 @@ const getProjectMock = vi.fn();
 const getThreadMock = vi.fn();
 const getCommentMock = vi.fn();
 const createFileMetadataMock = vi.fn();
+const setFileThumbnailUrlMock = vi.fn();
 const ensureImportedFileThumbnailMock = vi.fn();
 const uploadCompleteMock = vi.fn();
 
@@ -16,7 +17,8 @@ vi.mock("@/lib/repositories", () => ({
   getProject: getProjectMock,
   getThread: getThreadMock,
   getComment: getCommentMock,
-  createFileMetadata: createFileMetadataMock
+  createFileMetadata: createFileMetadataMock,
+  setFileThumbnailUrl: setFileThumbnailUrlMock
 }));
 
 vi.mock("@/lib/import-thumbnail", () => ({
@@ -58,6 +60,7 @@ describe("POST /projects/[id]/files/upload-complete", () => {
     getThreadMock.mockReset();
     getCommentMock.mockReset();
     createFileMetadataMock.mockReset();
+    setFileThumbnailUrlMock.mockReset();
     ensureImportedFileThumbnailMock.mockReset();
     uploadCompleteMock.mockReset();
   });
@@ -73,9 +76,11 @@ describe("POST /projects/[id]/files/upload-complete", () => {
       path: "/projects/brgs/BRGS-0001-site-refresh/uploads/report.pdf"
     });
     createFileMetadataMock.mockResolvedValue({ id: "file-1" });
+    setFileThumbnailUrlMock.mockResolvedValue({ id: "file-1", thumbnail_url: "https://thumbs.example.internal/thumbnails/file-1.jpg" });
     ensureImportedFileThumbnailMock.mockResolvedValue({
       action: "generated",
       thumbnailPath: "/projects/brgs/BRGS-0001-site-refresh/uploads/.thumbnails/file-1.jpg",
+      thumbnailUrl: "https://thumbs.example.internal/thumbnails/file-1.jpg",
       message: "Thumbnail generated"
     });
 
@@ -107,6 +112,14 @@ describe("POST /projects/[id]/files/upload-complete", () => {
       filename: "report.pdf",
       mimeType: "application/pdf",
       dropboxPath: "/projects/brgs/BRGS-0001-site-refresh/uploads/report.pdf"
+    });
+    expect(setFileThumbnailUrlMock).toHaveBeenCalledWith({
+      projectId: "project-1",
+      fileId: "file-1",
+      thumbnailUrl: "https://thumbs.example.internal/thumbnails/file-1.jpg"
+    });
+    await expect(response.json()).resolves.toMatchObject({
+      file: { id: "file-1", thumbnail_url: "https://thumbs.example.internal/thumbnails/file-1.jpg" }
     });
   });
 
@@ -145,6 +158,7 @@ describe("POST /projects/[id]/files/upload-complete", () => {
     );
 
     expect(response.status).toBe(201);
+    expect(setFileThumbnailUrlMock).not.toHaveBeenCalled();
     await expect(response.json()).resolves.toMatchObject({
       file: { id: "file-1" }
     });

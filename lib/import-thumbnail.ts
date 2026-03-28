@@ -3,7 +3,7 @@ import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { promisify } from "node:util";
 import { basename, dirname, extname, join } from "node:path";
 import { tmpdir } from "node:os";
-import { config } from "./config";
+import { config, normalizeThumbnailWorkerUrl } from "./config";
 import { DropboxStorageAdapter, getDropboxErrorSummary } from "./storage/dropbox-adapter";
 
 const execFile = promisify(execFileCallback);
@@ -23,8 +23,8 @@ const OFFICE_MIME_TYPES = new Set([
 const OFFICE_EXTENSIONS = new Set(["doc", "docx", "xls", "xlsx", "ppt", "pptx", "odt", "ods", "odp", "rtf"]);
 
 export type ImportThumbnailAction =
-  | { action: "generated"; thumbnailPath: string; message: string }
-  | { action: "reused"; thumbnailPath: string; message: string }
+  | { action: "generated"; thumbnailPath: string; thumbnailUrl?: string; message: string }
+  | { action: "reused"; thumbnailPath: string; thumbnailUrl?: string; message: string }
   | { action: "skipped"; message: string };
 
 type DropboxClientLike = {
@@ -260,18 +260,26 @@ export async function ensureImportedFileThumbnail(
     fetchFn?: typeof fetch;
   } = {}
 ) {
-  const workerUrl = deps.workerUrl ?? config.thumbnailWorkerUrl();
+  const workerUrl = normalizeThumbnailWorkerUrl(
+    deps.workerUrl ?? config.thumbnailWorkerUrl(),
+    deps.workerUrl !== undefined ? "thumbnail worker URL" : "THUMBNAIL_WORKER_URL"
+  );
   if (workerUrl) {
     const workerToken = deps.workerToken ?? config.thumbnailWorkerToken();
     if (!workerToken) {
       throw new Error("THUMBNAIL_WORKER_TOKEN is required when THUMBNAIL_WORKER_URL is configured");
     }
+    const normalizedWorkerToken = normalizeBearerToken(workerToken);
+    if (!normalizedWorkerToken) {
+      throw new Error("THUMBNAIL_WORKER_TOKEN is required when THUMBNAIL_WORKER_URL is configured");
+    }
     const timeoutMs = deps.workerTimeoutMs ?? config.thumbnailWorkerTimeoutMs();
     return callThumbnailWorker(request, {
       url: workerUrl,
-      token: workerToken,
+      token: normalizedWorkerToken,
       timeoutMs,
-      fetchFn: deps.fetchFn ?? globalThis.fetch
+      fetchFn: deps.fetchFn ?? globalThis.fetch,
+      storageAdapter: deps.storageAdapter ?? new DropboxStorageAdapter()
     });
   }
 
@@ -281,37 +289,52 @@ export async function ensureImportedFileThumbnail(
 
 async function callThumbnailWorker(
   request: ImportThumbnailRequest,
-  opts: { url: string; token: string; timeoutMs: number; fetchFn: typeof fetch }
+  opts: {
+    url: string;
+    token: string;
+    timeoutMs: number;
+    fetchFn: typeof fetch;
+    storageAdapter: ThumbnailStorageAdapter;
+  }
 ): Promise<ImportThumbnailAction> {
-  const endpoint = `${opts.url.replace(/\/+$/, "")}/thumbnails`;
+  const endpoint = new URL("/thumbnails", `${opts.url}/`).toString();
   const abortController = new AbortController();
   const timeout = setTimeout(() => abortController.abort(), opts.timeoutMs);
 
   try {
+    const source = await opts.storageAdapter.downloadFile(request.dropboxPath);
+    const sourceBytes = source.bytes ?? Buffer.alloc(0);
+    const formData = new FormData();
+    formData.set("file", new File([sourceBytes], request.filename, { type: request.mimeType }));
+    formData.set("projectFileId", request.projectFileId);
+    formData.set("filename", request.filename);
+    formData.set("mimeType", request.mimeType);
+
     const response = await opts.fetchFn(endpoint, {
       method: "POST",
       headers: {
-        "Content-Type": "application/json",
         Authorization: `Bearer ${opts.token}`
       },
-      body: JSON.stringify(request),
+      body: formData,
       signal: abortController.signal
     });
 
     const text = await response.text();
     if (!response.ok) {
-      throw new Error(`Thumbnail worker request failed (${response.status}): ${text || response.statusText}`);
+      throw new Error(classifyThumbnailWorkerError(response.status, text || response.statusText));
     }
 
     const parsed = text ? JSON.parse(text) : null;
     const action = parsed && typeof parsed.action === "string" ? parsed.action : null;
     const message = parsed && typeof parsed.message === "string" ? parsed.message : "";
     const thumbnailPath = parsed && typeof parsed.thumbnailPath === "string" ? parsed.thumbnailPath : undefined;
+    const thumbnailUrl = parsed && typeof parsed.thumbnailUrl === "string" ? parsed.thumbnailUrl : undefined;
 
     if (action === "generated" || action === "reused") {
       return {
         action,
         thumbnailPath: thumbnailPath ?? getImportedThumbnailPath(request.projectStorageDir, request.projectFileId),
+        thumbnailUrl,
         message: message || `Thumbnail ${action} by worker`
       };
     }
@@ -334,6 +357,14 @@ async function callThumbnailWorker(
   }
 }
 
+function classifyThumbnailWorkerError(status: number, detail: string) {
+  if (status === 404) {
+    return `Thumbnail worker request failed (404): ${detail}. This usually means THUMBNAIL_WORKER_URL is misconfigured. Set it to the worker origin only, without /thumbnails or any other path.`;
+  }
+
+  return `Thumbnail worker request failed (${status}): ${detail}`;
+}
+
 const defaultCommandRunner: CommandRunner = async (command, args) => {
   await execFile(command, args, { maxBuffer: 10 * 1024 * 1024 });
 };
@@ -346,6 +377,10 @@ function sanitizeFileName(filename: string) {
   const trimmed = filename.trim();
   const normalized = trimmed.replace(/[\\/:*?"<>|]/g, "-");
   return normalized.length > 0 ? normalized : "file";
+}
+
+function normalizeBearerToken(token: string) {
+  return token.replace(/^Bearer\s+/i, "").trim();
 }
 
 function describeError(error: unknown) {
