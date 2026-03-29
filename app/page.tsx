@@ -138,9 +138,9 @@ function ProjectsPageContent({ initial }: { initial: ProjectsBootstrap }) {
       current.clientId || !loaded[0]?.id
         ? current
         : {
-            ...current,
-            clientId: loaded[0].id
-          }
+          ...current,
+          clientId: loaded[0].id
+        }
     );
   }
 

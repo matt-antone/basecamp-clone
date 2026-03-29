@@ -172,13 +172,13 @@ async function loadSiteSettings(): Promise<SiteSettingsForm> {
 
     const payload = (await response.json().catch(() => null)) as
       | {
-          siteSettings?: {
-            siteTitle?: string | null;
-            logoUrl?: string | null;
-            site_title?: string | null;
-            logo_url?: string | null;
-          };
-        }
+        siteSettings?: {
+          siteTitle?: string | null;
+          logoUrl?: string | null;
+          site_title?: string | null;
+          logo_url?: string | null;
+        };
+      }
       | null;
     const source = payload?.siteSettings ?? null;
     const rawTitle = source?.siteTitle ?? source?.site_title ?? null;

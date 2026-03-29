@@ -382,49 +382,49 @@ function DiscussionPageContent(props: {
                             {comment.attachments?.some((attachment) =>
                               isThumbnailPreviewSupported({ filename: attachment.filename, mimeType: attachment.mime_type })
                             ) && (
-                              <ul className="commentAttachmentThumbGrid">
-                                {comment.attachments
-                                  ?.filter((attachment) =>
-                                    isThumbnailPreviewSupported({
-                                      filename: attachment.filename,
-                                      mimeType: attachment.mime_type
-                                    })
-                                  )
-                                  .map((attachment) => (
-                                    <li key={attachment.id} className="fileThumbItem commentAttachmentThumbItem">
-                                      <button
-                                        type="button"
-                                        className="fileThumbHitArea commentAttachmentThumbButton"
-                                        onClick={() => openDownload(attachment.id).catch((error) => setStatus(error.message))}
-                                      >
-                                        <ThumbnailPreview
-                                          projectId={projectId}
-                                          fileId={attachment.id}
-                                          filename={attachment.filename}
-                                          mimeType={attachment.mime_type}
-                                          thumbnailUrl={attachment.thumbnail_url}
-                                          accessToken={token}
-                                          onToken={setToken}
-                                          alt={attachment.filename}
-                                          imageClassName="fileThumbImage"
-                                          fallback={<div className="fileThumbFallback">{getAttachmentBadgeLabel(attachment)}</div>}
-                                        />
-                                      </button>
-                                      <div className="fileThumbMeta">
+                                <ul className="commentAttachmentThumbGrid">
+                                  {comment.attachments
+                                    ?.filter((attachment) =>
+                                      isThumbnailPreviewSupported({
+                                        filename: attachment.filename,
+                                        mimeType: attachment.mime_type
+                                      })
+                                    )
+                                    .map((attachment) => (
+                                      <li key={attachment.id} className="fileThumbItem commentAttachmentThumbItem">
                                         <button
                                           type="button"
-                                          className="fileDownloadButton"
+                                          className="fileThumbHitArea commentAttachmentThumbButton"
                                           onClick={() => openDownload(attachment.id).catch((error) => setStatus(error.message))}
-                                          title={attachment.filename}
                                         >
-                                          {attachment.filename}
+                                          <ThumbnailPreview
+                                            projectId={projectId}
+                                            fileId={attachment.id}
+                                            filename={attachment.filename}
+                                            mimeType={attachment.mime_type}
+                                            thumbnailUrl={attachment.thumbnail_url}
+                                            accessToken={token}
+                                            onToken={setToken}
+                                            alt={attachment.filename}
+                                            imageClassName="fileThumbImage"
+                                            fallback={<div className="fileThumbFallback">{getAttachmentBadgeLabel(attachment)}</div>}
+                                          />
                                         </button>
-                                        <small>{formatBytes(attachment.size_bytes)}</small>
-                                      </div>
-                                    </li>
-                                  ))}
-                              </ul>
-                            )}
+                                        <div className="fileThumbMeta">
+                                          <button
+                                            type="button"
+                                            className="fileDownloadButton"
+                                            onClick={() => openDownload(attachment.id).catch((error) => setStatus(error.message))}
+                                            title={attachment.filename}
+                                          >
+                                            {attachment.filename}
+                                          </button>
+                                          <small>{formatBytes(attachment.size_bytes)}</small>
+                                        </div>
+                                      </li>
+                                    ))}
+                                </ul>
+                              )}
                             {comment.attachments?.some(
                               (attachment) =>
                                 !isThumbnailPreviewSupported({
@@ -432,29 +432,29 @@ function DiscussionPageContent(props: {
                                   mimeType: attachment.mime_type
                                 })
                             ) && (
-                              <ul className="commentAttachmentList">
-                                {comment.attachments
-                                  ?.filter(
-                                    (attachment) =>
-                                      !isThumbnailPreviewSupported({
-                                        filename: attachment.filename,
-                                        mimeType: attachment.mime_type
-                                      })
-                                  )
-                                  .map((attachment) => (
-                                    <li key={attachment.id} className="commentAttachmentItem">
-                                      <button
-                                        type="button"
-                                        className="fileDownloadButton"
-                                        onClick={() => openDownload(attachment.id).catch((error) => setStatus(error.message))}
-                                      >
-                                        {attachment.filename}
-                                      </button>
-                                      <small>{formatBytes(attachment.size_bytes)}</small>
-                                    </li>
-                                  ))}
-                              </ul>
-                            )}
+                                <ul className="commentAttachmentList">
+                                  {comment.attachments
+                                    ?.filter(
+                                      (attachment) =>
+                                        !isThumbnailPreviewSupported({
+                                          filename: attachment.filename,
+                                          mimeType: attachment.mime_type
+                                        })
+                                    )
+                                    .map((attachment) => (
+                                      <li key={attachment.id} className="commentAttachmentItem">
+                                        <button
+                                          type="button"
+                                          className="fileDownloadButton"
+                                          onClick={() => openDownload(attachment.id).catch((error) => setStatus(error.message))}
+                                        >
+                                          {attachment.filename}
+                                        </button>
+                                        <small>{formatBytes(attachment.size_bytes)}</small>
+                                      </li>
+                                    ))}
+                                </ul>
+                              )}
                           </div>
                         )}
                       </>
