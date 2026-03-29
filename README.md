@@ -50,7 +50,7 @@ Required server env vars:
 Email env vars:
 - `EMAIL_ENABLED` (optional, defaults to `true`)
 - `EMAIL_FROM` (required when email is enabled)
-- `SMTP_HOST` (optional, defaults to `smtp-relay.gmail.com`)
+- `SMTP_HOST` (optional, set to your SMTP relay host)
 - `SMTP_PORT` (optional, defaults to `587`)
 - `SMTP_SECURE` (optional, defaults to `false`)
 - `SMTP_USERNAME` (optional, but must be paired with `SMTP_PASSWORD` when used)

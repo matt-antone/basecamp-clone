@@ -21,9 +21,9 @@ describe("mailer", () => {
     process.env.WORKSPACE_DOMAIN = "example.com";
     process.env.EMAIL_ENABLED = "true";
     process.env.EMAIL_FROM = "notifications@example.com";
-    delete process.env.SMTP_HOST;
-    delete process.env.SMTP_PORT;
-    delete process.env.SMTP_SECURE;
+    process.env.SMTP_HOST = "smtp.example.com";
+    process.env.SMTP_PORT = "2525";
+    process.env.SMTP_SECURE = "true";
     delete process.env.SMTP_USERNAME;
     delete process.env.SMTP_PASSWORD;
   });
@@ -32,9 +32,9 @@ describe("mailer", () => {
     const { buildSmtpTransportOptions } = await import("@/lib/mailer");
 
     expect(buildSmtpTransportOptions()).toEqual({
-      host: "smtp-relay.gmail.com",
-      port: 587,
-      secure: false
+      host: "smtp.example.com",
+      port: 2525,
+      secure: true
     });
   });
 
@@ -73,9 +73,9 @@ describe("mailer", () => {
       messageId: "message-1"
     });
     expect(createTransportMock).toHaveBeenCalledWith({
-      host: "smtp-relay.gmail.com",
-      port: 587,
-      secure: false
+      host: "smtp.example.com",
+      port: 2525,
+      secure: true
     });
     expect(sendMailMock).toHaveBeenCalledWith(
       expect.objectContaining({

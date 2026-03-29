@@ -8,9 +8,9 @@ describe("email config", () => {
     process.env.WORKSPACE_DOMAIN = "example.com";
     delete process.env.EMAIL_ENABLED;
     delete process.env.EMAIL_FROM;
-    delete process.env.SMTP_HOST;
-    delete process.env.SMTP_PORT;
-    delete process.env.SMTP_SECURE;
+    process.env.SMTP_HOST = "smtp.example.com";
+    process.env.SMTP_PORT = "2525";
+    process.env.SMTP_SECURE = "true";
     delete process.env.SMTP_USERNAME;
     delete process.env.SMTP_PASSWORD;
   });
@@ -19,9 +19,9 @@ describe("email config", () => {
     const { config } = await import("@/lib/config");
 
     expect(config.emailEnabled()).toBe(true);
-    expect(config.smtpHost()).toBe("smtp-relay.gmail.com");
-    expect(config.smtpPort()).toBe(587);
-    expect(config.smtpSecure()).toBe(false);
+    expect(config.smtpHost()).toBe("smtp.example.com");
+    expect(config.smtpPort()).toBe(2525);
+    expect(config.smtpSecure()).toBe(true);
   });
 
   it("requires EMAIL_FROM when email is enabled", async () => {

@@ -139,7 +139,7 @@ export const config = {
     }
     return value;
   },
-  smtpHost: () => getOptionalEnv("SMTP_HOST") ?? "smtp-relay.gmail.com",
+  smtpHost: () => getOptionalEnv("SMTP_HOST"),
   smtpPort: () => getNumberEnv("SMTP_PORT", 587),
   smtpSecure: () => getBooleanEnv("SMTP_SECURE", false),
   smtpUsername: () => getOptionalEnv("SMTP_USERNAME"),
