@@ -10,6 +10,8 @@ import {
   resolvePerson
 } from "../lib/imports/bc2-transformer";
 import { createThread, createComment } from "../lib/repositories";
+import { DropboxStorageAdapter } from "../lib/storage/dropbox-adapter";
+import { getProjectStorageDir } from "../lib/project-storage";
 
 // ── Script-local DB pool (bypasses lib/db → lib/config's server-only guard) ──
 const _pool = new Pool({ connectionString: process.env.DATABASE_URL });
@@ -226,6 +228,170 @@ async function migrateProjects(
   return projects;
 }
 
+// ── Files phase ───────────────────────────────────────────────────────────────
+
+const CONCURRENCY = 3;
+const FILE_RETRY_ATTEMPTS = 3;
+const FILE_RETRY_DELAY_MS = 1000;
+
+async function migrateFiles(
+  jobId: string,
+  fetcher: Bc2Fetcher,
+  client: Bc2Client,
+  projects: MigratedProject[],
+  personMap: Map<number, string>,
+  mode: RunMode,
+  includeFiles: boolean
+): Promise<number> {
+  if (!includeFiles || mode === "dry") {
+    if (mode === "dry") {
+      process.stdout.write("Files phase skipped (dry mode)\n");
+    } else {
+      process.stdout.write("Files phase skipped (--files not set)\n");
+    }
+    return 0;
+  }
+
+  const adapter = new DropboxStorageAdapter();
+  let fileCount = 0;
+
+  process.stdout.write("Migrating files...\n");
+
+  for (let i = 0; i < projects.length; i++) {
+    const project = projects[i];
+
+    // Fetch project record to get storage dir fields
+    const projectRow = await query(
+      "select id, storage_project_dir, client_slug, project_slug, project_code, archived from projects where id = $1",
+      [project.localId]
+    );
+    if (!projectRow.rows[0]) {
+      process.stderr.write(`  project ${project.localId} not found in DB, skipping files\n`);
+      continue;
+    }
+    const projectRecord = projectRow.rows[0] as Record<string, unknown>;
+    const storageDir = getProjectStorageDir(projectRecord);
+
+    // Collect attachments into a queue for batched concurrency
+    const attachmentQueue: Array<ReturnType<typeof fetcher.fetchAttachments> extends AsyncGenerator<infer T> ? T : never> = [];
+    for await (const attachment of fetcher.fetchAttachments(String(project.bc2Id))) {
+      attachmentQueue.push(attachment);
+    }
+
+    let projectFileCount = 0;
+
+    // Process in batches of CONCURRENCY
+    for (let batchStart = 0; batchStart < attachmentQueue.length; batchStart += CONCURRENCY) {
+      const batch = attachmentQueue.slice(batchStart, batchStart + CONCURRENCY);
+
+      await Promise.all(batch.map(async (attachment) => {
+        let lastError: unknown;
+
+        for (let attempt = 1; attempt <= FILE_RETRY_ATTEMPTS; attempt++) {
+          try {
+            // Idempotency check
+            const existing = await query(
+              "select local_file_id from import_map_files where basecamp_file_id = $1",
+              [String(attachment.id)]
+            );
+            if (existing.rows[0]) {
+              projectFileCount++;
+              fileCount++;
+              return;
+            }
+
+            // Download from BC2 — try with auth header first; attachment URLs may be pre-signed
+            let downloadResponse = await fetch(attachment.url, {
+              headers: {
+                // Access the private authHeader via client.get trick: reconstruct from env
+                Authorization: "Basic " + Buffer.from(
+                  `${process.env.BASECAMP_USERNAME}:${process.env.BASECAMP_PASSWORD}`
+                ).toString("base64"),
+                "User-Agent": process.env.BASECAMP_USER_AGENT ?? "BC2 Migration"
+              }
+            });
+
+            // If auth fails (401/403), retry without auth (pre-signed URL)
+            if (downloadResponse.status === 401 || downloadResponse.status === 403) {
+              downloadResponse = await fetch(attachment.url);
+            }
+
+            if (!downloadResponse.ok) {
+              throw new Error(`Failed to download attachment ${attachment.id}: HTTP ${downloadResponse.status}`);
+            }
+
+            const buffer = Buffer.from(await downloadResponse.arrayBuffer());
+            const safeFilename = attachment.filename.replace(/[^a-zA-Z0-9._-]/g, "_");
+            const targetPath = `${storageDir}/uploads/${Date.now()}-${attachment.id}-${safeFilename}`;
+
+            // Upload to Dropbox
+            const uploaded = await adapter.uploadComplete({
+              sessionId: attachment.id.toString(),
+              targetPath,
+              filename: attachment.filename,
+              content: buffer,
+              mimeType: attachment.content_type
+            });
+
+            // Determine uploader user id
+            const uploaderUserId = personMap.get(attachment.creator.id) ?? `bc2_${attachment.creator.id}`;
+
+            // Insert project_files row directly via script-local pool (avoids server-only guard)
+            const fileInsert = await query(
+              `insert into project_files
+                 (project_id, uploader_user_id, filename, mime_type, size_bytes,
+                  dropbox_file_id, dropbox_path, checksum)
+               values ($1, $2, $3, $4, $5, $6, $7, $8)
+               returning id`,
+              [
+                project.localId,
+                uploaderUserId,
+                attachment.filename,
+                attachment.content_type,
+                attachment.byte_size,
+                uploaded.fileId,
+                uploaded.path,
+                ""  // no checksum available from BC2
+              ]
+            );
+            const localFileId = fileInsert.rows[0]?.id as string;
+
+            // Record in import map
+            await query(
+              "insert into import_map_files (basecamp_file_id, local_file_id) values ($1, $2)",
+              [String(attachment.id), localFileId]
+            );
+
+            await logRecord(jobId, "file", String(attachment.id), "success");
+            await incrementCounters(jobId, 1, 0);
+            projectFileCount++;
+            fileCount++;
+            return; // success — exit retry loop
+
+          } catch (err) {
+            lastError = err;
+            if (attempt < FILE_RETRY_ATTEMPTS) {
+              await new Promise(resolve => setTimeout(resolve, FILE_RETRY_DELAY_MS));
+            }
+          }
+        }
+
+        // All retries exhausted
+        const msg = lastError instanceof Error ? lastError.message : String(lastError);
+        process.stderr.write(`  file ${attachment.id} (${attachment.filename}) FAILED: ${msg}\n`);
+        await logRecord(jobId, "file", String(attachment.id), "failed", msg);
+        await incrementCounters(jobId, 0, 1);
+      }));
+    }
+
+    process.stdout.write(
+      `  [${pad(i + 1, projects.length)}/${projects.length}] ${project.name}  ${projectFileCount} files\n`
+    );
+  }
+
+  return fileCount;
+}
+
 // ── Threads and comments phase ────────────────────────────────────────────────
 
 async function migrateThreadsAndComments(
@@ -370,13 +536,15 @@ async function main() {
     jobId, fetcher, projects, personMap, flags.mode
   );
 
-  // Task 9 will call migrateFiles here
+  const fileCount = await migrateFiles(
+    jobId, fetcher, client, projects, personMap, flags.mode, flags.files
+  );
 
   if (jobId !== "dry-run") {
     await finishJob(jobId, "completed");
   }
   console.log(
-    `\nDone — ${projects.length} projects, ${threadCount} threads, ${commentCount} comments (job_id=${jobId})`
+    `\nDone — ${projects.length} projects, ${threadCount} threads, ${commentCount} comments, ${fileCount} files (job_id=${jobId})`
   );
 }
 
