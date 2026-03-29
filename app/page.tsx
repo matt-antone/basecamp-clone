@@ -88,11 +88,11 @@ export default function ProjectsPage() {
 function ProjectsPageContent({ initial }: { initial: ProjectsBootstrap }) {
   const [accessToken, setAccessToken] = useState<string | null>(initial.accessToken);
   const [status, setStatus] = useState(initial.status);
-  const [domainAllowed, setDomainAllowed] = useState(initial.domainAllowed);
+  const domainAllowed = initial.domainAllowed;
 
-  const [clients, setClients] = useState<ClientRecord[]>(initial.clients);
+  const clients = initial.clients;
   const [projects, setProjects] = useState<Project[]>(initial.projects);
-  const [latestFeaturedPosts, setLatestFeaturedPosts] = useState<FeaturedFeedPost[]>(initial.latestFeaturedPosts);
+  const latestFeaturedPosts = initial.latestFeaturedPosts;
   const [activeTab, setActiveTab] = useState<ProjectsViewTab>("list");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [searchValue, setSearchValue] = useState("");
@@ -122,28 +122,6 @@ function ProjectsPageContent({ initial }: { initial: ProjectsBootstrap }) {
     return data;
   }
 
-  async function refreshClients(nextAccessToken = accessToken) {
-    if (!nextAccessToken) {
-      throw new Error("Missing access token");
-    }
-
-    const data = await authedFetch("/clients", {
-      headers: {
-        Authorization: `Bearer ${nextAccessToken}`
-      }
-    });
-    const loaded = (data?.clients ?? []) as ClientRecord[];
-    setClients(loaded);
-    setProjectForm((current) =>
-      current.clientId || !loaded[0]?.id
-        ? current
-        : {
-          ...current,
-          clientId: loaded[0].id
-        }
-    );
-  }
-
   async function refreshProjects(nextAccessToken = accessToken) {
     if (!nextAccessToken) {
       throw new Error("Missing access token");
@@ -155,21 +133,6 @@ function ProjectsPageContent({ initial }: { initial: ProjectsBootstrap }) {
       }
     });
     setProjects((data?.projects ?? []) as Project[]);
-  }
-
-  async function signIn() {
-    window.location.href = "/auth/google/start";
-  }
-
-  async function signOut() {
-    setDomainAllowed(false);
-    setAccessToken(null);
-    setProjects([]);
-    setClients([]);
-    setLatestFeaturedPosts([]);
-    setStatus("Please sign in");
-    projectsBootstrapResource.clear();
-    window.location.href = "/auth/logout";
   }
 
   async function createProject() {

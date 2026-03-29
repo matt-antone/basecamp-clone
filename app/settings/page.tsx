@@ -246,11 +246,6 @@ function SettingsPageContent({ initial }: { initial: SettingsBootstrap }) {
     };
   }
 
-  async function loadProfile(accessToken: string) {
-    const data = await authedFetch(accessToken, "/profile");
-    setProfile(profileToForm((data?.profile ?? null) as UserProfileRecord | null));
-  }
-
   async function createClient() {
     if (!token) return;
     await authedFetch(token, "/clients", {

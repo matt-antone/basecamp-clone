@@ -122,7 +122,7 @@ export default function ProjectPage() {
 
 function ProjectPageContent({ projectId, initial }: { projectId: string; initial: ProjectPageBootstrap }) {
   const [token, setToken] = useState(initial.token);
-  const [status, setStatus] = useState(initial.status);
+  const [, setStatus] = useState(initial.status);
 
   const [project, setProject] = useState<Project | null>(initial.project);
   const [userHours, setUserHours] = useState<ProjectUserHoursEntry[]>(initial.userHours);

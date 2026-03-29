@@ -1,11 +1,10 @@
 import "server-only";
 
-const required = ["DATABASE_URL", "SUPABASE_SERVICE_ROLE_KEY", "WORKSPACE_DOMAIN"] as const;
 const supabaseUrlKeys = ["SUPABASE_URL", "NEXT_PUBLIC_SUPABASE_URL"] as const;
 const supabaseAnonKeyKeys = ["SUPABASE_ANON_KEY", "NEXT_PUBLIC_SUPABASE_ANON_KEY"] as const;
 const siteUrlKeys = ["NEXT_PUBLIC_SITE_URL", "URL"] as const;
 
-type RequiredKey = (typeof required)[number];
+type RequiredKey = "DATABASE_URL" | "SUPABASE_SERVICE_ROLE_KEY" | "WORKSPACE_DOMAIN";
 
 function getEnv(key: RequiredKey): string {
   const value = process.env[key];
@@ -61,22 +60,6 @@ function normalizeOriginUrl(value: string | null) {
 
   try {
     return new URL(withProtocol).origin;
-  } catch {
-    return null;
-  }
-}
-
-function normalizeBaseUrl(value: string | null) {
-  if (!value) {
-    return null;
-  }
-
-  const withProtocol = /^[a-z][a-z\d+\-.]*:\/\//i.test(value) ? value : `https://${value}`;
-
-  try {
-    const parsed = new URL(withProtocol);
-    const pathname = parsed.pathname.replace(/\/+$/, "");
-    return pathname ? `${parsed.origin}${pathname}` : parsed.origin;
   } catch {
     return null;
   }
