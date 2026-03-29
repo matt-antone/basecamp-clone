@@ -5,8 +5,6 @@ const getProjectMock = vi.fn();
 const getThreadMock = vi.fn();
 const getCommentMock = vi.fn();
 const createFileMetadataMock = vi.fn();
-const setFileThumbnailUrlMock = vi.fn();
-const ensureImportedFileThumbnailMock = vi.fn();
 const uploadCompleteMock = vi.fn();
 
 vi.mock("@/lib/auth", () => ({
@@ -17,14 +15,7 @@ vi.mock("@/lib/repositories", () => ({
   getProject: getProjectMock,
   getThread: getThreadMock,
   getComment: getCommentMock,
-  createFileMetadata: createFileMetadataMock,
-  setFileThumbnailUrl: setFileThumbnailUrlMock
-}));
-
-vi.mock("@/lib/import-thumbnail", () => ({
-  ensureImportedFileThumbnail: ensureImportedFileThumbnailMock,
-  isSupportedImportThumbnailSource: ({ filename, mimeType }: { filename: string; mimeType: string }) =>
-    mimeType.toLowerCase().startsWith("image/") || mimeType.toLowerCase() === "application/pdf" || filename.toLowerCase().endsWith(".pdf")
+  createFileMetadata: createFileMetadataMock
 }));
 
 vi.mock("@/lib/storage/dropbox-adapter", () => ({
@@ -60,12 +51,10 @@ describe("POST /projects/[id]/files/upload-complete", () => {
     getThreadMock.mockReset();
     getCommentMock.mockReset();
     createFileMetadataMock.mockReset();
-    setFileThumbnailUrlMock.mockReset();
-    ensureImportedFileThumbnailMock.mockReset();
     uploadCompleteMock.mockReset();
   });
 
-  it("generates a saved thumbnail for supported uploads", async () => {
+  it("uploads successfully without calling thumbnail generation", async () => {
     requireUserMock.mockResolvedValue({ id: "user-1", email: "person@example.com" });
     getProjectMock.mockResolvedValue({
       id: "project-1",
@@ -76,13 +65,6 @@ describe("POST /projects/[id]/files/upload-complete", () => {
       path: "/projects/brgs/BRGS-0001-site-refresh/uploads/report.pdf"
     });
     createFileMetadataMock.mockResolvedValue({ id: "file-1" });
-    setFileThumbnailUrlMock.mockResolvedValue({ id: "file-1", thumbnail_url: "https://thumbs.example.internal/thumbnails/file-1.jpg" });
-    ensureImportedFileThumbnailMock.mockResolvedValue({
-      action: "generated",
-      thumbnailPath: "/projects/brgs/BRGS-0001-site-refresh/uploads/.thumbnails/file-1.jpg",
-      thumbnailUrl: "https://thumbs.example.internal/thumbnails/file-1.jpg",
-      message: "Thumbnail generated"
-    });
 
     const { POST } = await import("@/app/projects/[id]/files/upload-complete/route");
     const response = await POST(
@@ -106,24 +88,12 @@ describe("POST /projects/[id]/files/upload-complete", () => {
     );
 
     expect(response.status).toBe(201);
-    expect(ensureImportedFileThumbnailMock).toHaveBeenCalledWith({
-      projectStorageDir: "/projects/brgs/BRGS-0001-site-refresh",
-      projectFileId: "file-1",
-      filename: "report.pdf",
-      mimeType: "application/pdf",
-      dropboxPath: "/projects/brgs/BRGS-0001-site-refresh/uploads/report.pdf"
-    });
-    expect(setFileThumbnailUrlMock).toHaveBeenCalledWith({
-      projectId: "project-1",
-      fileId: "file-1",
-      thumbnailUrl: "https://thumbs.example.internal/thumbnails/file-1.jpg"
-    });
     await expect(response.json()).resolves.toMatchObject({
-      file: { id: "file-1", thumbnail_url: "https://thumbs.example.internal/thumbnails/file-1.jpg" }
+      file: { id: "file-1" }
     });
   });
 
-  it("keeps upload successful when thumbnail generation fails", async () => {
+  it("keeps upload successful with no thumbnail side effects", async () => {
     requireUserMock.mockResolvedValue({ id: "user-1", email: "person@example.com" });
     getProjectMock.mockResolvedValue({
       id: "project-1",
@@ -134,7 +104,6 @@ describe("POST /projects/[id]/files/upload-complete", () => {
       path: "/projects/brgs/BRGS-0001-site-refresh/uploads/report.pdf"
     });
     createFileMetadataMock.mockResolvedValue({ id: "file-1" });
-    ensureImportedFileThumbnailMock.mockRejectedValue(new Error("pdftoppm missing"));
 
     const { POST } = await import("@/app/projects/[id]/files/upload-complete/route");
     const response = await POST(
@@ -158,7 +127,7 @@ describe("POST /projects/[id]/files/upload-complete", () => {
     );
 
     expect(response.status).toBe(201);
-    expect(setFileThumbnailUrlMock).not.toHaveBeenCalled();
+    expect(createFileMetadataMock).toHaveBeenCalledTimes(1);
     await expect(response.json()).resolves.toMatchObject({
       file: { id: "file-1" }
     });

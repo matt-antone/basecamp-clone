@@ -5,6 +5,7 @@ import dynamic from "next/dynamic";
 import { InlineLoadingState, PageLoadingState } from "@/components/loading-shells";
 import { authedJsonFetch, ensureAccessToken, fetchAuthSession } from "@/lib/browser-auth";
 import { createClientResource } from "@/lib/client-resource";
+import { ThumbnailPreview, isThumbnailPreviewSupported } from "@/components/file-thumbnail-preview";
 import { useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 
@@ -378,10 +379,17 @@ function DiscussionPageContent(props: {
                         <div className="discussionRichText" dangerouslySetInnerHTML={{ __html: comment.body_html }} />
                         {(comment.attachments?.length ?? 0) > 0 && (
                           <div className="commentAttachmentStack">
-                            {comment.attachments?.some((attachment) => isImageAttachment(attachment.mime_type)) && (
+                            {comment.attachments?.some((attachment) =>
+                              isThumbnailPreviewSupported({ filename: attachment.filename, mimeType: attachment.mime_type })
+                            ) && (
                               <ul className="commentAttachmentThumbGrid">
                                 {comment.attachments
-                                  ?.filter((attachment) => isImageAttachment(attachment.mime_type))
+                                  ?.filter((attachment) =>
+                                    isThumbnailPreviewSupported({
+                                      filename: attachment.filename,
+                                      mimeType: attachment.mime_type
+                                    })
+                                  )
                                   .map((attachment) => (
                                     <li key={attachment.id} className="fileThumbItem commentAttachmentThumbItem">
                                       <button
@@ -389,16 +397,18 @@ function DiscussionPageContent(props: {
                                         className="fileThumbHitArea commentAttachmentThumbButton"
                                         onClick={() => openDownload(attachment.id).catch((error) => setStatus(error.message))}
                                       >
-                                        {typeof attachment.thumbnail_url === "string" && attachment.thumbnail_url.trim() ? (
-                                          <img
-                                            src={attachment.thumbnail_url}
-                                            alt={attachment.filename}
-                                            className="fileThumbImage"
-                                            loading="lazy"
-                                          />
-                                        ) : (
-                                          <div className="fileThumbFallback">{getAttachmentBadgeLabel(attachment)}</div>
-                                        )}
+                                        <ThumbnailPreview
+                                          projectId={projectId}
+                                          fileId={attachment.id}
+                                          filename={attachment.filename}
+                                          mimeType={attachment.mime_type}
+                                          thumbnailUrl={attachment.thumbnail_url}
+                                          accessToken={token}
+                                          onToken={setToken}
+                                          alt={attachment.filename}
+                                          imageClassName="fileThumbImage"
+                                          fallback={<div className="fileThumbFallback">{getAttachmentBadgeLabel(attachment)}</div>}
+                                        />
                                       </button>
                                       <div className="fileThumbMeta">
                                         <button
@@ -415,10 +425,22 @@ function DiscussionPageContent(props: {
                                   ))}
                               </ul>
                             )}
-                            {comment.attachments?.some((attachment) => !isImageAttachment(attachment.mime_type)) && (
+                            {comment.attachments?.some(
+                              (attachment) =>
+                                !isThumbnailPreviewSupported({
+                                  filename: attachment.filename,
+                                  mimeType: attachment.mime_type
+                                })
+                            ) && (
                               <ul className="commentAttachmentList">
                                 {comment.attachments
-                                  ?.filter((attachment) => !isImageAttachment(attachment.mime_type))
+                                  ?.filter(
+                                    (attachment) =>
+                                      !isThumbnailPreviewSupported({
+                                        filename: attachment.filename,
+                                        mimeType: attachment.mime_type
+                                      })
+                                  )
                                   .map((attachment) => (
                                     <li key={attachment.id} className="commentAttachmentItem">
                                       <button
@@ -601,10 +623,6 @@ function formatAttachmentStage(attachment: PendingAttachment) {
   if (attachment.stage === "uploading") return `${attachment.progress}%`;
   if (attachment.stage === "done") return "Uploaded";
   return "Failed";
-}
-
-function isImageAttachment(mimeType: string) {
-  return mimeType.toLowerCase().startsWith("image/");
 }
 
 function getAttachmentBadgeLabel(attachment: CommentAttachment) {

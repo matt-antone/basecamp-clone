@@ -2182,6 +2182,7 @@ li.active {
   align-content: center;
   justify-items: center;
   text-align: center;
+  width: 100%;
 }
 
 .fileThumbEmptyState {
@@ -2448,6 +2449,8 @@ li.active {
 .commentUploadArea {
   display: grid;
   gap: 6px;
+  width: 100%;
+  justify-items: center;
 }
 
 .commentFileLabel {
@@ -2493,6 +2496,15 @@ li.active {
   color: var(--text-muted);
 }
 
+.commentUploadQueueShell {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  flex-direction: column;
+}
+
 .commentUploadQueue {
   display: grid;
   gap: 8px;
@@ -2504,10 +2516,30 @@ li.active {
   padding: 8px;
   display: grid;
   gap: 6px;
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  justify-items: center;
+  align-items: center;
 }
 
-.commentUploadQueueItem button {
-  margin-top: 2rem;
+.commentUploadQueueItemButton {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin: 0px auto;
+}
+
+.commentUploadQueueItemButton button {
+  /* margin-top: 2rem; */
+  font-size: 0.75rem;
+  text-align: center;
+  justify-content: center;
+  align-items: center;
+  display: inline-flex;
+  flex-direction: column;
+  padding: 1px 4px;
+  margin: 0px auto;
+  min-height: auto;
 }
 
 .commentUploadQueueHead {

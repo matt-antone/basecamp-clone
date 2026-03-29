@@ -836,6 +836,71 @@ export async function setFileThumbnailUrl(args: {
   return result.rows[0] ? normalizeProjectFileSizeRow(result.rows[0]) : null;
 }
 
+export async function upsertThumbnailJob(args: { projectFileId: string }) {
+  const existing = await query(
+    `select id, project_file_id, status, attempt_count, next_attempt_at, last_error, created_at, updated_at
+     from thumbnail_jobs
+     where project_file_id = $1
+     limit 1`,
+    [args.projectFileId]
+  );
+  const current = existing.rows[0] as
+    | {
+        id: string;
+        project_file_id: string;
+        status: string;
+        attempt_count: number;
+        next_attempt_at: string;
+        last_error: string | null;
+        created_at: string;
+        updated_at: string;
+      }
+    | undefined;
+
+  if (!current) {
+    const inserted = await query(
+      `insert into thumbnail_jobs (project_file_id, status, attempt_count, next_attempt_at, last_error)
+       values ($1, 'queued', 0, now(), null)
+       returning id, project_file_id, status, attempt_count, next_attempt_at, last_error, created_at, updated_at`,
+      [args.projectFileId]
+    );
+    return {
+      action: "inserted" as const,
+      job: inserted.rows[0] as NonNullable<typeof current>
+    };
+  }
+
+  if (current.status === "queued" || current.status === "processing") {
+    const deduped = await query(
+      `update thumbnail_jobs
+       set updated_at = now()
+       where project_file_id = $1
+       returning id, project_file_id, status, attempt_count, next_attempt_at, last_error, created_at, updated_at`,
+      [args.projectFileId]
+    );
+    return {
+      action: "deduped" as const,
+      job: deduped.rows[0] as NonNullable<typeof current>
+    };
+  }
+
+  const restarted = await query(
+    `update thumbnail_jobs
+     set status = 'queued',
+         attempt_count = 0,
+         next_attempt_at = now(),
+         last_error = null,
+         updated_at = now()
+     where project_file_id = $1
+     returning id, project_file_id, status, attempt_count, next_attempt_at, last_error, created_at, updated_at`,
+    [args.projectFileId]
+  );
+  return {
+    action: "inserted" as const,
+    job: restarted.rows[0] as NonNullable<typeof current>
+  };
+}
+
 function isMissingProjectFileColumnError(error: unknown) {
   if (typeof error !== "object" || error === null) {
     return false;

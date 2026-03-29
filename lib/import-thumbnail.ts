@@ -41,8 +41,11 @@ type DropboxClientLike = {
 
 type CommandRunner = (command: string, args: string[]) => Promise<void>;
 
-type ThumbnailStorageAdapter = {
+type ThumbnailDownloadAdapter = {
   downloadFile(path: string): Promise<{ bytes: Buffer; contentType: string }>;
+};
+
+type ThumbnailStorageAdapter = ThumbnailDownloadAdapter & {
   getClient?: () => Promise<DropboxClientLike>;
 };
 
@@ -294,7 +297,7 @@ async function callThumbnailWorker(
     token: string;
     timeoutMs: number;
     fetchFn: typeof fetch;
-    storageAdapter: ThumbnailStorageAdapter;
+    storageAdapter: ThumbnailDownloadAdapter;
   }
 ): Promise<ImportThumbnailAction> {
   const endpoint = new URL("/thumbnails", `${opts.url}/`).toString();
@@ -304,8 +307,9 @@ async function callThumbnailWorker(
   try {
     const source = await opts.storageAdapter.downloadFile(request.dropboxPath);
     const sourceBytes = source.bytes ?? Buffer.alloc(0);
+    const sourceFileBytes = Uint8Array.from(sourceBytes);
     const formData = new FormData();
-    formData.set("file", new File([sourceBytes], request.filename, { type: request.mimeType }));
+    formData.set("file", new File([sourceFileBytes], request.filename, { type: request.mimeType }));
     formData.set("projectFileId", request.projectFileId);
     formData.set("filename", request.filename);
     formData.set("mimeType", request.mimeType);

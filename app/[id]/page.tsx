@@ -5,6 +5,7 @@ import dynamic from "next/dynamic";
 import { InlineLoadingState, PageLoadingState } from "@/components/loading-shells";
 import { ProjectDialogForm, type ProjectDialogValues } from "@/components/project-dialog-form";
 import { ProjectTagList } from "@/components/project-tag-list";
+import { ThumbnailPreview } from "@/components/file-thumbnail-preview";
 import { getAvatarProxyUrl } from "@/lib/avatar";
 import { authedFormDataFetch, authedJsonFetch, fetchAuthSession } from "@/lib/browser-auth";
 import { createClientResource } from "@/lib/client-resource";
@@ -632,19 +633,21 @@ function ProjectPageContent({ projectId, initial }: { projectId: string; initial
                         <small>{formatBytes(selectedFile.size)} • ready to upload</small>
                       </div>
                       {!isUploading && (
-                        <button
-                          type="button"
-                          className="linkButton"
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            setSelectedFile(null);
-                            if (fileInputRef.current) {
-                              fileInputRef.current.value = "";
-                            }
-                          }}
-                        >
-                          Remove
-                        </button>
+                        <div className="commentUploadQueueItemButton">
+                          <button
+                            type="button"
+                            className="linkButton"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              setSelectedFile(null);
+                              if (fileInputRef.current) {
+                                fileInputRef.current.value = "";
+                              }
+                            }}
+                          >
+                            Remove
+                          </button>
+                        </div>
                       )}
                     </li>
                   </ul>
@@ -660,7 +663,6 @@ function ProjectPageContent({ projectId, initial }: { projectId: string; initial
             </div>
           </li>
           {files.map((file) => {
-            const previewUrl = typeof file.thumbnail_url === "string" ? file.thumbnail_url.trim() : "";
             return (
               <li key={file.id} className="fileThumbItem">
                 <button
@@ -668,11 +670,18 @@ function ProjectPageContent({ projectId, initial }: { projectId: string; initial
                   className="fileThumbHitArea"
                   onClick={() => downloadFile(file.id).catch((error) => setStatus(error.message))}
                 >
-                  {previewUrl ? (
-                    <img src={previewUrl} alt={file.filename} className="fileThumbImage" loading="lazy" />
-                  ) : (
-                    <div className="fileThumbFallback">{getFileBadgeLabel(file)}</div>
-                  )}
+                  <ThumbnailPreview
+                    projectId={projectId}
+                    fileId={file.id}
+                    filename={file.filename}
+                    mimeType={file.mime_type}
+                    thumbnailUrl={file.thumbnail_url}
+                    accessToken={token}
+                    onToken={setToken}
+                    alt={file.filename}
+                    imageClassName="fileThumbImage"
+                    fallback={<div className="fileThumbFallback">{getFileBadgeLabel(file)}</div>}
+                  />
                 </button>
                 <div className="fileThumbMeta">
                   <button

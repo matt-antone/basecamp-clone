@@ -1,7 +1,5 @@
 import { query } from "../db";
-import { createComment, createFileMetadata, createProject, createThread, getProject, setFileThumbnailUrl } from "../repositories";
-import { getProjectStorageDir } from "../project-storage";
-import { ensureImportedFileThumbnail } from "../import-thumbnail";
+import { createComment, createFileMetadata, createProject, createThread, getProject } from "../repositories";
 
 type BasecampFile = {
   id: string;
@@ -250,11 +248,6 @@ export async function runBasecampImport(jobId: string, payload: BasecampImportPa
         throw new Error(`File ${file.id} references unknown project ${file.projectId}`);
       }
 
-      const project = await getProject(projectId);
-      if (!project) {
-        throw new Error(`File ${file.id} references missing local project ${projectId}`);
-      }
-
       const existingFile = await query(
         "select * from project_files where project_id = $1 and dropbox_file_id = $2 limit 1",
         [projectId, file.dropboxFileId]
@@ -272,41 +265,6 @@ export async function runBasecampImport(jobId: string, payload: BasecampImportPa
           dropboxFileId: file.dropboxFileId,
           dropboxPath: file.dropboxPath
         }));
-
-      const thumbnailRequest = {
-        projectStorageDir: getProjectStorageDir(project),
-        projectFileId: fileRecord.id,
-        filename: file.filename,
-        mimeType: file.mimeType,
-        dropboxPath: file.dropboxPath
-      };
-
-      try {
-        const thumbnailResult = await ensureImportedFileThumbnail(thumbnailRequest);
-        if ((thumbnailResult.action === "generated" || thumbnailResult.action === "reused") && thumbnailResult.thumbnailUrl) {
-          await setFileThumbnailUrl({
-            projectId,
-            fileId: fileRecord.id,
-            thumbnailUrl: thumbnailResult.thumbnailUrl
-          });
-        }
-        await appendLog({
-          jobId,
-          recordType: "file_thumbnail",
-          sourceRecordId: file.id,
-          status: "success",
-          message: thumbnailResult.message
-        });
-      } catch (error) {
-        await appendLog({
-          jobId,
-          recordType: "file_thumbnail",
-          sourceRecordId: file.id,
-          status: "failed",
-          message: error instanceof Error ? error.message : String(error)
-        });
-        throw error;
-      }
 
       await query(
         "insert into import_map_files (basecamp_file_id, local_file_id) values ($1, $2)",

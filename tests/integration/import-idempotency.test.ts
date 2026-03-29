@@ -14,12 +14,6 @@ const job = {
   success: 0,
   failed: 0
 };
-const ensureImportedFileThumbnail = vi.hoisted(() =>
-  vi.fn(async () => ({
-    action: "skipped" as const,
-    message: "Thumbnail skipped for unsupported type text/plain (a.txt)"
-  }))
-);
 
 vi.mock("@/lib/db", () => ({
   query: vi.fn(async (sql: string, values: unknown[] = []) => {
@@ -95,17 +89,12 @@ vi.mock("@/lib/repositories", () => ({
   })
 }));
 
-vi.mock("@/lib/import-thumbnail", () => ({
-  ensureImportedFileThumbnail
-}));
-
 beforeEach(() => {
   maps.projects.clear();
   maps.threads.clear();
   maps.comments.clear();
   maps.files.clear();
   fileRecords.clear();
-  ensureImportedFileThumbnail.mockClear();
   job.status = "running";
   job.total = 0;
   job.success = 0;
@@ -142,7 +131,6 @@ describe("basecamp import idempotency", () => {
     expect(maps.threads.size).toBe(1);
     expect(maps.comments.size).toBe(1);
     expect(maps.files.size).toBe(1);
-    expect(ensureImportedFileThumbnail).toHaveBeenCalledTimes(1);
     expect(job.status).toBe("completed");
   });
 });
