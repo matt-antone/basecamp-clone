@@ -1,5 +1,7 @@
 "use client";
 
+import { OneShotButton } from "@/components/one-shot-button";
+
 export type ProjectDialogClient = {
   id: string;
   name: string;
@@ -109,12 +111,12 @@ export function ProjectDialogForm({
         {clientDisabled ? <p className="dialogFieldHint">Client stays fixed after a project is created.</p> : null}
       </div>
       <div className="row">
-        <button type="button" onClick={onSubmit} disabled={!canSubmit}>
+        <OneShotButton type="button" onClick={onSubmit} disabled={!canSubmit}>
           {submitting ? "Saving..." : submitLabel}
-        </button>
-        <button type="button" className="secondary" onClick={onCancel} disabled={submitting}>
+        </OneShotButton>
+        <OneShotButton type="button" className="secondary" onClick={onCancel} disabled={submitting}>
           Cancel
-        </button>
+        </OneShotButton>
       </div>
     </form>
   );

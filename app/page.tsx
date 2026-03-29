@@ -1,12 +1,14 @@
 "use client";
 
-import Link from "next/link";
 import { PageLoadingState } from "@/components/loading-shells";
+import { OneShotButton } from "@/components/one-shot-button";
 import { ProjectDialogForm, type ProjectDialogValues } from "@/components/project-dialog-form";
-import { ProjectTagList } from "@/components/project-tag-list";
+import { ProjectsBoardView } from "@/components/projects/projects-board-view";
+import { ProjectsListView } from "@/components/projects/projects-list-view";
 import { createClientResource } from "@/lib/client-resource";
+import { createProjectDialogValues, normalizeProjectColumn, parseProjectTags } from "@/lib/project-utils";
 import {
-  type CSSProperties,
+  type DragEvent,
   type FocusEvent,
   type KeyboardEvent,
   type ReactNode,
@@ -167,14 +169,6 @@ function ProjectsPageContent({ initial }: { initial: ProjectsBootstrap }) {
     await refreshProjects();
   }
 
-  function normalizeProjectColumn(project: Project): ProjectColumn {
-    const value = (project.status ?? "new").toLowerCase();
-    if (value === "in_progress" || value === "in progress") return "in_progress";
-    if (value === "blocked") return "blocked";
-    if (value === "complete" || value === "completed") return "complete";
-    return "new";
-  }
-
   const activeProjects = projects.filter((project) => !project.archived);
   const archivedProjects = projects.filter((project) => project.archived);
   const deferredSearch = useDeferredValue(searchValue);
@@ -293,118 +287,6 @@ function ProjectsPageContent({ initial }: { initial: ProjectsBootstrap }) {
     return project.client_name?.trim() || project.client_code?.trim() || "No client";
   }
 
-  function groupProjectsByClient(items: Project[]) {
-    const grouped = new Map<string, { label: string; projects: Project[] }>();
-    items.forEach((project) => {
-      const key = project.client_id ?? `uncategorized-${getProjectClientLabel(project).toLowerCase()}`;
-      if (!grouped.has(key)) {
-        grouped.set(key, {
-          label: getProjectClientLabel(project),
-          projects: []
-        });
-      }
-      grouped.get(key)?.projects.push(project);
-    });
-
-    return Array.from(grouped.values())
-      .sort((a, b) => a.label.localeCompare(b.label))
-      .map((group) => ({
-        ...group,
-        projects: group.projects.sort((a, b) =>
-          (a.display_name ?? a.name).localeCompare(b.display_name ?? b.name)
-        )
-      }));
-  }
-
-  function renderProjectList(items: Project[], emptyState: string) {
-    const groups = groupProjectsByClient(items);
-    if (groups.length === 0) {
-      return (
-        <section className="projectsEmptyState">
-          <p className="projectsEmptyEyebrow">{activeTab === "archived" ? "Archive" : "Clear surface"}</p>
-          <h2>{emptyState}</h2>
-          <p>
-            {searchTerm || statusFilter !== "all"
-              ? "Try widening the search or switching back to all statuses."
-              : "Create a project and the index will start forming around your client work."}
-          </p>
-          {!searchTerm && statusFilter === "all" && activeTab !== "archived" && (
-            <button type="button" className="projectPrimaryButton" onClick={openCreateDialog}>
-              New project
-            </button>
-          )}
-        </section>
-      );
-    }
-
-    return (
-      <div className="projectClientAtlas">
-        {groups.map((group) => (
-          <section key={group.label} className="clientLedgerSection">
-            <header className="clientLedgerIntro">
-              <div className="clientLedgerCopy">
-                <p className="clientLedgerEyebrow">Client</p>
-                <h2>{group.label}</h2>
-                <p className="clientLedgerSummary">
-                  {PROJECT_COLUMNS.map((column) => {
-                    const count = group.projects.filter((project) => normalizeProjectColumn(project) === column.key).length;
-                    if (!count) return null;
-                    return (
-                      <span key={column.key} className={`clientLedgerCount tone-${column.key}`}>
-                        {count} {column.title.toLowerCase()}
-                      </span>
-                    );
-                  })}
-                </p>
-              </div>
-              <span className="clientLedgerTotal">{group.projects.length}</span>
-            </header>
-            <ul className="clientProjectLedger">
-              {group.projects.map((project) => (
-                <li
-                  key={project.id}
-                  className={`projectLedgerItem tone-${normalizeProjectColumn(project)} ${highlightedProjectId === project.id ? "projectLedgerItemActive" : ""}`}
-                  data-project-id={project.id}
-                  style={{ viewTransitionName: `project-${project.id}` } as CSSProperties}
-                  onFocusCapture={() => setHighlightedProjectId(project.id)}
-                  onBlurCapture={(event) => handleProjectRowBlur(event, project.id)}
-                >
-                  <div className="projectLedgerRail">
-                    <span className="projectLedgerStatus">{getProjectStatusLabel(project)}</span>
-                  </div>
-                  <div className="projectMain projectLedgerBody">
-                    <Link href={`/${project.id}`} className="projectLink projectTitle projectLedgerTitle">
-                      {renderProjectTitle(project.display_name ?? project.name)}
-                    </Link>
-                    <p className="projectDescription">{project.description?.trim() || "No description provided."}</p>
-                    <ProjectTagList tags={project.tags} className="projectTagListCompact" />
-                  </div>
-                  {/* <div className="projectLedgerMeta">
-                    <span className="projectClientPill">{getProjectClientLabel(project)}</span>
-                  </div> */}
-                  <div className="projectLedgerActions">
-                    <Link href={`/${project.id}`} className="projectActionLink">
-                      Open
-                    </Link>
-                    {/* <button
-                      type="button"
-                      className="projectActionButton"
-                      title={project.archived ? "Restore project" : "Archive project"}
-                      aria-label={project.archived ? "Restore project" : "Archive project"}
-                      onClick={() => toggleArchive(project).catch((error) => setStatus(error.message))}
-                    >
-                      {project.archived ? "Restore" : "Archive"}
-                    </button> */}
-                  </div>
-                </li>
-              ))}
-            </ul>
-          </section>
-        ))}
-      </div>
-    );
-  }
-
   function renderProjectTitle(title: string) {
     const codeRegex = /\b[A-Z]{2,}-\d{4}\b/g;
     const parts: ReactNode[] = [];
@@ -504,6 +386,37 @@ function ProjectsPageContent({ initial }: { initial: ProjectsBootstrap }) {
     setHighlightedProjectId((current) => (current === projectId ? null : current));
   }
 
+  function handleBoardColumnDragOver(event: DragEvent<HTMLElement>, column: ProjectColumn) {
+    event.preventDefault();
+    setDragOverColumn(column);
+  }
+
+  function handleBoardColumnDragLeave(column: ProjectColumn) {
+    setDragOverColumn((current) => (current === column ? null : current));
+  }
+
+  function handleBoardColumnDrop(event: DragEvent<HTMLElement>, column: ProjectColumn) {
+    event.preventDefault();
+    const draggedProjectId = event.dataTransfer.getData("text/plain");
+    setDragOverColumn(null);
+    setDraggingProjectId(null);
+    if (!draggedProjectId) return;
+    moveProject(draggedProjectId, column).catch((error) => {
+      setStatus(error instanceof Error ? error.message : "Failed to move project");
+    });
+  }
+
+  function handleBoardCardDragStart(event: DragEvent<HTMLLIElement>, projectId: string) {
+    event.dataTransfer.setData("text/plain", projectId);
+    event.dataTransfer.effectAllowed = "move";
+    setDraggingProjectId(projectId);
+  }
+
+  function handleBoardCardDragEnd() {
+    setDraggingProjectId(null);
+    setDragOverColumn(null);
+  }
+
   const visibleProjects = activeTab === "archived" ? filteredArchivedProjects : filteredActiveProjects;
   const visibleClients = new Set(visibleProjects.map((project) => getProjectClientLabel(project))).size;
   const featuredHeroPost = latestFeaturedPosts[0] ?? null;
@@ -573,36 +486,36 @@ function ProjectsPageContent({ initial }: { initial: ProjectsBootstrap }) {
         <section className="projectsWorkbench">
           <div className="projectsWorkbenchBar">
             <div className="projectsViewSwitch" role="tablist" aria-label="Projects views">
-              <button
+              <OneShotButton
                 className={`projectsViewButton ${activeTab === "list" ? "projectsViewButtonActive" : ""}`}
                 role="tab"
                 aria-selected={activeTab === "list"}
                 onClick={() => selectTab("list")}
               >
                 Index
-              </button>
-              <button
+              </OneShotButton>
+              <OneShotButton
                 className={`projectsViewButton ${activeTab === "board" ? "projectsViewButtonActive" : ""}`}
                 role="tab"
                 aria-selected={activeTab === "board"}
                 onClick={() => selectTab("board")}
               >
                 Flow
-              </button>
-              <button
+              </OneShotButton>
+              <OneShotButton
                 className={`projectsViewButton ${activeTab === "archived" ? "projectsViewButtonActive" : ""}`}
                 role="tab"
                 aria-selected={activeTab === "archived"}
                 onClick={() => selectTab("archived")}
               >
                 Archive
-              </button>
+              </OneShotButton>
             </div>
 
             <div className="projectsWorkbenchActions">
-              <button type="button" className="projectPrimaryButton" onClick={openCreateDialog}>
+              <OneShotButton type="button" className="projectPrimaryButton" onClick={openCreateDialog}>
                 New project
-              </button>
+              </OneShotButton>
             </div>
           </div>
           {activeTab !== "board" && (
@@ -631,7 +544,7 @@ function ProjectsPageContent({ initial }: { initial: ProjectsBootstrap }) {
               {activeTab !== "archived" && (
                 <div className="projectsPulseRow" aria-label="Filter search results by status">
                   {statusSummaries.map((item) => (
-                    <button
+                    <OneShotButton
                       key={item.key}
                       className={`projectsPulseButton tone-${item.key} ${statusFilter === item.key ? "projectsPulseButtonActive" : ""}`}
                       onClick={() => setStatusFilter((current) => (current === item.key ? "all" : item.key))}
@@ -640,7 +553,7 @@ function ProjectsPageContent({ initial }: { initial: ProjectsBootstrap }) {
                     >
                       <span>{item.title}</span>
                       <strong>{item.count}</strong>
-                    </button>
+                    </OneShotButton>
                   ))}
                 </div>
 
@@ -653,103 +566,55 @@ function ProjectsPageContent({ initial }: { initial: ProjectsBootstrap }) {
       {/* Viewport section */}
       {domainAllowed && (
         <div className="projectsViewport">
-          {activeTab === "list" &&
-            renderProjectList(
-              filteredActiveProjects,
-              searchTerm || statusFilter !== "all" ? "No projects match this edit of the index." : "No active projects yet."
-            )}
-          {activeTab === "board" && (
-            <div className="projectFlowGrid">
-              {PROJECT_COLUMNS.map((column) => {
-                const columnProjects = filteredActiveProjects.filter(
-                  (project) => normalizeProjectColumn(project) === column.key
-                );
-                return (
-                  <section
-                    key={column.key}
-                    className={`projectFlowColumn tone-${column.key} ${dragOverColumn === column.key ? "projectFlowColumnDropTarget" : ""}`}
-                    onDragOver={(event) => {
-                      event.preventDefault();
-                      setDragOverColumn(column.key);
-                    }}
-                    onDragLeave={() => {
-                      setDragOverColumn((current) => (current === column.key ? null : current));
-                    }}
-                    onDrop={(event) => {
-                      event.preventDefault();
-                      const draggedProjectId = event.dataTransfer.getData("text/plain");
-                      setDragOverColumn(null);
-                      setDraggingProjectId(null);
-                      if (!draggedProjectId) return;
-                      moveProject(draggedProjectId, column.key).catch((error) => {
-                        setStatus(error instanceof Error ? error.message : "Failed to move project");
-                      });
-                    }}
-                  >
-                    <header className="projectFlowColumnHeader">
-                      <div>
-                        <p className="projectFlowEyebrow">{column.subtitle}</p>
-                        <h2>{column.title}</h2>
-                      </div>
-                      <span key={`${column.key}-${columnProjects.length}`} className={justUpdatedColumn === column.key ? "projectFlowCountFlash" : ""}>
-                        {columnProjects.length}
-                      </span>
-                    </header>
-
-                    <ul className="projectFlowList">
-                      {columnProjects.map((project) => (
-                        <li
-                          key={project.id}
-                          className={`projectFlowCard ${draggingProjectId === project.id ? "projectFlowCardDragging" : ""} ${justMovedProjectId === project.id ? "projectFlowCardSettled" : ""}`}
-                          style={{ viewTransitionName: `project-${project.id}` } as CSSProperties}
-                          draggable
-                          onDragStart={(event) => {
-                            event.dataTransfer.setData("text/plain", project.id);
-                            event.dataTransfer.effectAllowed = "move";
-                            setDraggingProjectId(project.id);
-                          }}
-                          onDragEnd={() => {
-                            setDraggingProjectId(null);
-                            setDragOverColumn(null);
-                          }}
-                        >
-                          <div className="projectMain projectFlowCardBody">
-                            <Link href={`/${project.id}`} className="projectLink projectTitle projectFlowCardTitle">
-                              {renderProjectTitle(project.display_name ?? project.name)}
-                            </Link>
-                            <p className="projectDescription">{project.description?.trim() || "No description provided."}</p>
-                            <ProjectTagList tags={project.tags} className="projectTagListCompact" />
-                          </div>
-                          <div className="projectFlowCardFoot">
-                            <span className="projectClientPill">
-                              {project.client_code?.trim() || project.client_name?.trim() || "No client"}
-                            </span>
-                            <div className="projectFlowCardActions">
-                              <Link href={`/${project.id}`} className="projectActionLink">
-                                Open
-                              </Link>
-                              <button
-                                type="button"
-                                className="projectActionButton"
-                                onClick={() => toggleArchive(project).catch((error) => setStatus(error.message))}
-                              >
-                                Archive
-                              </button>
-                            </div>
-                          </div>
-                        </li>
-                      ))}
-                    </ul>
-                  </section>
-                );
-              })}
-            </div>
+          {activeTab === "list" && (
+            <ProjectsListView
+              items={filteredActiveProjects}
+              projectColumns={PROJECT_COLUMNS}
+              activeTab="list"
+              hasSearchOrFilter={Boolean(searchTerm || statusFilter !== "all")}
+              highlightedProjectId={highlightedProjectId}
+              emptyState={searchTerm || statusFilter !== "all" ? "No projects match this edit of the index." : "No active projects yet."}
+              onOpenCreateDialog={openCreateDialog}
+              onHighlightProject={setHighlightedProjectId}
+              onProjectBlur={handleProjectRowBlur}
+              renderProjectTitle={renderProjectTitle}
+              getProjectStatusLabel={getProjectStatusLabel}
+              getProjectClientLabel={getProjectClientLabel}
+            />
           )}
-          {activeTab === "archived" &&
-            renderProjectList(
-              filteredArchivedProjects,
-              searchTerm ? "No archived projects match this search." : "No archived projects are parked here yet."
-            )}
+          {activeTab === "board" && (
+            <ProjectsBoardView
+              items={filteredActiveProjects}
+              projectColumns={PROJECT_COLUMNS}
+              dragOverColumn={dragOverColumn}
+              draggingProjectId={draggingProjectId}
+              justMovedProjectId={justMovedProjectId}
+              justUpdatedColumn={justUpdatedColumn}
+              renderProjectTitle={renderProjectTitle}
+              onColumnDragOver={handleBoardColumnDragOver}
+              onColumnDragLeave={handleBoardColumnDragLeave}
+              onColumnDrop={handleBoardColumnDrop}
+              onCardDragStart={handleBoardCardDragStart}
+              onCardDragEnd={handleBoardCardDragEnd}
+              onArchiveProject={(project) => toggleArchive(project).catch((error) => setStatus(error.message))}
+            />
+          )}
+          {activeTab === "archived" && (
+            <ProjectsListView
+              items={filteredArchivedProjects}
+              projectColumns={PROJECT_COLUMNS}
+              activeTab="archived"
+              hasSearchOrFilter={Boolean(searchTerm || statusFilter !== "all")}
+              highlightedProjectId={highlightedProjectId}
+              emptyState={searchTerm ? "No archived projects match this search." : "No archived projects are parked here yet."}
+              onOpenCreateDialog={openCreateDialog}
+              onHighlightProject={setHighlightedProjectId}
+              onProjectBlur={handleProjectRowBlur}
+              renderProjectTitle={renderProjectTitle}
+              getProjectStatusLabel={getProjectStatusLabel}
+              getProjectClientLabel={getProjectClientLabel}
+            />
+          )}
         </div>
       )}
 
@@ -784,28 +649,6 @@ function formatFeedDate(value: string | null) {
     month: "short",
     day: "numeric"
   });
-}
-
-function parseProjectTags(value: string) {
-  return Array.from(
-    new Set(
-      value
-        .split(",")
-        .map((tag) => tag.trim().toLowerCase())
-        .filter(Boolean)
-    )
-  );
-}
-
-function createProjectDialogValues(clientId = ""): ProjectDialogValues {
-  return {
-    name: "",
-    description: "",
-    deadline: "",
-    requestor: "",
-    tags: "",
-    clientId
-  };
 }
 
 function getProjectsPageAuthErrorStatus() {

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { OneShotButton } from "@/components/one-shot-button";
 import { DEFAULT_SITE_LOGO_URL, DEFAULT_SITE_TITLE, normalizeSiteLogoUrl, normalizeSiteTitle } from "@/lib/site-branding";
 import { useEffect, useState } from "react";
 import { authedJsonFetch, fetchAuthSession } from "@/lib/browser-auth";
@@ -204,28 +205,28 @@ export default function ThemeToggle() {
       </div>
       <div className="themeTopBarActions">
         {isAuthReady && !user && (
-          <button
+          <OneShotButton
             type="button"
             className="themeHeaderButton themeHeaderButtonPrimary"
             onClick={signIn}
             disabled={isSigningIn}
           >
             {isSigningIn ? "Signing in..." : "Sign in"}
-          </button>
+          </OneShotButton>
         )}
         {user && (
           <>
             <Link href="/settings" className="themeHeaderButton themeHeaderButtonSecondary">
               Settings
             </Link>
-            <button type="button" className="themeHeaderButton themeHeaderButtonGhost" onClick={signOut}>
+            <OneShotButton type="button" className="themeHeaderButton themeHeaderButtonGhost" onClick={signOut}>
               Sign out
-            </button>
+            </OneShotButton>
           </>
         )}
-        <button type="button" className="themeToggleButton" onClick={toggleTheme}>
+        <OneShotButton type="button" className="themeToggleButton" onClick={toggleTheme}>
           {theme === "light" ? "Switch to Dark" : "Switch to Light"}
-        </button>
+        </OneShotButton>
       </div>
     </div>
   );

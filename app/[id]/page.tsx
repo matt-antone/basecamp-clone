@@ -2,13 +2,16 @@
 
 import Link from "next/link";
 import dynamic from "next/dynamic";
+import { CreateDiscussionDialog } from "@/components/discussions/create-discussion-dialog";
 import { InlineLoadingState, PageLoadingState } from "@/components/loading-shells";
+import { OneShotButton } from "@/components/one-shot-button";
 import { ProjectDialogForm, type ProjectDialogValues } from "@/components/project-dialog-form";
 import { ProjectTagList } from "@/components/project-tag-list";
-import { ThumbnailPreview } from "@/components/file-thumbnail-preview";
+import { ProjectFilesPanel } from "@/components/projects/project-files-panel";
 import { getAvatarProxyUrl } from "@/lib/avatar";
 import { authedFormDataFetch, authedJsonFetch, fetchAuthSession } from "@/lib/browser-auth";
 import { createClientResource } from "@/lib/client-resource";
+import { createProjectDialogValues, normalizeProjectColumn, parseProjectTags } from "@/lib/project-utils";
 import { useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 
@@ -390,14 +393,6 @@ function ProjectPageContent({ projectId, initial }: { projectId: string; initial
     return data;
   }
 
-  function normalizeProjectColumn(projectRecord: Project | null): "new" | "in_progress" | "blocked" | "complete" {
-    const value = (projectRecord?.status ?? "new").toLowerCase();
-    if (value === "in_progress" || value === "in progress") return "in_progress";
-    if (value === "blocked") return "blocked";
-    if (value === "complete" || value === "completed") return "complete";
-    return "new";
-  }
-
   const projectTitle = project?.display_name ?? project?.name ?? "Project";
   const requestor = project?.requestor?.trim() ?? "";
   const projectDescription = project?.description?.trim() ?? "";
@@ -458,7 +453,7 @@ function ProjectPageContent({ projectId, initial }: { projectId: string; initial
                               placeholder="0"
                               aria-label={`${getHoursEntryLabel(entry)} hours`}
                             />
-                            <button
+                            <OneShotButton
                               type="button"
                               className="secondary projectArchivedHoursSave"
                               disabled={
@@ -468,7 +463,7 @@ function ProjectPageContent({ projectId, initial }: { projectId: string; initial
                               onClick={() => saveArchivedHours(entry.userId).catch((error) => setStatus(error.message))}
                             >
                               {savingArchivedHoursUserId === entry.userId ? "Saving..." : "Save"}
-                            </button>
+                            </OneShotButton>
                           </div>
                         </li>
                       ))}
@@ -509,13 +504,13 @@ function ProjectPageContent({ projectId, initial }: { projectId: string; initial
                     />
                   </span>
                 </label>
-                <button
+                <OneShotButton
                   type="submit"
                   className="secondary"
                   disabled={isSavingMyHours || myHoursInput === formatHoursInput(project?.my_hours)}
                 >
                   {isSavingMyHours ? "Saving..." : "Save"}
-                </button>
+                </OneShotButton>
               </form>
             )}
           </div>
@@ -525,30 +520,30 @@ function ProjectPageContent({ projectId, initial }: { projectId: string; initial
             All Projects
           </Link>
           {project?.archived ? (
-            <button
+            <OneShotButton
               type="button"
               className="secondary"
               onClick={() => restoreArchivedProject().catch((error) => setStatus(error.message))}
               disabled={isRestoringProject}
             >
               {isRestoringProject ? "Restoring..." : "Restore Project"}
-            </button>
+            </OneShotButton>
           ) : null}
-          <button type="button" className="iconButton" aria-label="Edit project" onClick={openEditProjectDialog}>
+          <OneShotButton type="button" className="iconButton" aria-label="Edit project" onClick={openEditProjectDialog}>
             <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
               <path
                 fill="currentColor"
                 d="M19.14 12.94a7.66 7.66 0 0 0 .05-.94 7.66 7.66 0 0 0-.05-.94l2.03-1.58a.5.5 0 0 0 .12-.64l-1.92-3.32a.5.5 0 0 0-.6-.22l-2.39.96a7.3 7.3 0 0 0-1.63-.94l-.36-2.54A.5.5 0 0 0 13.9 2h-3.8a.5.5 0 0 0-.49.42l-.36 2.54c-.58.23-1.12.54-1.63.94l-2.39-.96a.5.5 0 0 0-.6.22L2.7 8.48a.5.5 0 0 0 .12.64l2.03 1.58c-.03.31-.05.62-.05.94s.02.63.05.94L2.82 14.16a.5.5 0 0 0-.12.64l1.92 3.32c.13.22.39.31.6.22l2.39-.96c.51.4 1.05.71 1.63.94l.36 2.54c.04.24.25.42.49.42h3.8c.24 0 .45-.18.49-.42l.36-2.54c.58-.23 1.12-.54 1.63-.94l2.39.96c.22.09.47 0 .6-.22l1.92-3.32a.5.5 0 0 0-.12-.64l-2.03-1.58ZM12 15.5A3.5 3.5 0 1 1 12 8.5a3.5 3.5 0 0 1 0 7Z"
               />
             </svg>
-          </button>
+          </OneShotButton>
         </div>
       </header>
 
       <section className="stackSection">
         <div className="sectionHeader">
           <h2>Discussions</h2>
-          <button
+          <OneShotButton
             className="iconButton"
             aria-label="Create discussion"
             onClick={openCreateDiscussionDialog}
@@ -556,7 +551,7 @@ function ProjectPageContent({ projectId, initial }: { projectId: string; initial
             <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
               <path fill="currentColor" d="M11 11V5h2v6h6v2h-6v6h-2v-6H5v-2h6Z" />
             </svg>
-          </button>
+          </OneShotButton>
         </div>
         <ul>
           {threads.map((thread) => (
@@ -575,170 +570,51 @@ function ProjectPageContent({ projectId, initial }: { projectId: string; initial
         </ul>
       </section>
 
-      <section className="stackSection filesSection">
-        <div className="sectionHeader">
-          <div className="sectionHeaderTitle">
-            <h2>Files</h2>
-            <button
-              type="button"
-              className="filesFolderLink linkButton"
-              onClick={() => openProjectFolder().catch((error) => setStatus(error.message))}
-            >
-              Open Dropbox folder
-            </button>
-          </div>
-          <small className="filesCount">{files.length} total</small>
-        </div>
+      <ProjectFilesPanel
+        projectId={projectId}
+        token={token}
+        onToken={setToken}
+        files={files}
+        selectedFile={selectedFile}
+        isUploading={isUploading}
+        isFileDragActive={isFileDragActive}
+        fileInputRef={fileInputRef}
+        onFileInputSelection={handleFileInputSelection}
+        onSetFileDragActive={setIsFileDragActive}
+        onOpenProjectFolder={() => openProjectFolder().catch((error) => setStatus(error.message))}
+        onUploadSelectedFile={() => uploadSelectedFile().catch((error) => setStatus(error.message))}
+        onClearSelectedFile={() => {
+          setSelectedFile(null);
+          if (fileInputRef.current) {
+            fileInputRef.current.value = "";
+          }
+        }}
+        onDownloadFile={(fileId) => downloadFile(fileId).catch((error) => setStatus(error.message))}
+        getFileBadgeLabel={getFileBadgeLabel}
+      />
 
-        <ul className="fileThumbGrid">
-          <li className="fileThumbItem fileThumbUploadItem">
-            <div className="commentUploadArea fileUploadArea fileThumbUploadArea">
-              {/* <label className="commentFileLabel">Upload file</label> */}
-              <input
-                ref={fileInputRef}
-                type="file"
-                className="commentFileInputHidden"
-                onChange={(event) => handleFileInputSelection(event.target.files)}
-              />
-              {!selectedFile && (<div
-                className={`commentDropZone fileThumbUploadDropZone ${isFileDragActive ? "commentDropZoneActive" : ""}`}
-                onClick={() => fileInputRef.current?.click()}
-                onDragEnter={(event) => {
-                  event.preventDefault();
-                  setIsFileDragActive(true);
-                }}
-                onDragOver={(event) => {
-                  event.preventDefault();
-                  setIsFileDragActive(true);
-                }}
-                onDragLeave={(event) => {
-                  event.preventDefault();
-                  setIsFileDragActive(false);
-                }}
-                onDrop={(event) => {
-                  event.preventDefault();
-                  setIsFileDragActive(false);
-                  handleFileInputSelection(event.dataTransfer.files);
-                }}
-              >
-                <p className="commentDropZoneTitle">Drop a file here</p>
-                <p className="commentDropZoneSubtle">or click to browse</p>
-              </div>)}
-              <div className="commentUploadQueueShell">
-                {selectedFile && (
-                  <ul className="commentUploadQueue">
-                    <li className="commentUploadQueueItem">
-                      <div className="commentUploadQueueHead">
-                        <span>{selectedFile.name}</span>
-                        <small>{formatBytes(selectedFile.size)} • ready to upload</small>
-                      </div>
-                      {!isUploading && (
-                        <div className="commentUploadQueueItemButton">
-                          <button
-                            type="button"
-                            className="linkButton"
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              setSelectedFile(null);
-                              if (fileInputRef.current) {
-                                fileInputRef.current.value = "";
-                              }
-                            }}
-                          >
-                            Remove
-                          </button>
-                        </div>
-                      )}
-                    </li>
-                  </ul>
-                )}
-                <button
-                  type="button"
-                  onClick={() => uploadSelectedFile().catch((error) => setStatus(error.message))}
-                  disabled={!selectedFile || isUploading}
-                >
-                  {isUploading ? "Uploading..." : "Upload File"}
-                </button>
-              </div>
-            </div>
-          </li>
-          {files.map((file) => {
-            return (
-              <li key={file.id} className="fileThumbItem">
-                <button
-                  type="button"
-                  className="fileThumbHitArea"
-                  onClick={() => downloadFile(file.id).catch((error) => setStatus(error.message))}
-                >
-                  <ThumbnailPreview
-                    projectId={projectId}
-                    fileId={file.id}
-                    filename={file.filename}
-                    mimeType={file.mime_type}
-                    thumbnailUrl={file.thumbnail_url}
-                    accessToken={token}
-                    onToken={setToken}
-                    alt={file.filename}
-                    imageClassName="fileThumbImage"
-                    fallback={<div className="fileThumbFallback">{getFileBadgeLabel(file)}</div>}
-                  />
-                </button>
-                <div className="fileThumbMeta">
-                  <button
-                    type="button"
-                    className="fileDownloadButton"
-                    onClick={() => downloadFile(file.id).catch((error) => setStatus(error.message))}
-                    title={file.filename}
-                  >
-                    {file.filename}
-                  </button>
-                  <small>
-                    {formatBytes(file.size_bytes)} • {new Date(file.created_at).toLocaleDateString()}
-                  </small>
-                </div>
-              </li>
-            );
-          })}
-          {files.length === 0 && <li className="emptyProjectsText fileThumbEmptyState">No files yet. Upload one to start your project workspace.</li>}
-        </ul>
-      </section>
-
-      <dialog ref={createDiscussionDialogRef} className="dialog dialogCreateDiscussion">
-        <form method="dialog" className="dialogForm">
-          <h3>Create Discussion</h3>
-          <div className="form">
-            <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Discussion title" />
-            <MarkdownEditor
-              key={`create-discussion-${createDiscussionEditorKey}`}
-              markdown={bodyMarkdown}
-              onChange={setBodyMarkdown}
-              placeholder="Write the discussion body in markdown"
-              overlayContainer={createDiscussionDialogRef.current}
-            />
-          </div>
-          <div className="row">
-            <button
-              type="button"
-              onClick={() => createDiscussion().catch((error) => setStatus(error.message))}
-              disabled={!title || !bodyMarkdown}
-            >
-              Create
-            </button>
-            <button
-              type="button"
-              className="secondary"
-              onClick={() => {
-                setTitle("");
-                setBodyMarkdown("");
-                setCreateDiscussionEditorKey((current) => current + 1);
-                createDiscussionDialogRef.current?.close();
-              }}
-            >
-              Cancel
-            </button>
-          </div>
-        </form>
-      </dialog>
+      <CreateDiscussionDialog
+        dialogRef={createDiscussionDialogRef}
+        title={title}
+        bodyMarkdown={bodyMarkdown}
+        onTitleChange={setTitle}
+        onCreate={() => createDiscussion().catch((error) => setStatus(error.message))}
+        onCancel={() => {
+          setTitle("");
+          setBodyMarkdown("");
+          setCreateDiscussionEditorKey((current) => current + 1);
+          createDiscussionDialogRef.current?.close();
+        }}
+        editor={(
+          <MarkdownEditor
+            key={`create-discussion-${createDiscussionEditorKey}`}
+            markdown={bodyMarkdown}
+            onChange={setBodyMarkdown}
+            placeholder="Write the discussion body in markdown"
+            overlayContainer={createDiscussionDialogRef.current}
+          />
+        )}
+      />
 
       <dialog ref={editProjectDialogRef} className="dialog">
         <ProjectDialogForm
@@ -765,23 +641,6 @@ function getFileBadgeLabel(file: ProjectFile) {
   if (mime.includes("zip") || mime.includes("compressed")) return "ZIP";
   const extension = file.filename.split(".").pop()?.trim().toUpperCase();
   return extension && extension.length <= 5 ? extension : "FILE";
-}
-
-function formatBytes(size: number) {
-  if (!Number.isFinite(size) || size < 0) {
-    return "0 B";
-  }
-  if (size < 1024) {
-    return `${size} B`;
-  }
-  const units = ["KB", "MB", "GB"];
-  let value = size / 1024;
-  let unitIndex = 0;
-  while (value >= 1024 && unitIndex < units.length - 1) {
-    value /= 1024;
-    unitIndex += 1;
-  }
-  return `${value.toFixed(value >= 10 ? 0 : 1)} ${units[unitIndex]}`;
 }
 
 function formatDeadline(value: string) {
@@ -818,28 +677,6 @@ function parseHoursNumber(value: number | string | null | undefined) {
 function formatHoursValue(value: number | string | null | undefined) {
   const numericValue = parseHoursNumber(value);
   return `${numericValue.toFixed(numericValue % 1 === 0 ? 0 : 2)}h`;
-}
-
-function parseProjectTags(value: string) {
-  return Array.from(
-    new Set(
-      value
-        .split(",")
-        .map((tag) => tag.trim().toLowerCase())
-        .filter(Boolean)
-    )
-  );
-}
-
-function createProjectDialogValues(clientId = "", project?: Project | null): ProjectDialogValues {
-  return {
-    name: project?.name ?? "",
-    description: project?.description ?? "",
-    deadline: project?.deadline ?? "",
-    requestor: project?.requestor ?? "",
-    tags: (project?.tags ?? []).join(", "),
-    clientId
-  };
 }
 
 function getViewerInitials(profile: ViewerProfile | null) {

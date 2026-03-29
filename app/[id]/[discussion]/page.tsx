@@ -2,9 +2,12 @@
 
 import Link from "next/link";
 import dynamic from "next/dynamic";
+import { DiscussionComposer } from "@/components/discussions/discussion-composer";
 import { InlineLoadingState, PageLoadingState } from "@/components/loading-shells";
+import { OneShotButton } from "@/components/one-shot-button";
 import { authedJsonFetch, ensureAccessToken, fetchAuthSession } from "@/lib/browser-auth";
 import { createClientResource } from "@/lib/client-resource";
+import { formatBytes } from "@/lib/format-bytes";
 import { ThumbnailPreview, isThumbnailPreviewSupported } from "@/components/file-thumbnail-preview";
 import { useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
@@ -341,9 +344,9 @@ function DiscussionPageContent(props: {
                           {comment.edited_at ? " (edited)" : ""}
                         </small>
                         {currentUser?.id === comment.author_user_id && editingCommentId !== comment.id && (
-                          <button type="button" className="terciary" onClick={() => startEditingComment(comment)}>
+                          <OneShotButton type="button" className="terciary" onClick={() => startEditingComment(comment)}>
                             Edit
-                          </button>
+                          </OneShotButton>
                         )}
                       </div>
                     </div>
@@ -356,13 +359,13 @@ function DiscussionPageContent(props: {
                           placeholder="Edit comment in markdown"
                         />
                         <div className="row">
-                          <button
+                          <OneShotButton
                             onClick={() => saveEditedComment().catch((error) => setStatus(error.message))}
                             disabled={!editingBody.trim()}
                           >
                             Save
-                          </button>
-                          <button
+                          </OneShotButton>
+                          <OneShotButton
                             type="button"
                             className="secondary"
                             onClick={() => {
@@ -371,7 +374,7 @@ function DiscussionPageContent(props: {
                             }}
                           >
                             Cancel
-                          </button>
+                          </OneShotButton>
                         </div>
                       </div>
                     ) : (
@@ -392,7 +395,7 @@ function DiscussionPageContent(props: {
                                     )
                                     .map((attachment) => (
                                       <li key={attachment.id} className="fileThumbItem commentAttachmentThumbItem">
-                                        <button
+                                        <OneShotButton
                                           type="button"
                                           className="fileThumbHitArea commentAttachmentThumbButton"
                                           onClick={() => openDownload(attachment.id).catch((error) => setStatus(error.message))}
@@ -409,16 +412,16 @@ function DiscussionPageContent(props: {
                                             imageClassName="fileThumbImage"
                                             fallback={<div className="fileThumbFallback">{getAttachmentBadgeLabel(attachment)}</div>}
                                           />
-                                        </button>
+                                        </OneShotButton>
                                         <div className="fileThumbMeta">
-                                          <button
+                                          <OneShotButton
                                             type="button"
                                             className="fileDownloadButton"
                                             onClick={() => openDownload(attachment.id).catch((error) => setStatus(error.message))}
                                             title={attachment.filename}
                                           >
                                             {attachment.filename}
-                                          </button>
+                                          </OneShotButton>
                                           <small>{formatBytes(attachment.size_bytes)}</small>
                                         </div>
                                       </li>
@@ -443,13 +446,13 @@ function DiscussionPageContent(props: {
                                     )
                                     .map((attachment) => (
                                       <li key={attachment.id} className="commentAttachmentItem">
-                                        <button
+                                        <OneShotButton
                                           type="button"
                                           className="fileDownloadButton"
                                           onClick={() => openDownload(attachment.id).catch((error) => setStatus(error.message))}
                                         >
                                           {attachment.filename}
-                                        </button>
+                                        </OneShotButton>
                                         <small>{formatBytes(attachment.size_bytes)}</small>
                                       </li>
                                     ))}
@@ -464,87 +467,27 @@ function DiscussionPageContent(props: {
               ))}
             </ul>
           </section>
-          <section className="discussionSection">
-            <h2>Add Comment</h2>
-            <div className="form editorWrap">
+          <DiscussionComposer
+            editor={(
               <MarkdownEditor
                 key={`new-${newCommentEditorKey}`}
                 markdown={commentBody}
                 onChange={setCommentBody}
                 placeholder="Reply in markdown"
               />
-              <div className="commentUploadArea">
-                <label className="commentFileLabel">Attach files (optional)</label>
-                <input
-                  ref={commentFileInputRef}
-                  type="file"
-                  multiple
-                  className="commentFileInputHidden"
-                  onChange={(event) => addPendingFiles(event.target.files ?? [])}
-                />
-                <div
-                  className={`commentDropZone ${isAttachmentDragActive ? "commentDropZoneActive" : ""}`}
-                  onClick={() => commentFileInputRef.current?.click()}
-                  onDragEnter={(event) => {
-                    event.preventDefault();
-                    setIsAttachmentDragActive(true);
-                  }}
-                  onDragOver={(event) => {
-                    event.preventDefault();
-                    setIsAttachmentDragActive(true);
-                  }}
-                  onDragLeave={(event) => {
-                    event.preventDefault();
-                    setIsAttachmentDragActive(false);
-                  }}
-                  onDrop={(event) => {
-                    event.preventDefault();
-                    setIsAttachmentDragActive(false);
-                    addPendingFiles(event.dataTransfer.files);
-                  }}
-                >
-                  <p className="commentDropZoneTitle">Drag files here</p>
-                  <p className="commentDropZoneSubtle">or click to browse from your device</p>
-                </div>
-                {pendingAttachments.length > 0 && (
-                  <ul className="commentUploadQueue">
-                    {pendingAttachments.map((attachment) => (
-                      <li key={attachment.id} className="commentUploadQueueItem">
-                        <div className="commentUploadQueueHead">
-                          <span>{attachment.file.name}</span>
-                          <small>
-                            {formatBytes(attachment.file.size)} • {formatAttachmentStage(attachment)}
-                          </small>
-                        </div>
-                        <div className="commentUploadProgressTrack" aria-hidden="true">
-                          <span className="commentUploadProgressFill" style={{ width: `${attachment.progress}%` }} />
-                        </div>
-                        {attachment.error && <small className="commentUploadError">{attachment.error}</small>}
-                        {!isUploadingAttachments && (
-                          <button
-                            type="button"
-                            className="secondary"
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              removePendingAttachment(attachment.id);
-                            }}
-                          >
-                            Remove
-                          </button>
-                        )}
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-              <button
-                onClick={() => addComment().catch((error) => setStatus(error.message))}
-                disabled={!commentBody.trim() || isUploadingAttachments}
-              >
-                {isUploadingAttachments ? "Uploading..." : "Add Comment"}
-              </button>
-            </div>
-          </section>
+            )}
+            commentFileInputRef={commentFileInputRef}
+            pendingAttachments={pendingAttachments}
+            isAttachmentDragActive={isAttachmentDragActive}
+            isUploadingAttachments={isUploadingAttachments}
+            canSubmit={Boolean(commentBody.trim()) && !isUploadingAttachments}
+            submitLabel={isUploadingAttachments ? "Uploading..." : "Add Comment"}
+            onSetAttachmentDragActive={setIsAttachmentDragActive}
+            onAddPendingFiles={addPendingFiles}
+            onRemovePendingAttachment={removePendingAttachment}
+            onSubmit={() => addComment().catch((error) => setStatus(error.message))}
+            formatAttachmentStage={formatAttachmentStage}
+          />
         </>
       )}
     </main>
@@ -598,23 +541,6 @@ async function uploadAttachmentForComment(args: {
     })(),
     onProgress: onUploadProgress
   });
-}
-
-function formatBytes(size: number) {
-  if (!Number.isFinite(size) || size < 0) {
-    return "0 B";
-  }
-  if (size < 1024) {
-    return `${size} B`;
-  }
-  const units = ["KB", "MB", "GB"];
-  let value = size / 1024;
-  let unitIndex = 0;
-  while (value >= 1024 && unitIndex < units.length - 1) {
-    value /= 1024;
-    unitIndex += 1;
-  }
-  return `${value.toFixed(value >= 10 ? 0 : 1)} ${units[unitIndex]}`;
 }
 
 function formatAttachmentStage(attachment: PendingAttachment) {

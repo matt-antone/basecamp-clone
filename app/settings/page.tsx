@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { PageLoadingState } from "@/components/loading-shells";
+import { OneShotButton } from "@/components/one-shot-button";
 import { getAvatarProxyUrl } from "@/lib/avatar";
 import { authedJsonFetch, fetchAuthSession } from "@/lib/browser-auth";
 import { createClientResource } from "@/lib/client-resource";
@@ -323,15 +324,15 @@ function SettingsPageContent({ initial }: { initial: SettingsBootstrap }) {
       <p className="status">{status}</p>
 
       <div className="tabsRow">
-        <button className={tab === "clients" ? "tabButton activeTab" : "tabButton"} onClick={() => setTab("clients")}>
+        <OneShotButton className={tab === "clients" ? "tabButton activeTab" : "tabButton"} onClick={() => setTab("clients")}>
           Client List
-        </button>
-        <button className={tab === "profile" ? "tabButton activeTab" : "tabButton"} onClick={() => setTab("profile")}>
+        </OneShotButton>
+        <OneShotButton className={tab === "profile" ? "tabButton activeTab" : "tabButton"} onClick={() => setTab("profile")}>
           Profile
-        </button>
-        <button className={tab === "site" ? "tabButton activeTab" : "tabButton"} onClick={() => setTab("site")}>
+        </OneShotButton>
+        <OneShotButton className={tab === "site" ? "tabButton activeTab" : "tabButton"} onClick={() => setTab("site")}>
           Site
-        </button>
+        </OneShotButton>
       </div>
 
       {tab === "clients" && (
@@ -345,9 +346,9 @@ function SettingsPageContent({ initial }: { initial: SettingsBootstrap }) {
               value={code}
               onChange={(e) => setCode(e.target.value.toUpperCase())}
             />
-            <button onClick={() => createClient().catch((error) => setStatus(error.message))} disabled={!name || !code}>
+            <OneShotButton onClick={() => createClient().catch((error) => setStatus(error.message))} disabled={!name || !code}>
               Add Client
-            </button>
+            </OneShotButton>
           </div>
 
           <ul>
@@ -424,9 +425,9 @@ function SettingsPageContent({ initial }: { initial: SettingsBootstrap }) {
               />
             </label>
 
-            <button onClick={() => saveProfile().catch((error) => setStatus(error.message))} disabled={savingProfile}>
+            <OneShotButton onClick={() => saveProfile().catch((error) => setStatus(error.message))} disabled={savingProfile}>
               {savingProfile ? "Saving..." : "Save Profile"}
-            </button>
+            </OneShotButton>
           </div>
         </section>
       )}
@@ -465,9 +466,9 @@ function SettingsPageContent({ initial }: { initial: SettingsBootstrap }) {
               <span className="siteBrandPreviewTitle">{siteSettings.siteTitle.trim() || DEFAULT_SITE_TITLE}</span>
             </div>
 
-            <button onClick={() => saveSiteSettings().catch((error) => setStatus(error.message))} disabled={savingSiteSettings || !token}>
+            <OneShotButton onClick={() => saveSiteSettings().catch((error) => setStatus(error.message))} disabled={savingSiteSettings || !token}>
               {savingSiteSettings ? "Saving..." : "Save Site Settings"}
-            </button>
+            </OneShotButton>
           </div>
         </section>
       )}
