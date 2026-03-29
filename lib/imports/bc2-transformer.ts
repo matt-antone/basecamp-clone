@@ -118,3 +118,31 @@ export async function resolvePerson(person: Bc2Person, jobId: string): Promise<R
 
   return { localProfileId, isLegacy };
 }
+
+// Returns true if a legacy profile was found and reconciled.
+export async function reconcileLegacyProfile(
+  email: string,
+  googleUid: string
+): Promise<boolean> {
+  const legacyRow = await query(
+    "select id from user_profiles where email = $1 and is_legacy = true limit 1",
+    [email]
+  );
+  if (!legacyRow.rows[0]) return false;
+
+  const oldId = legacyRow.rows[0].id as string;
+
+  // Update the profile: new id = Google UID, clear legacy flag
+  await query(
+    "update user_profiles set id = $1, is_legacy = false, updated_at = now() where id = $2",
+    [googleUid, oldId]
+  );
+
+  // Update import_map_people to point to the new id
+  await query(
+    "update import_map_people set local_user_profile_id = $1 where local_user_profile_id = $2",
+    [googleUid, oldId]
+  );
+
+  return true;
+}

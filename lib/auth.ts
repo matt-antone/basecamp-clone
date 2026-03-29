@@ -7,6 +7,7 @@ import {
   updateUserProfile,
   type UserProfile
 } from "./repositories";
+import { reconcileLegacyProfile } from "./imports/bc2-transformer";
 
 const callbackSchema = z.object({
   email: z.string().email(),
@@ -118,6 +119,12 @@ export async function requireUser(request: Request): Promise<AuthenticatedUser> 
     email: data.user.email,
     userMetadata: data.user.user_metadata
   });
+
+  try {
+    await reconcileLegacyProfile(data.user.email, data.user.id);
+  } catch {
+    // best-effort — don't block login on reconciliation failure
+  }
 
   const existingProfile = await getUserProfileById(data.user.id);
   if (!existingProfile) {
