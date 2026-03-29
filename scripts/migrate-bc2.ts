@@ -9,6 +9,7 @@ import {
   resolveClientId,
   resolvePerson
 } from "../lib/imports/bc2-transformer";
+import { createThread, createComment } from "../lib/repositories";
 
 // ── Script-local DB pool (bypasses lib/db → lib/config's server-only guard) ──
 const _pool = new Pool({ connectionString: process.env.DATABASE_URL });
@@ -225,7 +226,114 @@ async function migrateProjects(
   return projects;
 }
 
-// ── Main (stub for now — threads/comments/files added in Tasks 8-9) ───────────
+// ── Threads and comments phase ────────────────────────────────────────────────
+
+async function migrateThreadsAndComments(
+  jobId: string,
+  fetcher: Bc2Fetcher,
+  projects: MigratedProject[],
+  personMap: Map<number, string>,
+  mode: RunMode
+): Promise<{ threadCount: number; commentCount: number }> {
+  let threadCount = 0;
+  let commentCount = 0;
+
+  process.stdout.write("Migrating threads and comments...\n");
+
+  for (let i = 0; i < projects.length; i++) {
+    const project = projects[i];
+    let projectThreads = 0;
+    let projectComments = 0;
+
+    for await (const message of fetcher.fetchMessages(String(project.bc2Id))) {
+      try {
+        let localThreadId: string;
+
+        if (mode !== "dry") {
+          // Idempotency: check map
+          const existing = await query(
+            "select local_thread_id from import_map_threads where basecamp_thread_id = $1",
+            [String(message.id)]
+          );
+          if (existing.rows[0]) {
+            localThreadId = existing.rows[0].local_thread_id as string;
+          } else {
+            const authorUserId = personMap.get(message.creator.id) ?? `dry_${message.creator.id}`;
+            const thread = await createThread({
+              projectId: project.localId,
+              title: message.subject,
+              bodyMarkdown: message.content ?? "",
+              authorUserId
+            });
+            localThreadId = thread.id as string;
+            await query(
+              "insert into import_map_threads (basecamp_thread_id, local_thread_id) values ($1,$2)",
+              [String(message.id), localThreadId]
+            );
+            await logRecord(jobId, "thread", String(message.id), "success");
+            await incrementCounters(jobId, 1, 0);
+          }
+        } else {
+          localThreadId = `dry_thread_${message.id}`;
+        }
+
+        projectThreads++;
+        threadCount++;
+
+        // Migrate comments for this message
+        for await (const comment of fetcher.fetchComments(String(project.bc2Id), String(message.id))) {
+          try {
+            if (mode !== "dry") {
+              const existingComment = await query(
+                "select local_comment_id from import_map_comments where basecamp_comment_id = $1",
+                [String(comment.id)]
+              );
+              if (!existingComment.rows[0]) {
+                const authorUserId = personMap.get(comment.creator.id) ?? `dry_${comment.creator.id}`;
+                const created = await createComment({
+                  projectId: project.localId,
+                  threadId: localThreadId,
+                  bodyMarkdown: comment.content ?? "",
+                  authorUserId
+                });
+                await query(
+                  "insert into import_map_comments (basecamp_comment_id, local_comment_id) values ($1,$2)",
+                  [String(comment.id), created.id as string]
+                );
+                await logRecord(jobId, "comment", String(comment.id), "success");
+                await incrementCounters(jobId, 1, 0);
+              }
+            }
+            projectComments++;
+            commentCount++;
+          } catch (err) {
+            const msg = err instanceof Error ? err.message : String(err);
+            process.stderr.write(`  comment ${comment.id} FAILED: ${msg}\n`);
+            if (mode !== "dry") {
+              await logRecord(jobId, "comment", String(comment.id), "failed", msg);
+              await incrementCounters(jobId, 0, 1);
+            }
+          }
+        }
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        process.stderr.write(`  thread ${message.id} FAILED: ${msg}\n`);
+        if (mode !== "dry") {
+          await logRecord(jobId, "thread", String(message.id), "failed", msg);
+          await incrementCounters(jobId, 0, 1);
+        }
+      }
+    }
+
+    process.stdout.write(
+      `  [${pad(i + 1, projects.length)}/${projects.length}] ${project.name}  ${projectThreads} threads  ${projectComments} comments\n`
+    );
+  }
+
+  return { threadCount, commentCount };
+}
+
+// ── Main ──────────────────────────────────────────────────────────────────────
 
 async function main() {
   const flags = parseFlags();
@@ -258,12 +366,18 @@ async function main() {
   const personMap = await migratePeople(jobId, fetcher, flags.mode);
   const projects   = await migrateProjects(jobId, fetcher, personMap, flags);
 
-  // Tasks 8-9 will call migrateThreads, migrateComments, migrateFiles here
+  const { threadCount, commentCount } = await migrateThreadsAndComments(
+    jobId, fetcher, projects, personMap, flags.mode
+  );
+
+  // Task 9 will call migrateFiles here
 
   if (jobId !== "dry-run") {
     await finishJob(jobId, "completed");
   }
-  console.log(`\nDone — ${projects.length} projects processed (job_id=${jobId})`);
+  console.log(
+    `\nDone — ${projects.length} projects, ${threadCount} threads, ${commentCount} comments (job_id=${jobId})`
+  );
 }
 
 main().catch(err => {
