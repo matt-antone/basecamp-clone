@@ -3,13 +3,13 @@
 
 import { Pool, type QueryResultRow } from "pg";
 import { Bc2Client } from "../lib/imports/bc2-client";
-import { Bc2Fetcher } from "../lib/imports/bc2-fetcher";
+import { Bc2Fetcher, type Bc2Attachment } from "../lib/imports/bc2-fetcher";
 import {
   parseProjectTitle,
   resolveClientId,
   resolvePerson
 } from "../lib/imports/bc2-transformer";
-import { createThread, createComment } from "../lib/repositories";
+import { createThread, createComment, createFileMetadata } from "../lib/repositories";
 import { DropboxStorageAdapter } from "../lib/storage/dropbox-adapter";
 import { getProjectStorageDir } from "../lib/project-storage";
 
@@ -237,7 +237,6 @@ const FILE_RETRY_DELAY_MS = 1000;
 async function migrateFiles(
   jobId: string,
   fetcher: Bc2Fetcher,
-  client: Bc2Client,
   projects: MigratedProject[],
   personMap: Map<number, string>,
   mode: RunMode,
@@ -273,7 +272,7 @@ async function migrateFiles(
     const storageDir = getProjectStorageDir(projectRecord);
 
     // Collect attachments into a queue for batched concurrency
-    const attachmentQueue: Array<ReturnType<typeof fetcher.fetchAttachments> extends AsyncGenerator<infer T> ? T : never> = [];
+    const attachmentQueue: Bc2Attachment[] = [];
     for await (const attachment of fetcher.fetchAttachments(String(project.bc2Id))) {
       attachmentQueue.push(attachment);
     }
@@ -336,25 +335,21 @@ async function migrateFiles(
             // Determine uploader user id
             const uploaderUserId = personMap.get(attachment.creator.id) ?? `bc2_${attachment.creator.id}`;
 
-            // Insert project_files row directly via script-local pool (avoids server-only guard)
-            const fileInsert = await query(
-              `insert into project_files
-                 (project_id, uploader_user_id, filename, mime_type, size_bytes,
-                  dropbox_file_id, dropbox_path, checksum)
-               values ($1, $2, $3, $4, $5, $6, $7, $8)
-               returning id`,
-              [
-                project.localId,
-                uploaderUserId,
-                attachment.filename,
-                attachment.content_type,
-                attachment.byte_size,
-                uploaded.fileId,
-                uploaded.path,
-                ""  // no checksum available from BC2
-              ]
-            );
-            const localFileId = fileInsert.rows[0]?.id as string;
+            // Insert project_files row via repository helper
+            const fileRecord = await createFileMetadata({
+              projectId: project.localId,
+              uploaderUserId,
+              filename: attachment.filename,
+              mimeType: attachment.content_type,
+              sizeBytes: attachment.byte_size,
+              dropboxFileId: uploaded.fileId,
+              dropboxPath: uploaded.path,
+              checksum: ""  // no checksum available from BC2
+            });
+            if (!fileRecord) {
+              throw new Error(`createFileMetadata returned null for attachment ${attachment.id}`);
+            }
+            const localFileId = fileRecord.id as string;
 
             // Record in import map
             await query(
@@ -537,7 +532,7 @@ async function main() {
   );
 
   const fileCount = await migrateFiles(
-    jobId, fetcher, client, projects, personMap, flags.mode, flags.files
+    jobId, fetcher, projects, personMap, flags.mode, flags.files
   );
 
   if (jobId !== "dry-run") {
