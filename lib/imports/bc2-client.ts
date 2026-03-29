@@ -1,11 +1,12 @@
 // lib/imports/bc2-client.ts
 
-const BC2_BASE = "https://basecampapi.com";
+const BC2_BASE = "https://basecamp.com";
 const BACKOFF_SEQUENCE_MS = [1000, 2000, 4000, 8000, 16000, 30000];
 
 export interface Bc2ClientOptions {
   accountId: string;
-  accessToken: string;
+  username: string;
+  password: string;
   userAgent: string;
   requestDelayMs?: number;
 }
@@ -21,8 +22,8 @@ function parseNextUrl(linkHeader: string | null): string | null {
   return match ? match[1] : null;
 }
 
-function makeAuthHeader(accessToken: string): string {
-  return "Basic " + Buffer.from(`${accessToken}:X`).toString("base64");
+function makeAuthHeader(username: string, password: string): string {
+  return "Basic " + Buffer.from(`${username}:${password}`).toString("base64");
 }
 
 function sleep(ms: number): Promise<void> {
@@ -37,7 +38,7 @@ export class Bc2Client {
 
   constructor(options: Bc2ClientOptions) {
     this.accountId = options.accountId;
-    this.authHeader = makeAuthHeader(options.accessToken);
+    this.authHeader = makeAuthHeader(options.username, options.password);
     this.userAgent = options.userAgent;
     this.requestDelayMs = options.requestDelayMs ?? 200;
   }
@@ -45,7 +46,7 @@ export class Bc2Client {
   async get<T = unknown>(path: string): Promise<Bc2Response<T>> {
     const url = path.startsWith("https://")
       ? path
-      : `${BC2_BASE}/${this.accountId}${path}`;
+      : `${BC2_BASE}/${this.accountId}/api/v1${path}`;
 
     if (this.requestDelayMs > 0) {
       await sleep(this.requestDelayMs);

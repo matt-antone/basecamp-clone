@@ -19,7 +19,8 @@ describe("Bc2Client", () => {
     mockFetch.mockReset();
     client = new Bc2Client({
       accountId: "12345",
-      accessToken: "mytoken",
+      username: "user@example.com",
+      password: "secret",
       userAgent: "Test (test@example.com)",
       requestDelayMs: 0
     });
@@ -29,9 +30,20 @@ describe("Bc2Client", () => {
     mockFetch.mockResolvedValueOnce(jsonResponse({ id: 1 }));
     await client.get("/people.json");
     const [url, init] = mockFetch.mock.calls[0];
-    expect(url).toContain("basecampapi.com/12345/people.json");
+    expect(url).toContain("basecamp.com/12345/api/v1/people.json");
     expect(init.headers["Authorization"]).toMatch(/^Basic /);
     expect(init.headers["User-Agent"]).toBe("Test (test@example.com)");
+  });
+
+  it("encodes username:password in Basic auth (not token:X)", async () => {
+    mockFetch.mockResolvedValueOnce(jsonResponse({}));
+    await client.get("/people.json");
+    const [, init] = mockFetch.mock.calls[0];
+    const decoded = Buffer.from(
+      init.headers["Authorization"].replace("Basic ", ""),
+      "base64"
+    ).toString();
+    expect(decoded).toBe("user@example.com:secret");
   });
 
   it("returns parsed JSON body", async () => {
@@ -44,11 +56,11 @@ describe("Bc2Client", () => {
   it("parses next URL from Link header", async () => {
     mockFetch.mockResolvedValueOnce(
       jsonResponse([{ id: 1 }], 200, {
-        Link: '<https://basecampapi.com/12345/people.json?page=2>; rel="next"'
+        Link: '<https://basecamp.com/12345/api/v1/people.json?page=2>; rel="next"'
       })
     );
     const result = await client.get("/people.json");
-    expect(result.nextUrl).toBe("https://basecampapi.com/12345/people.json?page=2");
+    expect(result.nextUrl).toBe("https://basecamp.com/12345/api/v1/people.json?page=2");
   });
 
   it("retries on 429 with exponential backoff", async () => {
