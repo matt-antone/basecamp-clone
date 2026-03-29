@@ -1,6 +1,10 @@
 #!/usr/bin/env npx tsx
 // scripts/migrate-bc2.ts
 
+import { config } from "dotenv";
+import { resolve } from "path";
+config({ path: resolve(process.cwd(), ".env.local") });
+
 import { Pool, type QueryResultRow } from "pg";
 import { Bc2Client } from "../lib/imports/bc2-client";
 import { Bc2Fetcher, type Bc2Attachment } from "../lib/imports/bc2-fetcher";
