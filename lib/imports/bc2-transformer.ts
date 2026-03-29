@@ -64,7 +64,13 @@ export async function resolvePerson(person: Bc2Person, jobId: string): Promise<R
     [String(person.id)]
   );
   if (mapRow.rows[0]) {
-    return { localProfileId: mapRow.rows[0].local_user_profile_id as string, isLegacy: false };
+    const cachedId = mapRow.rows[0].local_user_profile_id as string;
+    const profileRow = await query(
+      "select is_legacy from user_profiles where id = $1 limit 1",
+      [cachedId]
+    );
+    const isLegacy = (profileRow.rows[0]?.is_legacy as boolean | undefined) ?? false;
+    return { localProfileId: cachedId, isLegacy };
   }
 
   // Try to match by email

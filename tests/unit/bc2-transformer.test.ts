@@ -85,9 +85,12 @@ describe("resolvePerson", () => {
   it("returns already-mapped profile without re-inserting", async () => {
     // 1st query: check import_map_people — found
     mockQuery.mockResolvedValueOnce({ rows: [{ local_user_profile_id: "cached-uuid" }] });
+    // 2nd query: lookup is_legacy on profile
+    mockQuery.mockResolvedValueOnce({ rows: [{ is_legacy: true }] });
 
     const result = await resolvePerson(person, "job-1");
     expect(result.localProfileId).toBe("cached-uuid");
-    expect(mockQuery).toHaveBeenCalledTimes(1);
+    expect(result.isLegacy).toBe(true);
+    expect(mockQuery).toHaveBeenCalledTimes(2);
   });
 });
