@@ -13,7 +13,7 @@ function mockServer() {
   };
 }
 
-const agent = { client_id: "claude", role: "agent" };
+const agent = { client_id: "mcp-test-client", role: "agent" };
 
 describe("list_projects", () => {
   it("returns projects as JSON text content", async () => {

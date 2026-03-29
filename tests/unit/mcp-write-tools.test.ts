@@ -13,16 +13,16 @@ function mockServer() {
   };
 }
 
-const agent = { client_id: "claude", role: "agent" };
+const agent = { client_id: "mcp-test-client", role: "agent" };
 
 describe("create_project", () => {
   it("creates a project and stamps author_user_id from agent", async () => {
-    const created = { id: "p-1", name: "New Project", created_by: "claude" };
+    const created = { id: "p-1", name: "New Project", created_by: "mcp-test-client" };
     const spy = vi.spyOn(db, "createProject").mockResolvedValue(created as any);
     const server = mockServer();
     registerTools(server as any, {} as any, agent);
     const result = await server.call("create_project", { name: "New Project" });
-    expect(spy).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ name: "New Project" }), "claude");
+    expect(spy).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ name: "New Project" }), "mcp-test-client");
     const data = JSON.parse(result.content[0].text);
     expect(data.name).toBe("New Project");
   });
@@ -60,7 +60,7 @@ describe("create_thread", () => {
     expect(spy).toHaveBeenCalledWith(
       expect.anything(),
       expect.objectContaining({ body_markdown: "**bold**", body_html: expect.stringContaining("<strong>") }),
-      "claude"
+      "mcp-test-client"
     );
   });
 });
@@ -93,7 +93,7 @@ describe("create_comment", () => {
     expect(spy).toHaveBeenCalledWith(
       expect.anything(),
       expect.objectContaining({ project_id: "proj-1" }),
-      "claude"
+      "mcp-test-client"
     );
   });
 });

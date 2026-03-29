@@ -61,7 +61,7 @@ Agent credentials live in the DB. The edge function loads the calling agent's ro
 
 ```
 Authorization: Bearer <secret>
-x-mcp-client-id: claude
+x-mcp-client-id: mcp-test-client
 ```
 
 The edge function looks up `client_id` in `agent_clients`, does a timing-safe bcrypt compare against the stored `secret_hash`, and resolves → `{ client_id, role }`. This identity is used for:
@@ -281,7 +281,7 @@ Once deployed, agents connect via HTTP transport:
       "url": "https://<project-ref>.supabase.co/functions/v1/basecamp-mcp",
       "headers": {
         "Authorization": "Bearer <secret>",
-        "x-mcp-client-id": "claude"
+        "x-mcp-client-id": "mcp-test-client"
       }
     }
   }

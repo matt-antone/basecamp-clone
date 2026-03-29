@@ -13,7 +13,7 @@ function mockServer() {
   };
 }
 
-const agent = { client_id: "claude", role: "agent" };
+const agent = { client_id: "mcp-test-client", role: "agent" };
 
 describe("create_file", () => {
   it("registers file metadata with agent as uploader", async () => {
@@ -30,7 +30,7 @@ describe("create_file", () => {
       checksum: "sha256:abc",
     };
     await server.call("create_file", params);
-    expect(spy).toHaveBeenCalledWith(expect.anything(), params, "claude");
+    expect(spy).toHaveBeenCalledWith(expect.anything(), params, "mcp-test-client");
   });
 
   it("accepts optional thread_id and comment_id", async () => {
@@ -51,7 +51,7 @@ describe("create_file", () => {
     expect(spy).toHaveBeenCalledWith(
       expect.anything(),
       expect.objectContaining({ thread_id: "t-1", comment_id: "c-1" }),
-      "claude"
+      "mcp-test-client"
     );
   });
 });
@@ -59,7 +59,7 @@ describe("create_file", () => {
 describe("get_my_profile", () => {
   it("returns the calling agent's profile", async () => {
     vi.spyOn(db, "getProfile").mockResolvedValue({
-      client_id: "claude",
+      client_id: "mcp-test-client",
       name: "Claude",
       bio: "AI assistant",
       preferences: {},
@@ -68,7 +68,7 @@ describe("get_my_profile", () => {
     registerTools(server as any, {} as any, agent);
     const result = await server.call("get_my_profile", {});
     const data = JSON.parse(result.content[0].text);
-    expect(data.client_id).toBe("claude");
+    expect(data.client_id).toBe("mcp-test-client");
     expect(data.name).toBe("Claude");
   });
 
@@ -84,7 +84,7 @@ describe("get_my_profile", () => {
 describe("update_my_profile", () => {
   it("updates agent profile with provided fields", async () => {
     const spy = vi.spyOn(db, "updateProfile").mockResolvedValue({
-      client_id: "claude",
+      client_id: "mcp-test-client",
       name: "Claude Agent",
     } as any);
     const server = mockServer();
@@ -92,7 +92,7 @@ describe("update_my_profile", () => {
     const result = await server.call("update_my_profile", { name: "Claude Agent" });
     expect(spy).toHaveBeenCalledWith(
       expect.anything(),
-      "claude",
+      "mcp-test-client",
       expect.objectContaining({ name: "Claude Agent" })
     );
     const data = JSON.parse(result.content[0].text);

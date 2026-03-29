@@ -245,35 +245,35 @@ describe("resolveAgent", () => {
   });
 
   it("throws AuthError when secret is null", async () => {
-    await expect(resolveAgent({} as any, "claude", null))
+    await expect(resolveAgent({} as any, "mcp-test-client", null))
       .rejects.toThrow(AuthError);
   });
 
   it("throws AuthError when agent not found in DB", async () => {
     const supabase = mockSupabase(null, { message: "not found" });
-    await expect(resolveAgent(supabase, "claude", "secret"))
+    await expect(resolveAgent(supabase, "mcp-test-client", "secret"))
       .rejects.toThrow(AuthError);
   });
 
   it("throws AuthError when agent is disabled", async () => {
     const hash = await bcrypt.hash("secret", 10);
-    const supabase = mockSupabase({ client_id: "claude", secret_hash: hash, role: "agent", disabled: true });
-    await expect(resolveAgent(supabase, "claude", "secret"))
+    const supabase = mockSupabase({ client_id: "mcp-test-client", secret_hash: hash, role: "agent", disabled: true });
+    await expect(resolveAgent(supabase, "mcp-test-client", "secret"))
       .rejects.toThrow(AuthError);
   });
 
   it("throws AuthError when secret is wrong", async () => {
     const hash = await bcrypt.hash("correct", 10);
-    const supabase = mockSupabase({ client_id: "claude", secret_hash: hash, role: "agent", disabled: false });
-    await expect(resolveAgent(supabase, "claude", "wrong"))
+    const supabase = mockSupabase({ client_id: "mcp-test-client", secret_hash: hash, role: "agent", disabled: false });
+    await expect(resolveAgent(supabase, "mcp-test-client", "wrong"))
       .rejects.toThrow(AuthError);
   });
 
   it("returns identity when credentials are valid", async () => {
     const hash = await bcrypt.hash("secret", 10);
-    const supabase = mockSupabase({ client_id: "claude", secret_hash: hash, role: "agent", disabled: false });
-    const identity = await resolveAgent(supabase, "claude", "secret");
-    expect(identity).toEqual({ client_id: "claude", role: "agent" });
+    const supabase = mockSupabase({ client_id: "mcp-test-client", secret_hash: hash, role: "agent", disabled: false });
+    const identity = await resolveAgent(supabase, "mcp-test-client", "secret");
+    expect(identity).toEqual({ client_id: "mcp-test-client", role: "agent" });
   });
 });
 
@@ -281,10 +281,10 @@ describe("ensureProfile", () => {
   it("upserts a profile row with ignoreDuplicates", async () => {
     const upsert = vi.fn().mockResolvedValue({ error: null });
     const from = vi.fn().mockReturnValue({ upsert });
-    await ensureProfile({ from } as any, "claude");
+    await ensureProfile({ from } as any, "mcp-test-client");
     expect(from).toHaveBeenCalledWith("agent_profiles");
     expect(upsert).toHaveBeenCalledWith(
-      { client_id: "claude" },
+      { client_id: "mcp-test-client" },
       expect.objectContaining({ ignoreDuplicates: true })
     );
   });
@@ -760,7 +760,7 @@ function mockServer() {
   };
 }
 
-const agent = { client_id: "claude", role: "agent" };
+const agent = { client_id: "mcp-test-client", role: "agent" };
 
 describe("list_projects", () => {
   it("returns projects as JSON text content", async () => {
@@ -1045,16 +1045,16 @@ function mockServer() {
   };
 }
 
-const agent = { client_id: "claude", role: "agent" };
+const agent = { client_id: "mcp-test-client", role: "agent" };
 
 describe("create_project", () => {
   it("creates a project and stamps author_user_id from agent", async () => {
-    const created = { id: "p-1", name: "New Project", created_by: "claude" };
+    const created = { id: "p-1", name: "New Project", created_by: "mcp-test-client" };
     const spy = vi.spyOn(db, "createProject").mockResolvedValue(created as any);
     const server = mockServer();
     registerTools(server as any, {} as any, agent);
     const result = await server.call("create_project", { name: "New Project" });
-    expect(spy).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ name: "New Project" }), "claude");
+    expect(spy).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ name: "New Project" }), "mcp-test-client");
     const data = JSON.parse(result.content[0].text);
     expect(data.name).toBe("New Project");
   });
@@ -1092,7 +1092,7 @@ describe("create_thread", () => {
     expect(spy).toHaveBeenCalledWith(
       expect.anything(),
       expect.objectContaining({ body_markdown: "**bold**", body_html: expect.stringContaining("<strong>") }),
-      "claude"
+      "mcp-test-client"
     );
   });
 });
@@ -1125,7 +1125,7 @@ describe("create_comment", () => {
     expect(spy).toHaveBeenCalledWith(
       expect.anything(),
       expect.objectContaining({ project_id: "proj-1" }),
-      "claude"
+      "mcp-test-client"
     );
   });
 });
@@ -1325,7 +1325,7 @@ function mockServer() {
   };
 }
 
-const agent = { client_id: "claude", role: "agent" };
+const agent = { client_id: "mcp-test-client", role: "agent" };
 
 describe("create_file", () => {
   it("registers file metadata with agent as uploader", async () => {
@@ -1342,7 +1342,7 @@ describe("create_file", () => {
       checksum: "sha256:abc",
     };
     await server.call("create_file", params);
-    expect(spy).toHaveBeenCalledWith(expect.anything(), params, "claude");
+    expect(spy).toHaveBeenCalledWith(expect.anything(), params, "mcp-test-client");
   });
 
   it("accepts optional thread_id and comment_id", async () => {
@@ -1363,7 +1363,7 @@ describe("create_file", () => {
     expect(spy).toHaveBeenCalledWith(
       expect.anything(),
       expect.objectContaining({ thread_id: "t-1", comment_id: "c-1" }),
-      "claude"
+      "mcp-test-client"
     );
   });
 });
@@ -1371,7 +1371,7 @@ describe("create_file", () => {
 describe("get_my_profile", () => {
   it("returns the calling agent's profile", async () => {
     vi.spyOn(db, "getProfile").mockResolvedValue({
-      client_id: "claude",
+      client_id: "mcp-test-client",
       name: "Claude",
       bio: "AI assistant",
       preferences: {},
@@ -1380,7 +1380,7 @@ describe("get_my_profile", () => {
     registerTools(server as any, {} as any, agent);
     const result = await server.call("get_my_profile", {});
     const data = JSON.parse(result.content[0].text);
-    expect(data.client_id).toBe("claude");
+    expect(data.client_id).toBe("mcp-test-client");
     expect(data.name).toBe("Claude");
   });
 
@@ -1396,7 +1396,7 @@ describe("get_my_profile", () => {
 describe("update_my_profile", () => {
   it("updates agent profile with provided fields", async () => {
     const spy = vi.spyOn(db, "updateProfile").mockResolvedValue({
-      client_id: "claude",
+      client_id: "mcp-test-client",
       name: "Claude Agent",
     } as any);
     const server = mockServer();
@@ -1404,7 +1404,7 @@ describe("update_my_profile", () => {
     const result = await server.call("update_my_profile", { name: "Claude Agent" });
     expect(spy).toHaveBeenCalledWith(
       expect.anything(),
-      "claude",
+      "mcp-test-client",
       expect.objectContaining({ name: "Claude Agent" })
     );
     const data = JSON.parse(result.content[0].text);
@@ -1620,7 +1620,7 @@ MCP_RATE_LIMIT_RPM=120
 # Agent credentials are stored in the agent_clients DB table.
 # To add an agent, insert a row with a bcrypt-hashed secret:
 #   insert into agent_clients (client_id, secret_hash, role)
-#   values ('claude', crypt('your-secret', gen_salt('bf')), 'agent');
+#   values ('mcp-test-client', crypt('your-secret', gen_salt('bf')), 'agent');
 # Note: requires pgcrypto extension (already enabled in migration 0001).
 
 # ─── Integration Smoke Test ───────────────────────────────────────────────────
@@ -1669,7 +1669,7 @@ In the Supabase dashboard > SQL editor:
 -- Insert a test agent (uses pgcrypto, already enabled)
 insert into agent_clients (client_id, secret_hash, role)
 values (
-  'claude',
+  'mcp-test-client',
   crypt('your-secret-here', gen_salt('bf')),
   'agent'
 )
@@ -1785,7 +1785,7 @@ git commit -m "test(mcp): integration smoke test for live edge function"
 
 ## Connecting an Agent
 
-Add to `.mcp.json` or `~/.claude.json`:
+Add to `.mcp.json` or `~/.mcp-test-client.json`:
 
 ```json
 {
@@ -1795,7 +1795,7 @@ Add to `.mcp.json` or `~/.claude.json`:
       "url": "https://<project-ref>.supabase.co/functions/v1/basecamp-mcp",
       "headers": {
         "Authorization": "Bearer <your-secret>",
-        "x-mcp-client-id": "claude"
+        "x-mcp-client-id": "mcp-test-client"
       }
     }
   }
