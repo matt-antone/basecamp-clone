@@ -1657,7 +1657,7 @@ Note the function URL — it will be:
 Set in `.env.local`:
 ```
 MCP_SMOKE_URL=https://<project-ref>.supabase.co/functions/v1/basecamp-mcp
-MCP_SMOKE_CLIENT_ID=claude
+MCP_SMOKE_CLIENT_ID=<your-client-id>
 MCP_SMOKE_SECRET=<the secret you inserted into agent_clients>
 ```
 
@@ -1761,7 +1761,7 @@ describe.skipIf(!SMOKE_URL || !CLIENT_ID || !SECRET)("MCP smoke tests (live)", (
 - [ ] **Step 4: Run smoke tests**
 
 ```bash
-MCP_SMOKE_URL=https://... MCP_SMOKE_CLIENT_ID=claude MCP_SMOKE_SECRET=your-secret npx vitest run tests/integration/mcp-smoke.test.ts
+MCP_SMOKE_URL=https://... MCP_SMOKE_CLIENT_ID=<your-client-id> MCP_SMOKE_SECRET=your-secret npx vitest run tests/integration/mcp-smoke.test.ts
 ```
 
 Expected: All 6 tests PASS (skip message if env vars absent).
