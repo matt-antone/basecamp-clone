@@ -139,7 +139,7 @@ export const config = {
     }
     return value;
   },
-  smtpHost: () => getOptionalEnv("SMTP_HOST"),
+  smtpHost: () => getOptionalEnv("SMTP_HOST") ?? undefined,
   smtpPort: () => getNumberEnv("SMTP_PORT", 587),
   smtpSecure: () => getBooleanEnv("SMTP_SECURE", false),
   smtpUsername: () => getOptionalEnv("SMTP_USERNAME"),
