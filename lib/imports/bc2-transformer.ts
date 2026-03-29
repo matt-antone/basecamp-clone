@@ -49,3 +49,66 @@ export async function resolveClientId(code: string): Promise<string> {
   );
   return created.rows[0].id as string;
 }
+
+import type { Bc2Person } from "./bc2-fetcher";
+
+export interface ResolvedPerson {
+  localProfileId: string;
+  isLegacy: boolean;
+}
+
+export async function resolvePerson(person: Bc2Person, jobId: string): Promise<ResolvedPerson> {
+  // Check import map first (idempotency)
+  const mapRow = await query(
+    "select local_user_profile_id from import_map_people where basecamp_person_id = $1",
+    [String(person.id)]
+  );
+  if (mapRow.rows[0]) {
+    return { localProfileId: mapRow.rows[0].local_user_profile_id as string, isLegacy: false };
+  }
+
+  // Try to match by email
+  const emailRow = await query(
+    "select id from user_profiles where email = $1 limit 1",
+    [person.email_address]
+  );
+
+  let localProfileId: string;
+  let isLegacy: boolean;
+
+  if (emailRow.rows[0]) {
+    localProfileId = emailRow.rows[0].id as string;
+    isLegacy = false;
+  } else {
+    // Create legacy profile
+    const [firstName, ...restParts] = person.name.split(" ");
+    const lastName = restParts.join(" ") || null;
+    const legacyId = `bc2_${person.id}`;
+    const created = await query(
+      `insert into user_profiles
+         (id, email, first_name, last_name, avatar_url, job_title, timezone, is_legacy)
+       values ($1, $2, $3, $4, $5, $6, $7, true)
+       on conflict (id) do nothing
+       returning id`,
+      [
+        legacyId,
+        person.email_address,
+        firstName ?? null,
+        lastName,
+        person.avatar_url ?? null,
+        person.title ?? null,
+        person.time_zone ?? null
+      ]
+    );
+    localProfileId = (created.rows[0]?.id as string) ?? legacyId;
+    isLegacy = true;
+  }
+
+  // Record in import map
+  await query(
+    "insert into import_map_people (basecamp_person_id, local_user_profile_id) values ($1, $2) on conflict (basecamp_person_id) do nothing",
+    [String(person.id), localProfileId]
+  );
+
+  return { localProfileId, isLegacy };
+}

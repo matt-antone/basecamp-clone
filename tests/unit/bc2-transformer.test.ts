@@ -1,6 +1,14 @@
 // tests/unit/bc2-transformer.test.ts
-import { describe, it, expect } from "vitest";
-import { parseProjectTitle } from "@/lib/imports/bc2-transformer";
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import { parseProjectTitle, resolvePerson } from "@/lib/imports/bc2-transformer";
+import * as db from "@/lib/db";
+import type { Bc2Person } from "@/lib/imports/bc2-fetcher";
+
+vi.mock("@/lib/db", () => ({
+  query: vi.fn()
+}));
+
+const mockQuery = db.query as ReturnType<typeof vi.fn>;
 
 describe("parseProjectTitle", () => {
   it("parses standard format with number", () => {
@@ -31,5 +39,55 @@ describe("parseProjectTitle", () => {
   it("strips whitespace from title", () => {
     const r = parseProjectTitle("ALG-100:  Spaced Title  ");
     expect(r).toEqual({ code: "ALG", num: "100", title: "Spaced Title" });
+  });
+});
+
+describe("resolvePerson", () => {
+  const person: Bc2Person = {
+    id: 42,
+    name: "Alice Smith",
+    email_address: "alice@example.com",
+    avatar_url: null,
+    title: "Designer",
+    time_zone: "America/New_York"
+  };
+
+  beforeEach(() => mockQuery.mockReset());
+
+  it("returns existing profile id when email matches", async () => {
+    // 1st query: check import_map_people — not found
+    mockQuery.mockResolvedValueOnce({ rows: [] });
+    // 2nd query: lookup user_profiles by email — found
+    mockQuery.mockResolvedValueOnce({ rows: [{ id: "existing-uuid" }] });
+    // 3rd query: insert into import_map_people
+    mockQuery.mockResolvedValueOnce({ rows: [] });
+
+    const result = await resolvePerson(person, "job-1");
+    expect(result.localProfileId).toBe("existing-uuid");
+    expect(result.isLegacy).toBe(false);
+  });
+
+  it("creates legacy profile when no email match", async () => {
+    // 1st query: check import_map_people — not found
+    mockQuery.mockResolvedValueOnce({ rows: [] });
+    // 2nd query: lookup user_profiles by email — not found
+    mockQuery.mockResolvedValueOnce({ rows: [] });
+    // 3rd query: insert legacy user_profile
+    mockQuery.mockResolvedValueOnce({ rows: [{ id: "bc2_42" }] });
+    // 4th query: insert into import_map_people
+    mockQuery.mockResolvedValueOnce({ rows: [] });
+
+    const result = await resolvePerson(person, "job-1");
+    expect(result.localProfileId).toBe("bc2_42");
+    expect(result.isLegacy).toBe(true);
+  });
+
+  it("returns already-mapped profile without re-inserting", async () => {
+    // 1st query: check import_map_people — found
+    mockQuery.mockResolvedValueOnce({ rows: [{ local_user_profile_id: "cached-uuid" }] });
+
+    const result = await resolvePerson(person, "job-1");
+    expect(result.localProfileId).toBe("cached-uuid");
+    expect(mockQuery).toHaveBeenCalledTimes(1);
   });
 });
