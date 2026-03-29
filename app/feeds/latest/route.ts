@@ -13,7 +13,7 @@ export async function GET() {
           headers: {
             Accept: "application/rss+xml, application/xml, text/xml"
           },
-          next: { revalidate: 3600 }
+          next: { revalidate: 86400 }
         });
 
         if (!response.ok) {

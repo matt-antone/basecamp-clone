@@ -2,9 +2,12 @@ import { createHash } from "node:crypto";
 import { requireUser } from "@/lib/auth";
 import { badRequest, notFound, ok, serverError, unauthorized } from "@/lib/http";
 import { createFileMetadata, getComment, getProject, getThread } from "@/lib/repositories";
-import { DropboxStorageAdapter } from "@/lib/storage/dropbox-adapter";
-import { isTeamSelectUserRequiredError } from "@/lib/storage/dropbox-adapter";
-import { mapDropboxMetadata } from "@/lib/storage/dropbox-adapter";
+import {
+  DropboxStorageAdapter,
+  getDropboxErrorSummary,
+  isTeamSelectUserRequiredError,
+  mapDropboxMetadata
+} from "@/lib/storage/dropbox-adapter";
 import { z } from "zod";
 
 const uploadCompleteJsonSchema = z.object({
@@ -41,6 +44,9 @@ const uploadCompleteFormFieldsSchema = z.object({
     });
   }
 });
+
+const DROPBOX_AUTH_ERROR_PATTERN =
+  /auth|token|workspace|invalid_access_token|expired_access_token|invalid_grant|not_authed|missing_scope/i;
 
 async function parseUploadCompleteRequest(request: Request) {
   const contentType = request.headers.get("content-type") ?? "";
@@ -145,16 +151,17 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
     return ok({ file }, 201);
   } catch (error) {
-    if (error instanceof Error && /auth|token|workspace/i.test(error.message)) {
-      return unauthorized(error.message);
-    }
     if (error instanceof z.ZodError) {
       return badRequest(error.message);
     }
     if (isTeamSelectUserRequiredError(error)) {
       return serverError("Dropbox team token requires DROPBOX_SELECT_USER (team member id) or DROPBOX_SELECT_ADMIN.");
     }
-    console.error("upload_complete_failed", error);
-    return serverError(error instanceof Error ? error.message : "Upload failed");
+    const errorSummary = getDropboxErrorSummary(error);
+    if (DROPBOX_AUTH_ERROR_PATTERN.test(errorSummary)) {
+      return unauthorized(errorSummary);
+    }
+    console.error("upload_complete_failed", { errorSummary, error });
+    return serverError(errorSummary || (error instanceof Error ? error.message : "Upload failed"));
   }
 }

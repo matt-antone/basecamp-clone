@@ -23,6 +23,18 @@ vi.mock("@/lib/storage/dropbox-adapter", () => ({
     uploadComplete = uploadCompleteMock;
   },
   isTeamSelectUserRequiredError: () => false,
+  getDropboxErrorSummary: (error: unknown) => {
+    if (typeof error === "object" && error !== null) {
+      const obj = error as { message?: unknown; error?: { error_summary?: unknown } };
+      if (typeof obj.error?.error_summary === "string") {
+        return obj.error.error_summary;
+      }
+      if (typeof obj.message === "string") {
+        return obj.message;
+      }
+    }
+    return String(error);
+  },
   mapDropboxMetadata: (args: {
     projectId: string;
     uploaderUserId: string;
@@ -130,6 +142,90 @@ describe("POST /projects/[id]/files/upload-complete", () => {
     expect(createFileMetadataMock).toHaveBeenCalledTimes(1);
     await expect(response.json()).resolves.toMatchObject({
       file: { id: "file-1" }
+    });
+  });
+
+  it("uploads multipart image payloads from the browser flow", async () => {
+    requireUserMock.mockResolvedValue({ id: "user-1", email: "person@example.com" });
+    getProjectMock.mockResolvedValue({
+      id: "project-1",
+      storage_project_dir: "/projects/brgs/BRGS-0001-site-refresh"
+    });
+    uploadCompleteMock.mockResolvedValue({
+      fileId: "id:img123",
+      path: "/projects/brgs/BRGS-0001-site-refresh/uploads/photo.png"
+    });
+    createFileMetadataMock.mockResolvedValue({ id: "file-1" });
+
+    const { POST } = await import("@/app/projects/[id]/files/upload-complete/route");
+    const formData = new FormData();
+    formData.append(
+      "file",
+      new File([Uint8Array.from([0x89, 0x50, 0x4e, 0x47])], "photo.png", { type: "image/png" })
+    );
+    formData.append("sessionId", "session-1");
+    formData.append("targetPath", "/projects/brgs/BRGS-0001-site-refresh/uploads/photo.png");
+
+    const response = await POST(
+      new Request("http://localhost/projects/project-1/files/upload-complete", {
+        method: "POST",
+        headers: {
+          authorization: "Bearer token"
+        },
+        body: formData
+      }),
+      { params: Promise.resolve({ id: "project-1" }) }
+    );
+
+    expect(response.status).toBe(201);
+    expect(uploadCompleteMock).toHaveBeenCalledTimes(1);
+    const call = uploadCompleteMock.mock.calls[0]?.[0] as {
+      filename: string;
+      mimeType: string;
+      content: Buffer;
+    };
+    expect(call.filename).toBe("photo.png");
+    expect(call.mimeType).toBe("image/png");
+    expect(Buffer.isBuffer(call.content)).toBe(true);
+    expect(call.content.equals(Buffer.from([0x89, 0x50, 0x4e, 0x47]))).toBe(true);
+  });
+
+  it("returns 401 when Dropbox auth errors are returned as non-Error objects", async () => {
+    requireUserMock.mockResolvedValue({ id: "user-1", email: "person@example.com" });
+    getProjectMock.mockResolvedValue({
+      id: "project-1",
+      storage_project_dir: "/projects/brgs/BRGS-0001-site-refresh"
+    });
+    uploadCompleteMock.mockRejectedValue({
+      error: {
+        error_summary: "invalid_access_token/.."
+      }
+    });
+
+    const { POST } = await import("@/app/projects/[id]/files/upload-complete/route");
+    const response = await POST(
+      new Request("http://localhost/projects/project-1/files/upload-complete", {
+        method: "POST",
+        headers: {
+          authorization: "Bearer token",
+          "content-type": "application/json"
+        },
+        body: JSON.stringify({
+          filename: "report.pdf",
+          mimeType: "application/pdf",
+          sizeBytes: 1234,
+          checksum: "abc",
+          contentBase64: Buffer.from("pdf").toString("base64"),
+          sessionId: "session-1",
+          targetPath: "/projects/brgs/BRGS-0001-site-refresh/uploads/report.pdf"
+        })
+      }),
+      { params: Promise.resolve({ id: "project-1" }) }
+    );
+
+    expect(response.status).toBe(401);
+    await expect(response.json()).resolves.toMatchObject({
+      error: expect.stringContaining("invalid_access_token")
     });
   });
 });

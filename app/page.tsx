@@ -676,7 +676,7 @@ async function loadProjectsBootstrap(): Promise<ProjectsBootstrap> {
   let latestFeaturedPosts: FeaturedFeedPost[] = [];
 
   try {
-    const feedResponse = await fetch("/feeds/latest", { cache: "no-store" });
+    const feedResponse = await fetch("/feeds/latest", { cache: "force-cache" });
     if (feedResponse.ok) {
       const feedData = (await feedResponse.json()) as { posts?: FeaturedFeedPost[] };
       latestFeaturedPosts = feedData.posts?.slice(0, 2) ?? [];
