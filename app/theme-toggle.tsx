@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { OneShotButton } from "@/components/one-shot-button";
 import { DEFAULT_SITE_LOGO_URL, DEFAULT_SITE_TITLE, normalizeSiteLogoUrl, normalizeSiteTitle } from "@/lib/site-branding";
+import { projectsNavHighlight } from "@/lib/projects-view-path";
+import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { authedJsonFetch, fetchAuthSession } from "@/lib/browser-auth";
 
@@ -28,6 +30,9 @@ function applyTheme(theme: Theme) {
 }
 
 export default function ThemeToggle() {
+  const pathname = usePathname();
+  const projectsNavActive = projectsNavHighlight(pathname);
+
   const [theme, setTheme] = useState<Theme>("light");
   const [user, setUser] = useState<SessionUser | null>(null);
   const [accessToken, setAccessToken] = useState<string | null>(null);
@@ -204,6 +209,31 @@ export default function ThemeToggle() {
         )}
       </div>
       <div className="themeTopBarActions">
+        {user && (
+          <nav className="themeTopBarProjectsNav" aria-label="Projects views">
+            <Link
+              href="/"
+              className={`themeTopBarProjectsLink ${projectsNavActive === "list" ? "themeTopBarProjectsLinkActive" : ""}`}
+              scroll={false}
+            >
+              Index
+            </Link>
+            <Link
+              href="/flow"
+              className={`themeTopBarProjectsLink ${projectsNavActive === "board" ? "themeTopBarProjectsLinkActive" : ""}`}
+              scroll={false}
+            >
+              Flow
+            </Link>
+            <Link
+              href="/archive"
+              className={`themeTopBarProjectsLink ${projectsNavActive === "archived" ? "themeTopBarProjectsLinkActive" : ""}`}
+              scroll={false}
+            >
+              Archive
+            </Link>
+          </nav>
+        )}
         {isAuthReady && !user && (
           <OneShotButton
             type="button"
