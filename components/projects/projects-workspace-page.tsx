@@ -331,9 +331,9 @@ function ProjectsPageContent({ initial }: { initial: ProjectsBootstrap }) {
         current.map((project) =>
           project.id === projectId
             ? {
-                ...project,
-                status: targetColumn
-              }
+              ...project,
+              status: targetColumn
+            }
             : project
         )
       );
@@ -480,7 +480,7 @@ function ProjectsPageContent({ initial }: { initial: ProjectsBootstrap }) {
                 aria-selected={activeTab === "list"}
                 scroll={false}
               >
-                Index
+                Projects
               </Link>
               <Link
                 href="/flow"
@@ -489,7 +489,7 @@ function ProjectsPageContent({ initial }: { initial: ProjectsBootstrap }) {
                 aria-selected={activeTab === "board"}
                 scroll={false}
               >
-                Flow
+                Project Board
               </Link>
               <Link
                 href="/archive"

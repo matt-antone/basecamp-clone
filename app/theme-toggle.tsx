@@ -216,14 +216,14 @@ export default function ThemeToggle() {
               className={`themeTopBarProjectsLink ${projectsNavActive === "list" ? "themeTopBarProjectsLinkActive" : ""}`}
               scroll={false}
             >
-              Index
+              Projects
             </Link>
             <Link
               href="/flow"
               className={`themeTopBarProjectsLink ${projectsNavActive === "board" ? "themeTopBarProjectsLinkActive" : ""}`}
               scroll={false}
             >
-              Flow
+              Project Board
             </Link>
             <Link
               href="/archive"
