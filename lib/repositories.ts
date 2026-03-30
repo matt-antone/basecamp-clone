@@ -470,6 +470,17 @@ export async function updateProject(args: {
   }
 }
 
+export async function touchProjectActivity(projectId: string): Promise<void> {
+  try {
+    await query(
+      `update projects set last_activity_at = now() where id = $1`,
+      [projectId]
+    );
+  } catch {
+    // Non-critical — column may not exist if migration is pending
+  }
+}
+
 export async function listProjectUserHours(projectId: string): Promise<ProjectUserHours[]> {
   try {
     const result = await query(
