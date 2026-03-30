@@ -81,7 +81,8 @@ describe("project metadata repository fields", () => {
             requestor: "Jane Producer"
           }
         ]
-      });
+      })
+      .mockResolvedValueOnce({ rows: [] });
 
     const { updateProject } = await import("@/lib/repositories");
     await updateProject({
@@ -94,7 +95,7 @@ describe("project metadata repository fields", () => {
       requestor: "Jane Producer"
     });
 
-    expect(queryMock).toHaveBeenCalledTimes(2);
+    expect(queryMock).toHaveBeenCalledTimes(3);
     const [sql, params] = queryMock.mock.calls[1];
     expect(sql).toContain("deadline = $5::date");
     expect(sql).toContain("requestor = $6");
@@ -106,6 +107,11 @@ describe("project metadata repository fields", () => {
       "2026-05-15",
       "Jane Producer"
     ]);
+    // 3rd call should be the activity touch
+    const [touchSql, touchParams] = queryMock.mock.calls[2];
+    expect(touchSql).toContain("update projects");
+    expect(touchSql).toContain("last_activity_at = now()");
+    expect(touchParams).toEqual(["project-1"]);
   });
 
   it("falls back when the requestor column has not been migrated yet", async () => {
@@ -129,7 +135,8 @@ describe("project metadata repository fields", () => {
             deadline: "2026-05-15"
           }
         ]
-      });
+      })
+      .mockResolvedValueOnce({ rows: [] });
 
     const { updateProject } = await import("@/lib/repositories");
     await updateProject({
@@ -142,11 +149,15 @@ describe("project metadata repository fields", () => {
       requestor: "Jane Producer"
     });
 
-    expect(queryMock).toHaveBeenCalledTimes(3);
+    expect(queryMock).toHaveBeenCalledTimes(4);
     const [fallbackSql, fallbackParams] = queryMock.mock.calls[2];
     expect(fallbackSql).not.toContain("requestor =");
     expect(fallbackSql).toContain("deadline = $5::date");
     expect(fallbackParams).toEqual(["project-1", "Website Refresh", "Updated brief", ["ops"], "2026-05-15"]);
+    const [touchSql, touchParams] = queryMock.mock.calls[3];
+    expect(touchSql).toContain("update projects");
+    expect(touchSql).toContain("last_activity_at = now()");
+    expect(touchParams).toEqual(["project-1"]);
   });
 
   it("falls back when the deadline column has not been migrated yet", async () => {
@@ -170,7 +181,8 @@ describe("project metadata repository fields", () => {
             requestor: "Jane Producer"
           }
         ]
-      });
+      })
+      .mockResolvedValueOnce({ rows: [] });
 
     const { updateProject } = await import("@/lib/repositories");
     await updateProject({
@@ -183,11 +195,15 @@ describe("project metadata repository fields", () => {
       requestor: "Jane Producer"
     });
 
-    expect(queryMock).toHaveBeenCalledTimes(3);
+    expect(queryMock).toHaveBeenCalledTimes(4);
     const [fallbackSql, fallbackParams] = queryMock.mock.calls[2];
     expect(fallbackSql).not.toContain("deadline =");
     expect(fallbackSql).toContain("tags = $4::text[]");
     expect(fallbackParams).toEqual(["project-1", "Website Refresh", "Updated brief", ["ops"]]);
+    const [touchSql, touchParams] = queryMock.mock.calls[3];
+    expect(touchSql).toContain("update projects");
+    expect(touchSql).toContain("last_activity_at = now()");
+    expect(touchParams).toEqual(["project-1"]);
   });
 
   it("upserts project hours for a specific user", async () => {

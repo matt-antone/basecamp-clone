@@ -433,7 +433,9 @@ export async function updateProject(args: {
       [args.id, args.name.trim(), args.description ?? null, nextTags, nextDeadline, nextRequestor]
     );
 
-    return result.rows[0] ?? null;
+    const updated = result.rows[0] ?? null;
+    await touchProjectActivity(args.id);
+    return updated;
   } catch (error) {
     if (isMissingProjectRequestorColumnError(error)) {
       const fallback = await query(
@@ -448,7 +450,9 @@ export async function updateProject(args: {
         [args.id, args.name.trim(), args.description ?? null, nextTags, nextDeadline]
       );
 
-      return fallback.rows[0] ?? null;
+      const updated = fallback.rows[0] ?? null;
+      await touchProjectActivity(args.id);
+      return updated;
     }
 
     if (!isMissingProjectDeadlineColumnError(error)) {
@@ -466,7 +470,9 @@ export async function updateProject(args: {
       [args.id, args.name.trim(), args.description ?? null, nextTags]
     );
 
-    return fallback.rows[0] ?? null;
+    const updated = fallback.rows[0] ?? null;
+    await touchProjectActivity(args.id);
+    return updated;
   }
 }
 
@@ -687,6 +693,7 @@ export async function createThread(args: {
      returning *`,
     [args.projectId, args.title, args.bodyMarkdown, bodyHtml, args.authorUserId]
   );
+  await touchProjectActivity(args.projectId);
   return result.rows[0];
 }
 
@@ -772,6 +779,7 @@ export async function createComment(args: {
      returning *`,
     [args.projectId, args.threadId, args.bodyMarkdown, bodyHtml, args.authorUserId]
   );
+  await touchProjectActivity(args.projectId);
   return result.rows[0];
 }
 
@@ -836,7 +844,9 @@ export async function createFileMetadata(args: {
        returning *`,
       values
     );
-    return result.rows[0] ? normalizeProjectFileSizeRow(result.rows[0]) : null;
+    const file = result.rows[0] ? normalizeProjectFileSizeRow(result.rows[0]) : null;
+    await touchProjectActivity(args.projectId);
+    return file;
   } catch (error) {
     if (!isMissingProjectFileColumnError(error)) {
       throw error;
@@ -851,7 +861,9 @@ export async function createFileMetadata(args: {
          returning *`,
         values.slice(0, 10)
       );
-      return result.rows[0] ? normalizeProjectFileSizeRow(result.rows[0]) : null;
+      const file = result.rows[0] ? normalizeProjectFileSizeRow(result.rows[0]) : null;
+      await touchProjectActivity(args.projectId);
+      return file;
     } catch (legacyError) {
       if (!isMissingProjectFileColumnError(legacyError)) {
         throw legacyError;
@@ -870,7 +882,9 @@ export async function createFileMetadata(args: {
        returning *`,
       values.slice(0, 8)
     );
-    return result.rows[0] ? normalizeProjectFileSizeRow(result.rows[0]) : null;
+    const file = result.rows[0] ? normalizeProjectFileSizeRow(result.rows[0]) : null;
+    await touchProjectActivity(args.projectId);
+    return file;
   }
 }
 

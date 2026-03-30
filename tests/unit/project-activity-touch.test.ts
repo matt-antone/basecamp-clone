@@ -32,3 +32,93 @@ describe("touchProjectActivity", () => {
     await expect(touchProjectActivity("project-abc")).resolves.toBeUndefined();
   });
 });
+
+describe("createThread touches project activity", () => {
+  beforeEach(() => {
+    vi.resetModules();
+    queryMock.mockReset();
+  });
+
+  it("calls UPDATE last_activity_at after inserting the thread", async () => {
+    // First call: the thread INSERT
+    queryMock.mockResolvedValueOnce({
+      rows: [{ id: "thread-1", title: "Hello", project_id: "proj-1" }]
+    });
+    // Second call: the activity touch UPDATE
+    queryMock.mockResolvedValueOnce({ rows: [] });
+
+    const { createThread } = await import("@/lib/repositories");
+    await createThread({
+      projectId: "proj-1",
+      title: "Hello",
+      bodyMarkdown: "world",
+      authorUserId: "user-1"
+    });
+
+    expect(queryMock).toHaveBeenCalledTimes(2);
+    const [touchSql, touchParams] = queryMock.mock.calls[1];
+    expect(touchSql).toContain("update projects");
+    expect(touchSql).toContain("last_activity_at = now()");
+    expect(touchParams).toEqual(["proj-1"]);
+  });
+});
+
+describe("createComment touches project activity", () => {
+  beforeEach(() => {
+    vi.resetModules();
+    queryMock.mockReset();
+  });
+
+  it("calls UPDATE last_activity_at after inserting the comment", async () => {
+    queryMock.mockResolvedValueOnce({
+      rows: [{ id: "comment-1", project_id: "proj-1" }]
+    });
+    queryMock.mockResolvedValueOnce({ rows: [] });
+
+    const { createComment } = await import("@/lib/repositories");
+    await createComment({
+      projectId: "proj-1",
+      threadId: "thread-1",
+      bodyMarkdown: "reply",
+      authorUserId: "user-1"
+    });
+
+    expect(queryMock).toHaveBeenCalledTimes(2);
+    const [touchSql, touchParams] = queryMock.mock.calls[1];
+    expect(touchSql).toContain("update projects");
+    expect(touchSql).toContain("last_activity_at = now()");
+    expect(touchParams).toEqual(["proj-1"]);
+  });
+});
+
+describe("createFileMetadata touches project activity", () => {
+  beforeEach(() => {
+    vi.resetModules();
+    queryMock.mockReset();
+  });
+
+  it("calls UPDATE last_activity_at after inserting file metadata", async () => {
+    queryMock.mockResolvedValueOnce({
+      rows: [{ id: "file-1", project_id: "proj-1", size_bytes: "1024" }]
+    });
+    queryMock.mockResolvedValueOnce({ rows: [] });
+
+    const { createFileMetadata } = await import("@/lib/repositories");
+    await createFileMetadata({
+      projectId: "proj-1",
+      uploaderUserId: "user-1",
+      filename: "doc.pdf",
+      mimeType: "application/pdf",
+      sizeBytes: 1024,
+      dropboxFileId: "id:abc",
+      dropboxPath: "/Projects/doc.pdf",
+      checksum: "deadbeef"
+    });
+
+    expect(queryMock).toHaveBeenCalledTimes(2);
+    const [touchSql, touchParams] = queryMock.mock.calls[1];
+    expect(touchSql).toContain("update projects");
+    expect(touchSql).toContain("last_activity_at = now()");
+    expect(touchParams).toEqual(["proj-1"]);
+  });
+});
