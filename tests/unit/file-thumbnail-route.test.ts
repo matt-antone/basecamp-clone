@@ -197,8 +197,8 @@ describe("/projects/[id]/files/[fileId]/thumbnail route", () => {
       action: "inserted",
       job: { id: "job-1" }
     });
-    thumbnailWorkerUrlMock.mockReturnValue(null);
-    thumbnailWorkerTokenMock.mockReturnValue(null);
+    thumbnailWorkerUrlMock.mockReturnValue(null as unknown as string);
+    thumbnailWorkerTokenMock.mockReturnValue(null as unknown as string);
 
     const { GET } = await import("@/app/projects/[id]/files/[fileId]/thumbnail/route");
     const response = await GET(

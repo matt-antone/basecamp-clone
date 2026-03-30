@@ -1,5 +1,5 @@
 // lib/imports/bc2-fetcher.ts
-import { Bc2Client } from "./bc2-client";
+import { Bc2Client, Bc2Response } from "./bc2-client";
 
 // Raw BC2 API shapes — only the fields we use
 export interface Bc2Person {
@@ -90,7 +90,7 @@ export class Bc2Fetcher {
   private async *paginate<T>(path: string): AsyncGenerator<T> {
     let nextUrl: string | null = path;
     while (nextUrl !== null) {
-      const response = await this.client.get<T[]>(nextUrl);
+      const response: Bc2Response<T[]> = await this.client.get<T[]>(nextUrl);
       for (const item of response.body) {
         yield item;
       }

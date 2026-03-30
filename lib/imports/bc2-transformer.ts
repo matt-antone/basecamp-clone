@@ -57,6 +57,7 @@ export interface ResolvedPerson {
   isLegacy: boolean;
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export async function resolvePerson(person: Bc2Person, jobId: string): Promise<ResolvedPerson> {
   // Check import map first (idempotency)
   const mapRow = await query(

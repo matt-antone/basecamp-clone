@@ -5,7 +5,7 @@ describe("DropboxStorageAdapter", () => {
   beforeEach(() => {
     globalThis.fetch = vi.fn(async () => ({
       arrayBuffer: async () => new ArrayBuffer(0)
-    }));
+    })) as unknown as typeof fetch;
   });
 
   it("downloads a file and prefers the top-level content type", async () => {

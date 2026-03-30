@@ -28,7 +28,7 @@ describe("DropboxStorageAdapter root namespace handling", () => {
     delete process.env.DROPBOX_SELECT_ADMIN;
     globalThis.fetch = vi.fn(async () => ({
       arrayBuffer: async () => new ArrayBuffer(0)
-    })) as typeof fetch;
+    })) as unknown as typeof fetch;
   });
 
   it("roots calls to the account root namespace even without DROPBOX_SELECT_USER", async () => {
