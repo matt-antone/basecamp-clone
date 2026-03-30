@@ -102,20 +102,14 @@ export function ProjectsBoardView(props: ProjectsBoardViewProps) {
                     <ProjectTagList tags={project.tags} className="projectTagListCompact" />
                   </div>
                   <div className="projectFlowCardFoot">
-                    <span className="projectClientPill">
-                      {project.client_code?.trim() || project.client_name?.trim() || "No client"}
-                    </span>
                     <div className="projectFlowCardActions">
-                      <Link href={`/${project.id}`} className="projectActionLink">
-                        Open
-                      </Link>
-                      <OneShotButton
+                      {column.title === "Complete" && <OneShotButton
                         type="button"
                         className="projectActionButton"
                         onClick={() => onArchiveProject(project)}
                       >
                         Archive
-                      </OneShotButton>
+                      </OneShotButton>}
                     </div>
                   </div>
                 </li>

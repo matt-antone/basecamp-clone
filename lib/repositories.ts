@@ -920,18 +920,31 @@ export async function upsertThumbnailJob(args: { projectFileId: string }) {
     };
   }
 
-  if (current.status === "queued" || current.status === "processing") {
-    const deduped = await query(
-      `update thumbnail_jobs
-       set updated_at = now()
-       where project_file_id = $1
-       returning id, project_file_id, status, attempt_count, next_attempt_at, last_error, created_at, updated_at`,
-      [args.projectFileId]
-    );
+  if (current.status === "permanent_failure") {
     return {
-      action: "deduped" as const,
-      job: deduped.rows[0] as NonNullable<typeof current>
+      action: "permanent_failure" as const,
+      job: current
     };
+  }
+
+  if (current.status === "queued" || current.status === "processing") {
+    const updatedAt = new Date(current.updated_at);
+    const staleMs = 10 * 60 * 1000; // 10 minutes
+    const isStale = Date.now() - updatedAt.getTime() > staleMs;
+
+    if (!isStale) {
+      const deduped = await query(
+        `update thumbnail_jobs
+         set updated_at = now()
+         where project_file_id = $1
+         returning id, project_file_id, status, attempt_count, next_attempt_at, last_error, created_at, updated_at`,
+        [args.projectFileId]
+      );
+      return {
+        action: "deduped" as const,
+        job: deduped.rows[0] as NonNullable<typeof current>
+      };
+    }
   }
 
   const restarted = await query(
@@ -949,6 +962,34 @@ export async function upsertThumbnailJob(args: { projectFileId: string }) {
     action: "inserted" as const,
     job: restarted.rows[0] as NonNullable<typeof current>
   };
+}
+
+export async function completeThumbnailJob(args: { projectFileId: string }) {
+  await query(
+    `update thumbnail_jobs
+     set status = 'succeeded',
+         last_error = null,
+         updated_at = now()
+     where project_file_id = $1`,
+    [args.projectFileId]
+  );
+}
+
+export async function failThumbnailJob(args: {
+  projectFileId: string;
+  error: string;
+  permanent: boolean;
+}) {
+  const status = args.permanent ? "permanent_failure" : "failed";
+  await query(
+    `update thumbnail_jobs
+     set status = $2,
+         last_error = $3,
+         attempt_count = attempt_count + 1,
+         updated_at = now()
+     where project_file_id = $1`,
+    [args.projectFileId, status, args.error.slice(0, 1000)]
+  );
 }
 
 function isMissingProjectFileColumnError(error: unknown) {

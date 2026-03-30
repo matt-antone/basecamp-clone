@@ -1,8 +1,15 @@
 import { randomUUID } from "node:crypto";
 import { config } from "@/lib/config";
 import { requireUser } from "@/lib/auth";
-import { notFound, serverError, unauthorized } from "@/lib/http";
-import { getFileById, getProject, upsertThumbnailJob } from "@/lib/repositories";
+import { badRequest, notFound, serverError, unauthorized } from "@/lib/http";
+import {
+  completeThumbnailJob,
+  failThumbnailJob,
+  getFileById,
+  getProject,
+  setFileThumbnailUrl,
+  upsertThumbnailJob
+} from "@/lib/repositories";
 import { NextResponse } from "next/server";
 
 export async function GET(
@@ -42,6 +49,19 @@ export async function GET(
 
     const fileRecord = file as Record<string, unknown>;
     const jobResult = await upsertThumbnailJob({ projectFileId: fileId });
+
+    if (jobResult.action === "permanent_failure") {
+      logThumbnailProxyCheck({
+        projectId,
+        fileId,
+        httpStatus: 404,
+        requestId,
+        status: "permanent_failure",
+        durationMs: Date.now() - startedAt
+      });
+      return notFound("Thumbnail permanently unavailable for this file");
+    }
+
     const responseStatus = jobResult.action === "deduped" ? "processing" : "queued";
     logThumbnailJobEnqueued({
       fileId,
@@ -211,4 +231,56 @@ function logThumbnailWorkerNotifySkipped(args: {
   reason: string;
 }) {
   console.warn("thumbnail_worker_notify_skipped", args);
+}
+
+// Worker callback — called by the thumbnail worker when a job completes or fails.
+// Secured with the same THUMBNAIL_WORKER_TOKEN used for outbound worker requests.
+export async function POST(
+  request: Request,
+  { params }: { params: Promise<{ id: string; fileId: string }> }
+) {
+  const requestId = getRequestId(request);
+
+  const workerToken = normalizeBearerToken(config.thumbnailWorkerToken());
+  const incomingToken = normalizeBearerToken(request.headers.get("authorization"));
+  if (!workerToken || incomingToken !== workerToken) {
+    return unauthorized("Invalid or missing worker token");
+  }
+
+  const { id: projectId, fileId } = await params;
+
+  let body: unknown;
+  try {
+    body = await request.json();
+  } catch {
+    return badRequest("Invalid JSON body");
+  }
+
+  if (!body || typeof body !== "object") {
+    return badRequest("Invalid callback payload");
+  }
+
+  const payload = body as Record<string, unknown>;
+  const action = typeof payload.action === "string" ? payload.action : null;
+
+  if (action === "succeeded") {
+    const thumbnailUrl = getNonEmptyString(payload.thumbnailUrl);
+    if (!thumbnailUrl) {
+      return badRequest("thumbnailUrl is required for succeeded action");
+    }
+    await setFileThumbnailUrl({ projectId, fileId, thumbnailUrl });
+    await completeThumbnailJob({ projectFileId: fileId });
+    console.info("thumbnail_worker_callback", { projectId, fileId, action, requestId });
+    return NextResponse.json({ ok: true }, { status: 200 });
+  }
+
+  if (action === "failed") {
+    const error = getNonEmptyString(payload.error) ?? "unknown error";
+    const permanent = payload.permanent === true;
+    await failThumbnailJob({ projectFileId: fileId, error, permanent });
+    console.info("thumbnail_worker_callback", { projectId, fileId, action, permanent, requestId });
+    return NextResponse.json({ ok: true }, { status: 200 });
+  }
+
+  return badRequest(`Unknown action: ${action}`);
 }
