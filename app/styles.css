@@ -178,6 +178,35 @@ h3 {
   gap: 0.55rem;
 }
 
+.themeTopBarProjectsNav {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  margin-right: 0.35rem;
+  padding-right: 0.55rem;
+  border-right: 1px solid color-mix(in srgb, var(--panel-border) 70%, transparent);
+}
+
+.themeTopBarProjectsLink {
+  text-decoration: none;
+  padding: 6px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+  border-radius: 6px;
+  white-space: nowrap;
+}
+
+.themeTopBarProjectsLink:hover {
+  color: var(--text-primary);
+  background: color-mix(in srgb, var(--panel-bg) 50%, var(--text-primary) 6%);
+}
+
+.themeTopBarProjectsLinkActive {
+  color: var(--text-primary);
+  background: color-mix(in srgb, var(--panel-bg) 40%, var(--projects-accent, var(--text-primary)) 12%);
+}
+
 .brandHomeLink {
   display: inline-flex;
   align-items: center;
