@@ -3,6 +3,8 @@
 import { PageLoadingState } from "@/components/loading-shells";
 import { OneShotButton } from "@/components/one-shot-button";
 import { ProjectDialogForm, type ProjectDialogValues } from "@/components/project-dialog-form";
+import { ArchiveTab } from "@/components/projects/archive-tab";
+import type { ArchiveProjectItem } from "@/components/projects/archive-project-row";
 import { ProjectsBoardView } from "@/components/projects/projects-board-view";
 import { ProjectsListView } from "@/components/projects/projects-list-view";
 import { createClientResource } from "@/lib/client-resource";
@@ -206,11 +208,6 @@ function ProjectsPageContent({ initial }: { initial: ProjectsBootstrap }) {
   const filteredActiveProjects = useMemo(
     () => activeProjects.filter((project) => projectMatchesSearch(project) && projectMatchesStatus(project)),
     [activeProjects, searchTerm, statusFilter]
-  );
-
-  const filteredArchivedProjects = useMemo(
-    () => archivedProjects.filter((project) => projectMatchesSearch(project) && projectMatchesStatus(project)),
-    [archivedProjects, searchTerm, statusFilter]
   );
 
   const keyboardNavigableProjects = useMemo(
@@ -417,7 +414,7 @@ function ProjectsPageContent({ initial }: { initial: ProjectsBootstrap }) {
     setDragOverColumn(null);
   }
 
-  const visibleProjects = activeTab === "archived" ? filteredArchivedProjects : filteredActiveProjects;
+  const visibleProjects = filteredActiveProjects;
   const visibleClients = new Set(visibleProjects.map((project) => getProjectClientLabel(project))).size;
   const featuredHeroPost = latestFeaturedPosts[0] ?? null;
   const feedRailPosts = latestFeaturedPosts.length > 1 ? latestFeaturedPosts.slice(1) : latestFeaturedPosts;
@@ -518,7 +515,7 @@ function ProjectsPageContent({ initial }: { initial: ProjectsBootstrap }) {
               </OneShotButton>
             </div>
           </div>
-          {activeTab !== "board" && (
+          {activeTab === "list" && (
             <>
               <section className="projectsFilterShelf" onKeyDown={handleCommandRowKeyDown}>
                 <div className="projectsFilterControls">
@@ -541,23 +538,20 @@ function ProjectsPageContent({ initial }: { initial: ProjectsBootstrap }) {
                   </p>
                 </div>
               </section>
-              {activeTab !== "archived" && (
-                <div className="projectsPulseRow" aria-label="Filter search results by status">
-                  {statusSummaries.map((item) => (
-                    <OneShotButton
-                      key={item.key}
-                      className={`projectsPulseButton tone-${item.key} ${statusFilter === item.key ? "projectsPulseButtonActive" : ""}`}
-                      onClick={() => setStatusFilter((current) => (current === item.key ? "all" : item.key))}
-                      aria-pressed={statusFilter === item.key}
-                      aria-label={`${item.title}: ${item.count} project${item.count === 1 ? "" : "s"}`}
-                    >
-                      <span>{item.title}</span>
-                      <strong>{item.count}</strong>
-                    </OneShotButton>
-                  ))}
-                </div>
-
-              )}
+              <div className="projectsPulseRow" aria-label="Filter search results by status">
+                {statusSummaries.map((item) => (
+                  <OneShotButton
+                    key={item.key}
+                    className={`projectsPulseButton tone-${item.key} ${statusFilter === item.key ? "projectsPulseButtonActive" : ""}`}
+                    onClick={() => setStatusFilter((current) => (current === item.key ? "all" : item.key))}
+                    aria-pressed={statusFilter === item.key}
+                    aria-label={`${item.title}: ${item.count} project${item.count === 1 ? "" : "s"}`}
+                  >
+                    <span>{item.title}</span>
+                    <strong>{item.count}</strong>
+                  </OneShotButton>
+                ))}
+              </div>
             </>
           )}
         </section>
@@ -600,19 +594,12 @@ function ProjectsPageContent({ initial }: { initial: ProjectsBootstrap }) {
             />
           )}
           {activeTab === "archived" && (
-            <ProjectsListView
-              items={filteredArchivedProjects}
-              projectColumns={PROJECT_COLUMNS}
-              activeTab="archived"
-              hasSearchOrFilter={Boolean(searchTerm || statusFilter !== "all")}
-              highlightedProjectId={highlightedProjectId}
-              emptyState={searchTerm ? "No archived projects match this search." : "No archived projects are parked here yet."}
-              onOpenCreateDialog={openCreateDialog}
-              onHighlightProject={setHighlightedProjectId}
-              onProjectBlur={handleProjectRowBlur}
-              renderProjectTitle={renderProjectTitle}
-              getProjectStatusLabel={getProjectStatusLabel}
-              getProjectClientLabel={getProjectClientLabel}
+            <ArchiveTab
+              accessToken={accessToken}
+              onToken={setAccessToken}
+              onRestore={async (project: ArchiveProjectItem) => {
+                await toggleArchive({ ...project, archived: true } as Project);
+              }}
             />
           )}
         </div>

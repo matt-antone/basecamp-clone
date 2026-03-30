@@ -43,7 +43,7 @@ describe("/projects/[id]/files/[fileId]/thumbnail route", () => {
     vi.unstubAllGlobals();
   });
 
-  it("redirects to thumbnail_url when present", async () => {
+  it("returns 200 with url when thumbnail_url is present", async () => {
     requireUserMock.mockResolvedValue({ id: "user-1", email: "person@example.com" });
     getProjectMock.mockResolvedValue({ id: "project-1" });
     getFileByIdMock.mockResolvedValue({
@@ -59,8 +59,10 @@ describe("/projects/[id]/files/[fileId]/thumbnail route", () => {
       { params: Promise.resolve({ id: "project-1", fileId: "file-1" }) }
     );
 
-    expect(response.status).toBe(307);
-    expect(response.headers.get("location")).toBe("https://thumbs.example.internal/thumbnails/file-1.jpg");
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({
+      url: "https://thumbs.example.internal/thumbnails/file-1.jpg"
+    });
   });
 
   it("queues a thumbnail job and returns 202 when thumbnail_url is absent", async () => {

@@ -31,8 +31,10 @@ describe("thumbnail preview helpers", () => {
     expect(isThumbnailPreviewSupported({ filename: "notes.txt", mimeType: "text/plain" })).toBe(false);
   });
 
-  it("parses redirect responses as ready thumbnails", async () => {
-    const fetchMock = vi.fn(async () => new Response(null, { status: 307, headers: { location: "https://thumbs.example.internal/thumbnails/file-1.jpg" } }));
+  it("parses 200 json responses as ready thumbnails", async () => {
+    const fetchMock = vi.fn(async () =>
+      new Response(JSON.stringify({ url: "https://thumbs.example.internal/thumbnails/file-1.jpg" }), { status: 200 })
+    );
     vi.stubGlobal("fetch", fetchMock);
 
     await expect(requestThumbnailPreview({ projectId: "project-1", fileId: "file-1" })).resolves.toEqual({
@@ -40,8 +42,7 @@ describe("thumbnail preview helpers", () => {
       thumbnailUrl: "https://thumbs.example.internal/thumbnails/file-1.jpg"
     });
     expect(fetchMock).toHaveBeenCalledWith("/projects/project-1/files/file-1/thumbnail", expect.objectContaining({
-      credentials: "same-origin",
-      redirect: "manual"
+      credentials: "same-origin"
     }));
   });
 
@@ -58,10 +59,7 @@ describe("thumbnail preview helpers", () => {
   it("sends bearer token when provided", async () => {
     const fetchMock = vi.fn(
       async () =>
-        new Response(null, {
-          status: 307,
-          headers: { location: "https://thumbs.example.internal/thumbnails/file-1.jpg" }
-        })
+        new Response(JSON.stringify({ url: "https://thumbs.example.internal/thumbnails/file-1.jpg" }), { status: 200 })
     );
     vi.stubGlobal("fetch", fetchMock);
 
@@ -89,10 +87,7 @@ describe("thumbnail preview helpers", () => {
         new Response(JSON.stringify({ accessToken: "fresh-token", status: "ok" }), { status: 200 })
       )
       .mockImplementationOnce(async () =>
-        new Response(null, {
-          status: 307,
-          headers: { location: "https://thumbs.example.internal/thumbnails/file-1.jpg" }
-        })
+        new Response(JSON.stringify({ url: "https://thumbs.example.internal/thumbnails/file-1.jpg" }), { status: 200 })
       );
     vi.stubGlobal("fetch", fetchMock);
 

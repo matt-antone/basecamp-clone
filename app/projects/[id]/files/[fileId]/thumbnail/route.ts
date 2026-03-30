@@ -32,12 +32,12 @@ export async function GET(
       logThumbnailProxyCheck({
         projectId,
         fileId,
-        httpStatus: 307,
+        httpStatus: 200,
         requestId,
         status: "ready",
         durationMs: Date.now() - startedAt
       });
-      return NextResponse.redirect(thumbnailUrl, 307);
+      return NextResponse.json({ url: thumbnailUrl }, { status: 200 });
     }
 
     const fileRecord = file as Record<string, unknown>;

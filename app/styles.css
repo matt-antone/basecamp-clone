@@ -1143,6 +1143,171 @@ textarea {
   line-height: 1.7;
 }
 
+/* ================================================================
+   Archive tab
+   ================================================================ */
+
+.archiveTabRoot {
+  display: grid;
+  gap: 0;
+}
+
+.archiveProjectList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.archiveProjectRow {
+  display: grid;
+  grid-template-columns: 1.4rem minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 1rem;
+  padding: 1rem 0;
+  border-top: 1px solid color-mix(in oklch, var(--projects-border) 80%, transparent);
+}
+
+.archiveProjectRow:first-child {
+  border-top: 0;
+}
+
+.archiveProjectStatus {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  margin-top: 0.44rem;
+  background: color-mix(in oklch, var(--project-tone, var(--projects-accent)) 72%, var(--panel-bg));
+  flex-shrink: 0;
+}
+
+.archiveProjectBody {
+  display: grid;
+  gap: 0.4rem;
+}
+
+.archiveProjectMeta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.archiveProjectClient {
+  color: var(--projects-muted);
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.archiveProjectTitle {
+  margin: 0;
+  font-family: var(--font-display), Georgia, serif;
+  font-size: 1.05rem;
+  font-weight: 400;
+  line-height: 1.25;
+  letter-spacing: -0.01em;
+}
+
+.archiveProjectLink {
+  color: var(--text-primary);
+  text-decoration: none;
+  transition: color 180ms ease;
+}
+
+.archiveProjectLink:hover {
+  color: var(--projects-accent-strong);
+}
+
+.archiveProjectDescription {
+  margin: 0;
+  color: var(--projects-muted);
+  font-size: 0.9rem;
+  line-height: 1.55;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+}
+
+.archiveProjectActions {
+  display: flex;
+  align-items: flex-start;
+  padding-top: 0.05rem;
+}
+
+.archiveRestoreButton {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.48rem 0.78rem;
+  border-radius: 999px;
+  border: 1px solid color-mix(in oklch, var(--projects-border) 90%, transparent);
+  background: transparent;
+  color: var(--projects-accent-strong);
+  font-size: 0.78rem;
+  line-height: 1;
+  cursor: pointer;
+  transition:
+    transform 180ms cubic-bezier(0.22, 1, 0.36, 1),
+    border-color 180ms ease,
+    background-color 180ms ease,
+    color 180ms ease;
+}
+
+.archiveRestoreButton:hover {
+  background: color-mix(in oklch, var(--projects-accent) 8%, var(--panel-bg));
+  border-color: color-mix(in oklch, var(--projects-accent) 34%, var(--projects-border));
+}
+
+.archiveLoadingState,
+.archiveErrorState {
+  padding: 1.5rem 0;
+  color: var(--projects-muted);
+  font-size: 0.9rem;
+}
+
+.archiveLoadingState p,
+.archiveErrorState p {
+  margin: 0;
+}
+
+.archivePagination {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1.25rem 0 0.5rem;
+  border-top: 1px solid color-mix(in oklch, var(--projects-border) 80%, transparent);
+}
+
+.archivePaginationButton {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.48rem 0.78rem;
+  border-radius: 999px;
+  border: 1px solid color-mix(in oklch, var(--projects-border) 84%, transparent);
+  background: color-mix(in oklch, var(--button-secondary-bg) 68%, var(--panel-bg));
+  color: var(--text-primary);
+  font-size: 0.82rem;
+  line-height: 1;
+  cursor: pointer;
+  transition:
+    transform 180ms cubic-bezier(0.22, 1, 0.36, 1),
+    border-color 180ms ease,
+    background-color 180ms ease;
+}
+
+.archivePaginationButton:disabled {
+  opacity: 0.38;
+  cursor: not-allowed;
+}
+
+.archivePaginationInfo {
+  flex: 1;
+  text-align: center;
+  color: var(--projects-muted);
+  font-size: 0.82rem;
+}
+
 .projectFlowGrid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
@@ -2747,6 +2912,14 @@ textarea:focus-visible,
     grid-column: 2;
   }
 
+  .archiveProjectRow {
+    grid-template-columns: 1.4rem minmax(0, 1fr);
+  }
+
+  .archiveProjectActions {
+    grid-column: 2;
+  }
+
   .layout {
     grid-template-columns: 1fr;
   }
@@ -2815,6 +2988,15 @@ textarea:focus-visible,
 
   .projectLedgerMeta,
   .projectLedgerActions {
+    grid-column: auto;
+  }
+
+  .archiveProjectRow {
+    grid-template-columns: 1.4rem minmax(0, 1fr);
+    gap: 0.6rem;
+  }
+
+  .archiveProjectActions {
     grid-column: auto;
   }
 

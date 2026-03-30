@@ -161,6 +161,56 @@ export async function listProjects(includeArchived = true) {
   return result.rows;
 }
 
+export async function listArchivedProjectsPaginated(options: {
+  search?: string;
+  status?: string;
+  page?: number;
+  limit?: number;
+}) {
+  const search = (options.search ?? "").trim().toLowerCase();
+  const status = options.status ?? "all";
+  const limit = Math.min(options.limit ?? 20, 100);
+  const page = Math.max(options.page ?? 1, 1);
+  const offset = (page - 1) * limit;
+
+  const result = await query<{ total_count: string }>(
+    `select p.*, c.name as client_name, c.code as client_code,
+       case
+         when p.project_code is not null and length(trim(p.project_code)) > 0 then p.project_code || '-' || p.name
+         else p.name
+       end as display_name,
+       greatest(
+         p.updated_at,
+         coalesce((select max(t.updated_at) from discussion_threads t where t.project_id = p.id), p.updated_at),
+         coalesce((select max(dc.updated_at) from discussion_comments dc where dc.project_id = p.id), p.updated_at),
+         coalesce((select max(f.created_at) from project_files f where f.project_id = p.id), p.updated_at)
+       ) as last_activity_at,
+       count(*) over() as total_count
+     from projects p
+     left join clients c on c.id = p.client_id
+     where p.archived = true
+       and ($1 = '' or (
+         lower(p.name) like '%' || $1 || '%'
+         or lower(coalesce(p.description, '')) like '%' || $1 || '%'
+         or lower(coalesce(c.name, '')) like '%' || $1 || '%'
+         or lower(coalesce(p.project_code, '')) like '%' || $1 || '%'
+       ))
+       and ($2 = 'all' or p.status = $2)
+     order by last_activity_at desc
+     limit $3 offset $4`,
+    [search, status, limit, offset]
+  );
+
+  const total = result.rows.length > 0 ? parseInt(result.rows[0].total_count, 10) : 0;
+  return {
+    projects: result.rows,
+    total,
+    page,
+    limit,
+    totalPages: Math.ceil(total / limit)
+  };
+}
+
 function normalizeProjectTags(tags?: string[]) {
   if (!tags) {
     return [];

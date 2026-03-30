@@ -15,7 +15,7 @@ import {
 } from "../lib/imports/bc2-transformer";
 import { createThread, createComment, createFileMetadata } from "../lib/repositories";
 import { DropboxStorageAdapter } from "../lib/storage/dropbox-adapter";
-import { getProjectStorageDir } from "../lib/project-storage";
+import { getProjectStorageDirForArchiveState } from "../lib/project-storage";
 
 // ── Script-local DB pool (bypasses lib/db → lib/config's server-only guard) ──
 const _pool = new Pool({ connectionString: process.env.DATABASE_URL });
@@ -31,6 +31,7 @@ interface CliFlags {
   mode: RunMode;
   limit: number;
   files: boolean;
+  onlyFiles: boolean;
   fromProject: string | null;
 }
 
@@ -52,6 +53,7 @@ function parseFlags(): CliFlags {
     mode: rawMode as RunMode,
     limit: parseInt(get("limit") ?? "5", 10),
     files: has("files"),
+    onlyFiles: has("only-files"),
     fromProject: get("from-project")
   };
 }
@@ -174,6 +176,9 @@ async function migrateProjects(
     }
 
     count++;
+    if (count % 50 === 0) {
+      process.stdout.write(`  ...${count} fetched\n`);
+    }
     try {
       if (flags.mode === "dry") {
         projects.push({ bc2Id: bc2Project.id, localId: `dry_${bc2Project.id}`, name: bc2Project.name });
@@ -195,20 +200,64 @@ async function migrateProjects(
       const { code, num, title } = parseProjectTitle(bc2Project.name);
       const clientId = code ? await resolveClientId(code) : null;
 
-      const projectNumber = num ? num.padStart(4, "0") : "0000";
-      const codeSlug = code ? code.toUpperCase() : "UNK";
-      const projectCode = `${codeSlug}-${projectNumber}`;
+      // Compute all NOT NULL derived fields required by the schema
+      const slugify = (s: string) =>
+        s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "project";
+
+      // Resolve client code + name for slug/project_code generation
+      let clientCode = "GEN";
+      let clientSlug = "unassigned";
+      if (clientId) {
+        const clientRow = await query<{ code: string; name: string }>(
+          "select code, name from clients where id = $1",
+          [clientId]
+        );
+        if (clientRow.rows[0]) {
+          clientCode = clientRow.rows[0].code.toUpperCase();
+          clientSlug = slugify(clientRow.rows[0].name);
+        }
+      }
+
+      // project_seq: use parsed num if available, else next seq for this client
+      let projectSeq: number;
+      if (num) {
+        projectSeq = parseInt(num, 10);
+      } else {
+        const seqRow = await query<{ next_seq: number }>(
+          "select coalesce(max(project_seq), 0) + 1 as next_seq from projects where client_id is not distinct from $1",
+          [clientId]
+        );
+        projectSeq = seqRow.rows[0].next_seq;
+      }
+
+      const projectCode = `${clientCode}-${String(projectSeq).padStart(4, "0")}`;
+      const projectSlug = slugify(title);
+      const folderName = `${projectCode}-${projectSlug}`;
+      const storageDir = bc2Project.archived
+        ? `/projects/${clientSlug}/_Archive/${folderName}`
+        : `/projects/${clientSlug}/${folderName}`;
+      // slug is the unique URL identifier; use project_code in lowercase
+      const urlSlug = projectCode.toLowerCase();
 
       const created = await query(
-        `insert into projects (name, description, client_id, archived, code)
-         values ($1, $2, $3, $4, $5)
+        `insert into projects
+           (name, slug, description, client_id, archived, created_by,
+            project_seq, project_code, client_slug, project_slug, storage_project_dir)
+         values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+         on conflict (project_code) do update set name = excluded.name, slug = excluded.slug
          returning id`,
         [
           title,
+          urlSlug,
           bc2Project.description ?? null,
           clientId,
           bc2Project.archived,
-          projectCode
+          "bc2_import",
+          projectSeq,
+          projectCode,
+          clientSlug,
+          projectSlug,
+          storageDir
         ]
       );
       const localId = created.rows[0].id as string;
@@ -234,9 +283,10 @@ async function migrateProjects(
 
 // ── Files phase ───────────────────────────────────────────────────────────────
 
-const CONCURRENCY = 3;
-const FILE_RETRY_ATTEMPTS = 3;
-const FILE_RETRY_DELAY_MS = 1000;
+const CONCURRENCY = 1;
+const FILE_RETRY_ATTEMPTS = 5;
+const FILE_RETRY_DELAY_MS = 2000;
+const FILE_DOWNLOAD_BACKOFF_MS = [5000, 15000, 30000, 60000];
 
 async function migrateFiles(
   jobId: string,
@@ -273,7 +323,7 @@ async function migrateFiles(
       continue;
     }
     const projectRecord = projectRow.rows[0] as Record<string, unknown>;
-    const storageDir = getProjectStorageDir(projectRecord);
+    const storageDir = getProjectStorageDirForArchiveState(projectRecord, Boolean(projectRecord.archived));
 
     // Collect attachments into a queue for batched concurrency
     const attachmentQueue: Bc2Attachment[] = [];
@@ -304,19 +354,33 @@ async function migrateFiles(
             }
 
             // Download from BC2 — try with auth header first; attachment URLs may be pre-signed
-            let downloadResponse = await fetch(attachment.url, {
-              headers: {
-                // Access the private authHeader via client.get trick: reconstruct from env
-                Authorization: "Basic " + Buffer.from(
-                  `${process.env.BASECAMP_USERNAME}:${process.env.BASECAMP_PASSWORD}`
-                ).toString("base64"),
-                "User-Agent": process.env.BASECAMP_USER_AGENT ?? "BC2 Migration"
-              }
-            });
+            let downloadResponse!: Response;
+            for (let dlAttempt = 0; dlAttempt <= FILE_DOWNLOAD_BACKOFF_MS.length; dlAttempt++) {
+              downloadResponse = await fetch(attachment.url, {
+                headers: {
+                  Authorization: "Basic " + Buffer.from(
+                    `${process.env.BASECAMP_USERNAME}:${process.env.BASECAMP_PASSWORD}`
+                  ).toString("base64"),
+                  "User-Agent": process.env.BASECAMP_USER_AGENT ?? "BC2 Migration"
+                }
+              });
 
-            // If auth fails (401/403), retry without auth (pre-signed URL)
-            if (downloadResponse.status === 401 || downloadResponse.status === 403) {
-              downloadResponse = await fetch(attachment.url);
+              // If auth fails (401/403), retry without auth (pre-signed URL)
+              if (downloadResponse.status === 401 || downloadResponse.status === 403) {
+                downloadResponse = await fetch(attachment.url);
+              }
+
+              if (downloadResponse.status === 429) {
+                const retryAfter = downloadResponse.headers.get("Retry-After");
+                const backoffMs = retryAfter
+                  ? parseInt(retryAfter, 10) * 1000
+                  : (FILE_DOWNLOAD_BACKOFF_MS[dlAttempt] ?? FILE_DOWNLOAD_BACKOFF_MS.at(-1)!);
+                process.stderr.write(`  download 429 — waiting ${backoffMs / 1000}s (attachment ${attachment.id})\n`);
+                await new Promise(resolve => setTimeout(resolve, backoffMs));
+                continue;
+              }
+
+              break;
             }
 
             if (!downloadResponse.ok) {
@@ -324,14 +388,14 @@ async function migrateFiles(
             }
 
             const buffer = Buffer.from(await downloadResponse.arrayBuffer());
-            const safeFilename = attachment.filename.replace(/[^a-zA-Z0-9._-]/g, "_");
+            const safeFilename = attachment.name.replace(/[^a-zA-Z0-9._-]/g, "_");
             const targetPath = `${storageDir}/uploads/${Date.now()}-${attachment.id}-${safeFilename}`;
 
             // Upload to Dropbox
             const uploaded = await adapter.uploadComplete({
               sessionId: attachment.id.toString(),
               targetPath,
-              filename: attachment.filename,
+              filename: attachment.name,
               content: buffer,
               mimeType: attachment.content_type
             });
@@ -343,7 +407,7 @@ async function migrateFiles(
             const fileRecord = await createFileMetadata({
               projectId: project.localId,
               uploaderUserId,
-              filename: attachment.filename,
+              filename: attachment.name,
               mimeType: attachment.content_type,
               sizeBytes: attachment.byte_size,
               dropboxFileId: uploaded.fileId,
@@ -377,7 +441,7 @@ async function migrateFiles(
 
         // All retries exhausted
         const msg = lastError instanceof Error ? lastError.message : String(lastError);
-        process.stderr.write(`  file ${attachment.id} (${attachment.filename}) FAILED: ${msg}\n`);
+        process.stderr.write(`  file ${attachment.id} (${attachment.name}) FAILED: ${msg}\n`);
         await logRecord(jobId, "file", String(attachment.id), "failed", msg);
         await incrementCounters(jobId, 0, 1);
       }));
@@ -410,6 +474,7 @@ async function migrateThreadsAndComments(
     let projectThreads = 0;
     let projectComments = 0;
 
+    try {
     for await (const message of fetcher.fetchMessages(String(project.bc2Id))) {
       try {
         let localThreadId: string;
@@ -445,8 +510,8 @@ async function migrateThreadsAndComments(
         projectThreads++;
         threadCount++;
 
-        // Migrate comments for this message
-        for await (const comment of fetcher.fetchComments(String(project.bc2Id), String(message.id))) {
+        // Migrate comments — embedded in the individual message response
+        for (const comment of (message.comments ?? [])) {
           try {
             if (mode !== "dry") {
               const existingComment = await query(
@@ -489,6 +554,10 @@ async function migrateThreadsAndComments(
         }
       }
     }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      process.stderr.write(`  [${project.name}] messages unavailable — skipping (${msg})\n`);
+    }
 
     process.stdout.write(
       `  [${pad(i + 1, projects.length)}/${projects.length}] ${project.name}  ${projectThreads} threads  ${projectComments} comments\n`
@@ -496,6 +565,44 @@ async function migrateThreadsAndComments(
   }
 
   return { threadCount, commentCount };
+}
+
+// ── DB loaders for --only-files ───────────────────────────────────────────────
+
+async function loadProjectsFromDB(flags: CliFlags): Promise<MigratedProject[]> {
+  const result = await query<{ basecamp_project_id: string; local_project_id: string; name: string; archived: boolean }>(
+    `select imp.basecamp_project_id, imp.local_project_id, p.name, p.archived
+       from import_map_projects imp
+       join projects p on p.id = imp.local_project_id
+       order by p.name`
+  );
+  let rows = result.rows;
+
+  if (flags.fromProject) {
+    const prefix = flags.fromProject.toLowerCase();
+    rows = rows.filter(r => r.name.toLowerCase().startsWith(prefix));
+  }
+
+  if (flags.mode === "limited") {
+    rows = rows.slice(0, flags.limit);
+  }
+
+  return rows.map(row => ({
+    bc2Id: parseInt(row.basecamp_project_id, 10),
+    localId: row.local_project_id,
+    name: row.name
+  }));
+}
+
+async function loadPersonMapFromDB(): Promise<Map<number, string>> {
+  const result = await query<{ basecamp_person_id: string; local_user_profile_id: string }>(
+    "select basecamp_person_id, local_user_profile_id from import_map_people"
+  );
+  const map = new Map<number, string>();
+  for (const row of result.rows) {
+    map.set(parseInt(row.basecamp_person_id, 10), row.local_user_profile_id);
+  }
+  return map;
 }
 
 // ── Main ──────────────────────────────────────────────────────────────────────
@@ -513,10 +620,11 @@ async function main() {
   const fetcher = new Bc2Fetcher(client);
 
   const modeLabel = flags.mode === "dry" ? " (dry)" : flags.mode === "limited" ? ` (limited: ${flags.limit})` : "";
-  console.log(`[BC2 Migration] mode=${flags.mode}${modeLabel}`);
+  const onlyFilesLabel = flags.onlyFiles ? " [only-files]" : "";
+  console.log(`[BC2 Migration] mode=${flags.mode}${modeLabel}${onlyFilesLabel}`);
 
   const jobId = flags.mode !== "dry"
-    ? await createMigrationJob({ mode: flags.mode, limit: flags.limit, files: flags.files })
+    ? await createMigrationJob({ mode: flags.mode, limit: flags.limit, files: flags.files || flags.onlyFiles, onlyFiles: flags.onlyFiles })
     : "dry-run";
 
   // SIGINT: mark job interrupted and exit
@@ -528,15 +636,25 @@ async function main() {
     process.exit(0);
   });
 
-  const personMap = await migratePeople(jobId, fetcher, flags.mode);
-  const projects   = await migrateProjects(jobId, fetcher, personMap, flags);
+  let personMap: Map<number, string>;
+  let projects: MigratedProject[];
+  let threadCount = 0;
+  let commentCount = 0;
 
-  const { threadCount, commentCount } = await migrateThreadsAndComments(
-    jobId, fetcher, projects, personMap, flags.mode
-  );
+  if (flags.onlyFiles) {
+    process.stdout.write("Loading projects and people from DB (--only-files)...\n");
+    [projects, personMap] = await Promise.all([loadProjectsFromDB(flags), loadPersonMapFromDB()]);
+    process.stdout.write(`  ${projects.length} projects, ${personMap.size} people loaded\n`);
+  } else {
+    personMap = await migratePeople(jobId, fetcher, flags.mode);
+    projects   = await migrateProjects(jobId, fetcher, personMap, flags);
+    ({ threadCount, commentCount } = await migrateThreadsAndComments(
+      jobId, fetcher, projects, personMap, flags.mode
+    ));
+  }
 
   const fileCount = await migrateFiles(
-    jobId, fetcher, projects, personMap, flags.mode, flags.files
+    jobId, fetcher, projects, personMap, flags.mode, flags.files || flags.onlyFiles
   );
 
   if (jobId !== "dry-run") {

@@ -69,7 +69,6 @@ export async function requestThumbnailPreview(args: {
   const send = (token: string | null) =>
     fetch(path, {
       credentials: "same-origin",
-      redirect: "manual",
       signal: args.signal,
       headers: token ? { Authorization: `Bearer ${token}` } : undefined
     });
@@ -79,6 +78,7 @@ export async function requestThumbnailPreview(args: {
     onToken: args.onToken
   });
   let response = await send(accessToken);
+
   if (response.status === 401 && args.onToken) {
     accessToken = await resolveAccessToken({
       accessToken: null,
@@ -89,10 +89,11 @@ export async function requestThumbnailPreview(args: {
     }
   }
 
-  if (response.status === 307) {
-    const location = response.headers.get("location")?.trim();
-    if (location) {
-      return { state: "ready", thumbnailUrl: location };
+  if (response.status === 200) {
+    const payload = await response.json().catch(() => null);
+    const url = typeof payload?.url === "string" ? payload.url.trim() : "";
+    if (url) {
+      return { state: "ready", thumbnailUrl: url };
     }
     return { state: "missing" };
   }
