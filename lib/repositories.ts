@@ -138,6 +138,14 @@ export async function getClientById(id: string) {
   return result.rows[0] ?? null;
 }
 
+export async function updateClientName(id: string, name: string) {
+  const result = await query(
+    `update clients set name = $1 where id = $2::uuid returning *`,
+    [name.trim(), id]
+  );
+  return result.rows[0] ?? null;
+}
+
 export async function listProjects(includeArchived = true) {
   const sql = includeArchived
     ? `select p.*, c.name as client_name, c.code as client_code,

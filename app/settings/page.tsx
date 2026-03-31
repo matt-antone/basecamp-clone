@@ -12,7 +12,7 @@ import {
   normalizeSiteLogoUrl,
   normalizeSiteTitle
 } from "@/lib/site-branding";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 type ClientRecord = {
   id: string;
@@ -204,8 +204,12 @@ function SettingsPageContent({ initial }: { initial: SettingsBootstrap }) {
   const [tab, setTab] = useState<"clients" | "profile" | "site">("clients");
 
   const [clients, setClients] = useState<ClientRecord[]>(initial.clients);
-  const [name, setName] = useState("");
-  const [code, setCode] = useState("");
+  const clientDialogRef = useRef<HTMLDialogElement>(null);
+  const [clientEditingId, setClientEditingId] = useState<string | null>(null);
+  const [clientDialogName, setClientDialogName] = useState("");
+  const [clientDialogCode, setClientDialogCode] = useState("");
+  const [clientDialogSaving, setClientDialogSaving] = useState(false);
+  const [clientDialogError, setClientDialogError] = useState<string | undefined>();
 
   const [profile, setProfile] = useState<ProfileForm>(initial.profile);
   const [siteSettings, setSiteSettings] = useState<SiteSettingsForm>(initial.siteSettings);
@@ -247,15 +251,62 @@ function SettingsPageContent({ initial }: { initial: SettingsBootstrap }) {
     };
   }
 
-  async function createClient() {
+  function openCreateClientDialog() {
+    setClientEditingId(null);
+    setClientDialogName("");
+    setClientDialogCode("");
+    setClientDialogError(undefined);
+    clientDialogRef.current?.showModal();
+  }
+
+  function openEditClientDialog(client: ClientRecord) {
+    setClientEditingId(client.id);
+    setClientDialogName(client.name);
+    setClientDialogCode(client.code);
+    setClientDialogError(undefined);
+    clientDialogRef.current?.showModal();
+  }
+
+  function closeClientDialog() {
+    clientDialogRef.current?.close();
+    setClientDialogError(undefined);
+  }
+
+  async function submitClientDialog() {
     if (!token) return;
-    await authedFetch(token, "/clients", {
-      method: "POST",
-      body: JSON.stringify({ name, code })
-    });
-    setName("");
-    setCode("");
-    await loadClients(token);
+    const isEdit = clientEditingId !== null;
+    if (!clientDialogName.trim()) {
+      setClientDialogError("Client name is required.");
+      return;
+    }
+    if (!isEdit && !clientDialogCode.trim()) {
+      setClientDialogError("Client code is required.");
+      return;
+    }
+
+    setClientDialogSaving(true);
+    setClientDialogError(undefined);
+    try {
+      if (isEdit) {
+        await authedFetch(token, `/clients/${clientEditingId}`, {
+          method: "PATCH",
+          body: JSON.stringify({ name: clientDialogName.trim() })
+        });
+        setStatus("Client updated");
+      } else {
+        await authedFetch(token, "/clients", {
+          method: "POST",
+          body: JSON.stringify({ name: clientDialogName.trim(), code: clientDialogCode.trim() })
+        });
+        setStatus("Client added");
+      }
+      closeClientDialog();
+      await loadClients(token);
+    } catch (error) {
+      setClientDialogError(error instanceof Error ? error.message : "Request failed");
+    } finally {
+      setClientDialogSaving(false);
+    }
   }
 
   async function saveProfile() {
@@ -340,22 +391,26 @@ function SettingsPageContent({ initial }: { initial: SettingsBootstrap }) {
           <h2>Clients</h2>
           <p>Each project must choose a client. Project labels are generated as: CLIENTCODE-0001-Title.</p>
           <div className="form">
-            <input placeholder="Client name" value={name} onChange={(e) => setName(e.target.value)} />
-            <input
-              placeholder="Client code (e.g. ACME)"
-              value={code}
-              onChange={(e) => setCode(e.target.value.toUpperCase())}
-            />
-            <OneShotButton onClick={() => createClient().catch((error) => setStatus(error.message))} disabled={!name || !code}>
-              Add Client
+            <OneShotButton type="button" onClick={openCreateClientDialog} disabled={!token}>
+              Add client
             </OneShotButton>
           </div>
 
-          <ul>
+          <ul className="settingsClientList">
             {clients.map((client) => (
-              <li key={client.id}>
-                <strong>{client.code}</strong>
-                <span>{client.name}</span>
+              <li key={client.id} className="settingsClientRow">
+                <div className="settingsClientRowMain">
+                  <strong>{client.code}</strong>
+                  <span>{client.name}</span>
+                </div>
+                <OneShotButton
+                  type="button"
+                  className="secondary"
+                  onClick={() => openEditClientDialog(client)}
+                  disabled={!token}
+                >
+                  Edit
+                </OneShotButton>
               </li>
             ))}
           </ul>
@@ -431,6 +486,57 @@ function SettingsPageContent({ initial }: { initial: SettingsBootstrap }) {
           </div>
         </section>
       )}
+
+      <dialog
+        ref={clientDialogRef}
+        className="dialog"
+        onClose={() => {
+          setClientDialogError(undefined);
+          setClientEditingId(null);
+        }}
+      >
+        <form
+          className="dialogForm"
+          onSubmit={(event) => {
+            event.preventDefault();
+            submitClientDialog();
+          }}
+        >
+          <h3>{clientEditingId ? "Edit client" : "Add client"}</h3>
+          <div className="form">
+            <label className="dialogField">
+              <span>Name</span>
+              <input
+                value={clientDialogName}
+                onChange={(e) => setClientDialogName(e.target.value)}
+                placeholder="Client name"
+                disabled={clientDialogSaving}
+              />
+            </label>
+            <label className="dialogField">
+              <span>Code</span>
+              <input
+                value={clientDialogCode}
+                onChange={(e) => setClientDialogCode(e.target.value.toUpperCase())}
+                placeholder="e.g. ACME"
+                disabled={clientDialogSaving || clientEditingId !== null}
+              />
+            </label>
+            {clientEditingId ? (
+              <p className="dialogFieldHint">Code can’t be changed after the client is created.</p>
+            ) : null}
+            {clientDialogError ? <p className="status settingsDialogError">{clientDialogError}</p> : null}
+          </div>
+          <div className="row">
+            <OneShotButton type="submit" disabled={clientDialogSaving}>
+              {clientDialogSaving ? "Saving…" : clientEditingId ? "Save changes" : "Add client"}
+            </OneShotButton>
+            <OneShotButton type="button" className="secondary" onClick={closeClientDialog} disabled={clientDialogSaving}>
+              Cancel
+            </OneShotButton>
+          </div>
+        </form>
+      </dialog>
 
       {tab === "site" && (
         <section className="stackSection">
