@@ -179,12 +179,7 @@ export async function listArchivedProjectsPaginated(options: {
          when p.project_code is not null and length(trim(p.project_code)) > 0 then p.project_code || '-' || p.name
          else p.name
        end as display_name,
-       greatest(
-         p.updated_at,
-         coalesce((select max(t.updated_at) from discussion_threads t where t.project_id = p.id), p.updated_at),
-         coalesce((select max(dc.updated_at) from discussion_comments dc where dc.project_id = p.id), p.updated_at),
-         coalesce((select max(f.created_at) from project_files f where f.project_id = p.id), p.updated_at)
-       ) as last_activity_at,
+       coalesce(p.last_activity_at, p.updated_at) as last_activity_at,
        count(*) over() as total_count
      from projects p
      left join clients c on c.id = p.client_id
@@ -196,7 +191,7 @@ export async function listArchivedProjectsPaginated(options: {
          or lower(coalesce(p.project_code, '')) like '%' || $1 || '%'
        ))
        and ($2 = 'all' or p.status = $2)
-     order by last_activity_at desc
+     order by coalesce(p.last_activity_at, p.updated_at) desc
      limit $3 offset $4`,
     [search, status, limit, offset]
   );

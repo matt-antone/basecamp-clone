@@ -122,3 +122,34 @@ describe("createFileMetadata touches project activity", () => {
     expect(touchParams).toEqual(["proj-1"]);
   });
 });
+
+describe("listArchivedProjectsPaginated uses stored last_activity_at", () => {
+  beforeEach(() => {
+    vi.resetModules();
+    queryMock.mockReset();
+  });
+
+  it("does not use correlated subqueries — uses p.last_activity_at directly", async () => {
+    queryMock.mockResolvedValueOnce({
+      rows: [
+        {
+          id: "proj-1",
+          name: "Old Site",
+          archived: true,
+          last_activity_at: "2026-01-01T00:00:00Z",
+          total_count: "1"
+        }
+      ]
+    });
+
+    const { listArchivedProjectsPaginated } = await import("@/lib/repositories");
+    await listArchivedProjectsPaginated({ search: "", page: 1, limit: 20 });
+
+    expect(queryMock).toHaveBeenCalledTimes(1);
+    const [sql] = queryMock.mock.calls[0];
+    expect(sql).toContain("p.last_activity_at");
+    expect(sql).not.toContain("select max(t.updated_at)");
+    expect(sql).not.toContain("select max(dc.updated_at)");
+    expect(sql).not.toContain("select max(f.created_at)");
+  });
+});

@@ -9,12 +9,13 @@ function getPool() {
   }
 
   const pool = new Pool({
-    connectionString: config.databaseUrl()
+    connectionString: config.databaseUrl(),
+    max: 5,
+    connectionTimeoutMillis: 8000,
+    idleTimeoutMillis: 30000
   });
 
-  if (process.env.NODE_ENV !== "production") {
-    globalForPg.pool = pool;
-  }
+  globalForPg.pool = pool;
 
   return pool;
 }

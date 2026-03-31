@@ -1,3 +1,10 @@
-import ProjectsWorkspacePage from "@/components/projects/projects-workspace-page";
+import { ProjectsList } from "@/components/projects/projects-list";
+import { ProjectsWorkspaceProvider } from "@/components/projects/projects-workspace-context";
 
-export default ProjectsWorkspacePage;
+export default function Page() {
+  return (
+    <ProjectsWorkspaceProvider>
+      <ProjectsList />
+    </ProjectsWorkspaceProvider>
+  );
+}

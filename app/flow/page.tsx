@@ -1,3 +1,10 @@
-import ProjectsWorkspacePage from "@/components/projects/projects-workspace-page";
+import { ProjectsBoard } from "@/components/projects/projects-board";
+import { ProjectsWorkspaceProvider } from "@/components/projects/projects-workspace-context";
 
-export default ProjectsWorkspacePage;
+export default function FlowPage() {
+  return (
+    <ProjectsWorkspaceProvider>
+      <ProjectsBoard />
+    </ProjectsWorkspaceProvider>
+  );
+}

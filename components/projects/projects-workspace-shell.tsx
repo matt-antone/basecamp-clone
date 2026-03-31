@@ -1,0 +1,118 @@
+"use client";
+
+import { ProjectDialogForm } from "@/components/project-dialog-form";
+import { useProjectsWorkspace } from "@/components/projects/projects-workspace-context";
+import type { ReactNode } from "react";
+
+function formatFeedDate(value: string | null) {
+  if (!value) {
+    return "No date";
+  }
+
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) {
+    return "No date";
+  }
+
+  return parsed.toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric"
+  });
+}
+
+export function ProjectsWorkspaceShell({
+  workbench,
+  viewport
+}: {
+  workbench?: ReactNode;
+  viewport: ReactNode;
+}) {
+  const {
+    status,
+    domainAllowed,
+    latestFeaturedPosts,
+    createDialogRef,
+    projectForm,
+    setProjectForm,
+    clients,
+    isCreatingProject,
+    createProject,
+    setStatus
+  } = useProjectsWorkspace();
+
+  const featuredHeroPost = latestFeaturedPosts[0] ?? null;
+  const feedRailPosts = latestFeaturedPosts.length > 1 ? latestFeaturedPosts.slice(1) : latestFeaturedPosts;
+  const heroKicker = featuredHeroPost ? `Latest from ${featuredHeroPost.sourceName}` : "Projects index";
+  const heroTitle = featuredHeroPost?.title ?? "A calmer way to see what the studio is carrying.";
+  const heroIntro =
+    featuredHeroPost?.description ??
+    "The page should read like an active portfolio wall, not a template dashboard. Track what is moving, what is blocked, and which client lanes need attention next.";
+
+  return (
+    <main className="page projectsExperience">
+      <section className="projectsHero">
+        <div className="projectsHeroCopy">
+          <p className={`projectsSessionNote ${domainAllowed && status.startsWith("Signed in as") ? "projectsSessionNoteQuiet" : ""}`}>
+            {status}
+          </p>
+          <>
+            <p className="projectsKicker">{heroKicker}</p>
+            <h1 className={`projectsHeroTitle ${featuredHeroPost ? "projectsHeroTitleFeed" : ""}`}>{heroTitle}</h1>
+            <p className={`projectsHeroIntro ${featuredHeroPost ? "projectsHeroIntroFeed" : ""}`}>{heroIntro}</p>
+            {featuredHeroPost && (
+              <div className="projectsHeroUtilityRow">
+                <div className="projectsHeaderActions">
+                  <a href={featuredHeroPost.url} target="_blank" rel="noreferrer" className="projectPrimaryButton projectPrimaryButtonLink">
+                    Read more
+                  </a>
+                </div>
+              </div>
+            )}
+          </>
+        </div>
+        <aside className="projectsFeedRail" aria-label="Latest feed posts">
+          <p className="projectsFeedEyebrow">Latest posts</p>
+          {feedRailPosts.length > 0 ? (
+            <ul className="projectsFeedList">
+              {feedRailPosts.map((post) => (
+                <li key={`${post.url}-${post.publishedAt ?? "undated"}`} className="projectsFeedItem">
+                  <div className="projectsFeedMeta">
+                    <span>{post.sourceName}</span>
+                    <span>{formatFeedDate(post.publishedAt)}</span>
+                  </div>
+                  <a href={post.url} target="_blank" rel="noreferrer" className="projectsFeedLink">
+                    {post.title}
+                  </a>
+                  <p className="projectsFeedDescription">{post.description}</p>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <div className="projectsFeedFallback">
+              <p>The feeds are quiet right now, so the homepage is keeping the focus on your project index.</p>
+            </div>
+          )}
+        </aside>
+      </section>
+
+      {domainAllowed && workbench !== undefined && workbench !== null ? (
+        <section className="projectsWorkbench">{workbench}</section>
+      ) : null}
+
+      {domainAllowed ? <div className="projectsViewport">{viewport}</div> : null}
+
+      <dialog ref={createDialogRef} className="dialog">
+        <ProjectDialogForm
+          title="Create Project"
+          submitLabel="Create"
+          values={projectForm}
+          clients={clients}
+          submitting={isCreatingProject}
+          onChange={setProjectForm}
+          onSubmit={() => createProject().catch((error) => setStatus(error instanceof Error ? error.message : "Create failed"))}
+          onCancel={() => createDialogRef.current?.close()}
+        />
+      </dialog>
+    </main>
+  );
+}

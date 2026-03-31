@@ -24,7 +24,7 @@ describe("ProjectsBoardView", () => {
             client_id: "client-1",
             client_name: "Acme",
             archived: false,
-            status: "in_progress"
+            status: "complete"
           }
         ]}
         projectColumns={PROJECT_COLUMNS}
@@ -43,7 +43,7 @@ describe("ProjectsBoardView", () => {
     );
 
     expect(markup).toContain('class="projectFlowGrid"');
-    expect(markup).toContain(">In Progress<");
+    expect(markup).toContain(">Complete<");
     expect(markup).toContain(">ABC-2026 Campaign<");
     expect(markup).toContain(">Archive<");
   });
