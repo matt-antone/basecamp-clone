@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import { OneShotButton } from "@/components/one-shot-button";
-import { authedJsonFetch, fetchAuthSession } from "@/lib/browser-auth";
+import { fetchAuthSession } from "@/lib/browser-auth";
 import { projectsNavHighlight } from "@/lib/projects-view-path";
 import { DEFAULT_SITE_LOGO_URL, DEFAULT_SITE_TITLE, normalizeSiteLogoUrl, normalizeSiteTitle } from "@/lib/site-branding";
 
