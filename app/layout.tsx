@@ -4,7 +4,7 @@ import Script from "next/script";
 import { getSiteSettings } from "@/lib/repositories";
 import { DEFAULT_SITE_TITLE, SITE_DESCRIPTION, normalizeSiteTitle } from "@/lib/site-branding";
 import "./styles.css";
-import ThemeToggle from "./theme-toggle";
+import SiteHeader from "./header";
 
 export async function generateMetadata(): Promise<Metadata> {
   try {
@@ -55,7 +55,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         </Script>
       </head>
       <body className={`${instrumentSans.className} ${newsreader.variable}`}>
-        <ThemeToggle />
+        <SiteHeader />
         <div className="appFrame">{children}</div>
       </body>
     </html>

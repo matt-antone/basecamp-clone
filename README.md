@@ -9,7 +9,7 @@ Next.js + Supabase + Dropbox implementation based on `PLAN.md`.
 - Dropbox-backed file metadata + temporary links
 - Best-effort transactional email notifications for new discussions and comments
 - Canonical project identity: `CLIENTCODE-0001-Title`
-- Dropbox project working directories: `/projects/<client-slug>/<project-code>-<project-slug>/uploads`
+- Dropbox project working directories: `/projects/<CLIENTCODE>/<PROJECT_CODE>-<Project title>/uploads` (title sanitized for path safety)
 - Basecamp 2 import job endpoints with idempotent mapping tables
 - Working authenticated UI with route-based navigation
 - Settings page at `/settings` with tabbed client and site branding management

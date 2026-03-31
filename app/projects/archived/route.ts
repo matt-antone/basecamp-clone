@@ -1,5 +1,6 @@
-import { ok, serverError } from "@/lib/http";
+import { badRequest, ok, serverError } from "@/lib/http";
 import { listArchivedProjectsPaginated } from "@/lib/repositories";
+import { z } from "zod";
 
 export async function GET(request: Request) {
   try {
@@ -9,7 +10,18 @@ export async function GET(request: Request) {
     const page = parseInt(url.searchParams.get("page") ?? "1", 10);
     const limit = parseInt(url.searchParams.get("limit") ?? "20", 10);
 
-    const result = await listArchivedProjectsPaginated({ search, status, page, limit });
+    const clientIdRaw = url.searchParams.get("clientId");
+    const clientIdTrimmed = clientIdRaw?.trim() ?? "";
+    let clientId: string | null = null;
+    if (clientIdTrimmed.length > 0) {
+      const parsed = z.string().uuid().safeParse(clientIdTrimmed);
+      if (!parsed.success) {
+        return badRequest("Invalid clientId");
+      }
+      clientId = parsed.data;
+    }
+
+    const result = await listArchivedProjectsPaginated({ search, status, page, limit, clientId });
     return ok(result);
   } catch (error) {
     console.error("archived_projects_fetch_failed", {

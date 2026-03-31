@@ -13,7 +13,8 @@ export interface StorageAdapter {
   createTemporaryDownloadLink(path: string): Promise<string>;
   createFolderLink(path: string): Promise<string>;
   ensureProjectFolders(args: {
-    clientSlug: string;
+    /** Client code only, uppercase (Dropbox segment under projects root). */
+    clientCodeUpper: string;
     projectFolderBaseName: string;
   }): Promise<{ projectDir: string; uploadsDir: string }>;
   moveProjectFolder(args: { fromPath: string; toPath: string }): Promise<{ projectDir: string }>;

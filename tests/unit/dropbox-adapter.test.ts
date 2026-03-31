@@ -25,9 +25,9 @@ describe("DropboxStorageAdapter", () => {
       filesDownload: filesDownloadMock
     });
 
-    const result = await adapter.downloadFile("/projects/alpha/file.png");
+    const result = await adapter.downloadFile("/Projects/alpha/file.png");
 
-    expect(filesDownloadMock).toHaveBeenCalledWith({ path: "/projects/alpha/file.png" });
+    expect(filesDownloadMock).toHaveBeenCalledWith({ path: "/Projects/alpha/file.png" });
     expect(result.bytes).toEqual(Buffer.from("file-data"));
     expect(result.contentType).toBe("image/png");
   });
@@ -48,7 +48,7 @@ describe("DropboxStorageAdapter", () => {
       filesDownload: filesDownloadMock
     });
 
-    const result = await adapter.downloadFile("/projects/alpha/file.png");
+    const result = await adapter.downloadFile("/Projects/alpha/file.png");
     expect(result.contentType).toBe("image/jpeg");
   });
 
@@ -67,7 +67,7 @@ describe("DropboxStorageAdapter", () => {
       filesDownload: filesDownloadMock
     });
 
-    const result = await adapter.downloadFile("/projects/alpha/file.png");
+    const result = await adapter.downloadFile("/Projects/alpha/file.png");
 
     expect(result.contentType).toBe("application/octet-stream");
   });
@@ -92,20 +92,20 @@ describe("DropboxStorageAdapter", () => {
     adapter.ensureDirectoryChain = ensureDirectoryChainMock;
 
     const result = await adapter.moveProjectFolder({
-      fromPath: "/projects/acme/BRGS-0001-website-refresh",
-      toPath: "/projects/acme/_Archive/BRGS-0001-website-refresh"
+      fromPath: "/Projects/BRGS/BRGS-0001-Acme Website Refresh",
+      toPath: "/Projects/BRGS/_Archive/BRGS-0001-Acme Website Refresh"
     });
 
-    expect(ensureDirectoryChainMock).toHaveBeenCalledWith("/projects/acme/_Archive");
+    expect(ensureDirectoryChainMock).toHaveBeenCalledWith("/Projects/BRGS/_Archive");
     expect(filesMoveV2Mock).toHaveBeenCalledWith({
-      from_path: "/projects/acme/BRGS-0001-website-refresh",
-      to_path: "/projects/acme/_Archive/BRGS-0001-website-refresh",
+      from_path: "/Projects/BRGS/BRGS-0001-Acme Website Refresh",
+      to_path: "/Projects/BRGS/_Archive/BRGS-0001-Acme Website Refresh",
       autorename: false
     });
     expect(filesGetMetadataMock).toHaveBeenCalledWith({
-      path: "/projects/acme/_Archive/BRGS-0001-website-refresh"
+      path: "/Projects/BRGS/_Archive/BRGS-0001-Acme Website Refresh"
     });
-    expect(result).toEqual({ projectDir: "/projects/acme/_Archive/BRGS-0001-website-refresh" });
+    expect(result).toEqual({ projectDir: "/Projects/BRGS/_Archive/BRGS-0001-Acme Website Refresh" });
   });
 
   it("rethrows when source is missing and destination also does not exist", async () => {
@@ -130,12 +130,12 @@ describe("DropboxStorageAdapter", () => {
 
     await expect(
       adapter.moveProjectFolder({
-        fromPath: "/projects/acme/BRGS-0001-website-refresh",
-        toPath: "/projects/acme/_Archive/BRGS-0001-website-refresh"
+        fromPath: "/Projects/BRGS/BRGS-0001-Acme Website Refresh",
+        toPath: "/Projects/BRGS/_Archive/BRGS-0001-Acme Website Refresh"
       })
     ).rejects.toThrow("path/not_found/");
     expect(filesGetMetadataMock).toHaveBeenCalledWith({
-      path: "/projects/acme/_Archive/BRGS-0001-website-refresh"
+      path: "/Projects/BRGS/_Archive/BRGS-0001-Acme Website Refresh"
     });
   });
 });

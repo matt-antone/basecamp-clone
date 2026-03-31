@@ -38,7 +38,7 @@ describe("/projects/[id]/folder-link route", () => {
   it("returns a JSON folder URL for an existing project", async () => {
     requireUserMock.mockResolvedValue({ id: "user-1", email: "person@example.com" });
     getProjectMock.mockResolvedValue({ id: "project-1" });
-    getProjectStorageDirMock.mockReturnValue("/projects/bright-ridge/BRGS-0001-website-refresh");
+    getProjectStorageDirMock.mockReturnValue("/Projects/BRGS/BRGS-0001-Website Refresh");
     createFolderLinkMock.mockResolvedValue("https://dropbox.test/folder/project-1");
 
     const { GET } = await import("@/app/projects/[id]/folder-link/route");

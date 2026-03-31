@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import type { ProjectDialogValues } from "@/components/project-dialog-form";
 import { PageLoadingState } from "@/components/loading-shells";
 import { createClientResource } from "@/lib/client-resource";
@@ -33,9 +34,18 @@ export type Project = {
   client_id: string | null;
   client_name?: string | null;
   client_code?: string | null;
+  discussion_count?: number;
+  file_count?: number;
 };
 
 export type ProjectColumn = "new" | "in_progress" | "blocked" | "complete";
+
+type RefreshProjectsOptions = {
+  accessToken?: string | null;
+  clientId?: string | null;
+  search?: string;
+  signal?: AbortSignal;
+};
 
 export const PROJECT_COLUMNS: { key: ProjectColumn; title: string; subtitle: string }[] = [
   { key: "new", title: "New", subtitle: "Ready to shape" },
@@ -65,8 +75,12 @@ export type ProjectsWorkspaceContextValue = {
   latestFeaturedPosts: FeaturedFeedPost[];
   projectColumns: typeof PROJECT_COLUMNS;
   activeProjects: Project[];
+  filterClientId: string | null;
+  setFilterClientId: Dispatch<SetStateAction<string | null>>;
+  activeSearch: string;
+  setActiveSearch: Dispatch<SetStateAction<string>>;
   authedFetch: (path: string, options?: RequestInit) => Promise<unknown>;
-  refreshProjects: (nextAccessToken?: string | null) => Promise<void>;
+  refreshProjects: (overrides?: RefreshProjectsOptions) => Promise<void>;
   createProject: () => Promise<void>;
   openCreateDialog: () => void;
   createDialogRef: RefObject<HTMLDialogElement | null>;
@@ -81,6 +95,21 @@ export type ProjectsWorkspaceContextValue = {
 };
 
 const ProjectsWorkspaceContext = createContext<ProjectsWorkspaceContextValue | null>(null);
+
+function buildProjectsUrl(options?: { clientId?: string | null; search?: string }) {
+  const params = new URLSearchParams({ includeArchived: "true" });
+  const clientId = options?.clientId ?? null;
+  const search = options?.search?.trim() ?? "";
+
+  if (clientId) {
+    params.set("clientId", clientId);
+  }
+  if (search) {
+    params.set("search", search);
+  }
+
+  return `/projects?${params.toString()}`;
+}
 
 export function useProjectsWorkspace() {
   const ctx = useContext(ProjectsWorkspaceContext);
@@ -120,16 +149,20 @@ export function ProjectsWorkspaceProvider({ children }: { children: React.ReactN
 }
 
 function ProjectsWorkspaceInner({ initial, children }: { initial: ProjectsBootstrap; children: React.ReactNode }) {
+  const router = useRouter();
   const [accessToken, setAccessToken] = useState<string | null>(initial.accessToken);
   const [status, setStatus] = useState(initial.status);
   const domainAllowed = initial.domainAllowed;
   const clients = initial.clients;
   const [projects, setProjects] = useState<Project[]>(initial.projects);
   const latestFeaturedPosts = initial.latestFeaturedPosts;
+  const [filterClientId, setFilterClientId] = useState<string | null>(null);
+  const [activeSearch, setActiveSearch] = useState("");
 
   const [projectForm, setProjectForm] = useState<ProjectDialogValues>(createProjectDialogValues());
   const [isCreatingProject, setIsCreatingProject] = useState(false);
   const createDialogRef = useRef<HTMLDialogElement | null>(null);
+  const refreshAbortControllerRef = useRef<AbortController | null>(null);
 
   const activeProjects = useMemo(() => projects.filter((project) => !project.archived), [projects]);
 
@@ -146,25 +179,60 @@ function ProjectsWorkspaceInner({ initial, children }: { initial: ProjectsBootst
     return data;
   }, [accessToken]);
 
+  useEffect(() => {
+    return () => {
+      refreshAbortControllerRef.current?.abort();
+    };
+  }, []);
+
   const refreshProjects = useCallback(
-    async (nextAccessToken = accessToken) => {
-      if (!nextAccessToken) {
-        throw new Error("Missing access token");
-      }
-      const data = await authedFetch("/projects?includeArchived=true", {
-        headers: {
-          Authorization: `Bearer ${nextAccessToken}`
+    async (overrides: RefreshProjectsOptions = {}) => {
+      refreshAbortControllerRef.current?.abort();
+
+      const controller = new AbortController();
+      refreshAbortControllerRef.current = controller;
+
+      const forwardAbort = () => controller.abort();
+      if (overrides.signal) {
+        if (overrides.signal.aborted) {
+          controller.abort();
+        } else {
+          overrides.signal.addEventListener("abort", forwardAbort, { once: true });
         }
-      });
-      setProjects((data?.projects ?? []) as Project[]);
+      }
+
+      try {
+        const nextClientId = overrides.clientId !== undefined ? overrides.clientId : filterClientId;
+        const nextSearch = overrides.search !== undefined ? overrides.search : activeSearch;
+        const { accessToken: nextToken, data } = await authedJsonFetch({
+          accessToken: overrides.accessToken !== undefined ? overrides.accessToken : accessToken,
+          init: { signal: controller.signal },
+          onToken: setAccessToken,
+          path: buildProjectsUrl({ clientId: nextClientId, search: nextSearch })
+        });
+
+        if (nextToken !== accessToken) {
+          setAccessToken(nextToken);
+        }
+        if (!controller.signal.aborted) {
+          setProjects((data?.projects ?? []) as Project[]);
+        }
+      } finally {
+        if (overrides.signal) {
+          overrides.signal.removeEventListener("abort", forwardAbort);
+        }
+        if (refreshAbortControllerRef.current === controller) {
+          refreshAbortControllerRef.current = null;
+        }
+      }
     },
-    [accessToken, authedFetch]
+    [accessToken, activeSearch, filterClientId]
   );
 
   const createProject = useCallback(async () => {
     setIsCreatingProject(true);
     try {
-      await authedFetch("/projects", {
+      const data = (await authedFetch("/projects", {
         method: "POST",
         body: JSON.stringify({
           name: projectForm.name,
@@ -174,14 +242,18 @@ function ProjectsWorkspaceInner({ initial, children }: { initial: ProjectsBootst
           tags: parseProjectTags(projectForm.tags),
           requestor: projectForm.requestor.trim() || null
         })
-      });
+      })) as { project?: { id?: string } };
+      const projectId = data?.project?.id;
+      if (!projectId) {
+        throw new Error("Project created without an id");
+      }
       setProjectForm(createProjectDialogValues(clients[0]?.id ?? ""));
       createDialogRef.current?.close();
-      await refreshProjects();
+      router.push(`/${projectId}`);
     } finally {
       setIsCreatingProject(false);
     }
-  }, [authedFetch, clients, projectForm, refreshProjects]);
+  }, [authedFetch, clients, projectForm, router]);
 
   const openCreateDialog = useCallback(() => {
     setProjectForm(createProjectDialogValues(clients[0]?.id ?? ""));
@@ -191,9 +263,9 @@ function ProjectsWorkspaceInner({ initial, children }: { initial: ProjectsBootst
   const toggleArchive = useCallback(
     async (project: Project) => {
       await authedFetch(`/projects/${project.id}/${project.archived ? "restore" : "archive"}`, { method: "POST" });
-      await refreshProjects();
+      await refreshProjects({ clientId: filterClientId, search: activeSearch });
     },
-    [authedFetch, refreshProjects]
+    [activeSearch, authedFetch, filterClientId, refreshProjects]
   );
 
   function runWithTransition(update: () => void) {
@@ -231,12 +303,13 @@ function ProjectsWorkspaceInner({ initial, children }: { initial: ProjectsBootst
           method: "POST",
           body: JSON.stringify({ status: targetColumn })
         });
+        await refreshProjects({ clientId: filterClientId, search: activeSearch });
       } catch (error) {
         setProjects(previousProjects);
         throw error;
       }
     },
-    [authedFetch, projects]
+    [activeSearch, authedFetch, filterClientId, projects, refreshProjects]
   );
 
   const getProjectClientLabel = useCallback((project: Project) => {
@@ -285,6 +358,10 @@ function ProjectsWorkspaceInner({ initial, children }: { initial: ProjectsBootst
     latestFeaturedPosts,
     projectColumns: PROJECT_COLUMNS,
     activeProjects,
+    filterClientId,
+    setFilterClientId,
+    activeSearch,
+    setActiveSearch,
     authedFetch,
     refreshProjects,
     createProject,
@@ -355,7 +432,7 @@ async function loadProjectsBootstrap(): Promise<ProjectsBootstrap> {
 
     const [clientsResponse, projectsResponse] = await Promise.all([
       authedJsonFetch({ accessToken, path: "/clients" }),
-      authedJsonFetch({ accessToken, path: "/projects?includeArchived=true" })
+      authedJsonFetch({ accessToken, path: buildProjectsUrl() })
     ]);
 
     return {

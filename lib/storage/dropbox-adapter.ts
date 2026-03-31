@@ -188,9 +188,9 @@ export class DropboxStorageAdapter implements StorageAdapter {
     };
   }
 
-  async ensureProjectFolders(args: { clientSlug: string; projectFolderBaseName: string }) {
+  async ensureProjectFolders(args: { clientCodeUpper: string; projectFolderBaseName: string }) {
     const projectsRoot = config.dropboxProjectsRootFolder();
-    const clientDir = `${projectsRoot}/${args.clientSlug}`;
+    const clientDir = `${projectsRoot}/${args.clientCodeUpper}`;
     await this.ensureFolderExists(clientDir);
 
     const projectDir = await this.createProjectDirWithSuffix({

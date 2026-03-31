@@ -7,11 +7,12 @@ import { useProjectsWorkspace } from "@/components/projects/projects-workspace-c
 import { ProjectsWorkspaceShell } from "@/components/projects/projects-workspace-shell";
 
 export function ProjectsArchive() {
-  const { accessToken, setAccessToken, toggleArchive, openCreateDialog, domainAllowed } = useProjectsWorkspace();
+  const { accessToken, setAccessToken, toggleArchive, openCreateDialog, domainAllowed, filterClientId } = useProjectsWorkspace();
 
   const viewport = domainAllowed ? (
     <ArchiveTab
       accessToken={accessToken}
+      filterClientId={filterClientId}
       onToken={setAccessToken}
       onOpenCreateDialog={openCreateDialog}
       onRestore={async (project: ArchiveProjectItem) => {

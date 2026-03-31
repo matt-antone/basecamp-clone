@@ -24,6 +24,8 @@ type ProjectListItem = {
   client_name?: string | null;
   client_code?: string | null;
   status?: string | null;
+  discussion_count?: number;
+  file_count?: number;
 };
 
 type ProjectGroup = {
@@ -125,11 +127,17 @@ export function ProjectsListView(props: ProjectsListViewProps) {
                   <span className="projectLedgerStatus">{getProjectStatusLabel(project)}</span>
                 </div>
                 <div className="projectMain projectLedgerBody">
-                  <Link href={`/${project.id}`} className="projectLink projectTitle projectLedgerTitle">
+                  <Link
+                    href={`/${project.id}`}
+                    className={`projectLink projectTitle projectLedgerTitle tone-${normalizeProjectColumn(project)}`}
+                  >
                     {renderProjectTitle(project.display_name ?? project.name)}
                   </Link>
                   <p className="projectDescription">{project.description?.trim() || "No description provided."}</p>
                   <ProjectTagList tags={project.tags} className="projectTagListCompact" />
+                  <p className="projectLedgerCounts">
+                    {project.discussion_count ?? 0} discussions · {project.file_count ?? 0} files
+                  </p>
                 </div>
                 <div className="projectLedgerActions">
                   <Link href={`/${project.id}`} className="projectActionLink">

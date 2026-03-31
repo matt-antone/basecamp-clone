@@ -1,6 +1,7 @@
 import { requireUser } from "@/lib/auth";
 import { badRequest, serverError, unauthorized, ok } from "@/lib/http";
 import { createProject, deleteProjectById, listProjects, setProjectStorageDir } from "@/lib/repositories";
+import { buildDropboxProjectFolderBaseName, clientCodeFromProjectCode } from "@/lib/project-storage";
 import { DropboxStorageAdapter, getDropboxErrorSummary, isTeamSelectUserRequiredError } from "@/lib/storage/dropbox-adapter";
 import { z } from "zod";
 
@@ -17,10 +18,23 @@ export async function GET(request: Request) {
   try {
     const url = new URL(request.url);
     const includeArchived = url.searchParams.get("includeArchived") !== "false";
-    const projects = await listProjects(includeArchived);
+
+    const clientIdRaw = url.searchParams.get("clientId");
+    const clientIdTrimmed = clientIdRaw?.trim() ?? "";
+    let clientId: string | null = null;
+    if (clientIdTrimmed.length > 0) {
+      const parsed = z.string().uuid().safeParse(clientIdTrimmed);
+      if (!parsed.success) {
+        return badRequest("Invalid clientId");
+      }
+      clientId = parsed.data;
+    }
+
+    const search = (url.searchParams.get("search") ?? "").trim();
+    const projects = await listProjects(includeArchived, { clientId, search });
     return ok({ projects });
   } catch (error) {
-    console.error("project_create_failed", {
+    console.error("projects_list_failed", {
       error: error instanceof Error ? error.message : String(error)
     });
     if (error instanceof Error && /auth|token|workspace/i.test(error.message)) {
@@ -46,9 +60,10 @@ export async function POST(request: Request) {
 
     const adapter = new DropboxStorageAdapter();
     try {
-      const projectFolderBaseName = `${createdProject.project_code}-${createdProject.project_slug}`;
+      const clientCodeUpper = clientCodeFromProjectCode(createdProject.project_code).toUpperCase();
+      const projectFolderBaseName = buildDropboxProjectFolderBaseName(createdProject);
       const provisioned = await adapter.ensureProjectFolders({
-        clientSlug: createdProject.client_slug,
+        clientCodeUpper,
         projectFolderBaseName
       });
       const project = await setProjectStorageDir(createdProject.id, provisioned.projectDir);
@@ -67,7 +82,7 @@ export async function POST(request: Request) {
 
       console.error("project_storage_provision_failed", {
         projectId: createdProject.id,
-        clientSlug: createdProject.client_slug,
+        clientCodeUpper: clientCodeFromProjectCode(createdProject.project_code).toUpperCase(),
         projectCode: createdProject.project_code,
         projectSlug: createdProject.project_slug,
         error: dropboxSummary

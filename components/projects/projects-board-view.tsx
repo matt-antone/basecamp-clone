@@ -70,9 +70,10 @@ export function ProjectsBoardView(props: ProjectsBoardViewProps) {
         </OneShotButton>
       </div>
       <div className="projectFlowGrid">
-
         {projectColumns.map((column) => {
-          const columnProjects = items.filter((project) => normalizeProjectColumn(project) === column.key);
+          const columnProjects = items
+            .filter((project) => normalizeProjectColumn(project) === column.key)
+            .sort((a, b) => (a.display_name ?? a.name).localeCompare(b.display_name ?? b.name));
           return (
             <section
               key={column.key}
@@ -105,10 +106,15 @@ export function ProjectsBoardView(props: ProjectsBoardViewProps) {
                     onDragEnd={onCardDragEnd}
                   >
                     <div className="projectMain projectFlowCardBody">
-                      <Link href={`/${project.id}`} className="projectLink projectTitle projectFlowCardTitle">
+                      <Link
+                        href={`/${project.id}`}
+                        className={`projectLink projectTitle projectFlowCardTitle tone-${normalizeProjectColumn(project)}`}
+                      >
                         {renderProjectTitle(project.display_name ?? project.name)}
                       </Link>
-                      <p className="projectDescription">{project.description?.trim() || "No description provided."}</p>
+                      <p className="projectDescription projectFlowCardDescription line-clamp-2">
+                        {project.description?.trim() || "No description provided."}
+                      </p>
                       <ProjectTagList tags={project.tags} className="projectTagListCompact" />
                     </div>
                     <div className="projectFlowCardFoot">

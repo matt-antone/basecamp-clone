@@ -1,6 +1,6 @@
 // tests/unit/bc2-fetcher.test.ts
 import { describe, it, expect, vi } from "vitest";
-import { Bc2Fetcher } from "@/lib/imports/bc2-fetcher";
+import { Bc2Fetcher, parseBc2IsoTimestamptz } from "@/lib/imports/bc2-fetcher";
 import { Bc2Client } from "@/lib/imports/bc2-client";
 
 function makeClient(responses: Array<{ body: unknown; nextUrl?: string | null }>) {
@@ -15,6 +15,22 @@ function makeClient(responses: Array<{ body: unknown; nextUrl?: string | null }>
   return client;
 }
 
+describe("parseBc2IsoTimestamptz", () => {
+  it("returns null for empty or invalid input", () => {
+    expect(parseBc2IsoTimestamptz(null)).toBeNull();
+    expect(parseBc2IsoTimestamptz(undefined)).toBeNull();
+    expect(parseBc2IsoTimestamptz("")).toBeNull();
+    expect(parseBc2IsoTimestamptz("   ")).toBeNull();
+    expect(parseBc2IsoTimestamptz("not-a-date")).toBeNull();
+  });
+
+  it("parses ISO strings to Date", () => {
+    const d = parseBc2IsoTimestamptz("2024-01-01T00:00:00Z");
+    expect(d).toBeInstanceOf(Date);
+    expect(d!.toISOString()).toBe("2024-01-01T00:00:00.000Z");
+  });
+});
+
 describe("Bc2Fetcher", () => {
   it("yields all items across multiple pages from fetchPeople", async () => {
     const client = makeClient([
@@ -28,6 +44,80 @@ describe("Bc2Fetcher", () => {
     }
     expect(results).toEqual([{ id: 1, name: "Alice" }, { id: 2, name: "Bob" }]);
     expect((client.get as ReturnType<typeof vi.fn>)).toHaveBeenCalledTimes(2);
+  });
+
+  it("fetchProjects omits archived endpoint by default", async () => {
+    const active = {
+      id: 1,
+      name: "Active",
+      description: null,
+      archived: false,
+      created_at: "",
+      updated_at: ""
+    };
+    const client = makeClient([{ body: [active], nextUrl: null }]);
+    const fetcher = new Bc2Fetcher(client);
+    const results: unknown[] = [];
+    for await (const p of fetcher.fetchProjects()) {
+      results.push(p);
+    }
+    expect(results).toEqual([active]);
+    const calls = (client.get as ReturnType<typeof vi.fn>).mock.calls;
+    expect(calls.every(c => String(c[0]).includes("/projects.json"))).toBe(true);
+    expect(calls.some(c => String(c[0]).includes("/archived"))).toBe(false);
+  });
+
+  it("fetchProjects({ source: 'all' }) paginates active then archived", async () => {
+    const active = {
+      id: 1,
+      name: "A",
+      description: null,
+      archived: false,
+      created_at: "",
+      updated_at: ""
+    };
+    const archived = {
+      id: 2,
+      name: "Old",
+      description: null,
+      archived: true,
+      created_at: "",
+      updated_at: ""
+    };
+    const client = makeClient([
+      { body: [active], nextUrl: null },
+      { body: [archived], nextUrl: null }
+    ]);
+    const fetcher = new Bc2Fetcher(client);
+    const results: unknown[] = [];
+    for await (const p of fetcher.fetchProjects({ source: "all" })) {
+      results.push(p);
+    }
+    expect(results).toEqual([active, archived]);
+    const calls = (client.get as ReturnType<typeof vi.fn>).mock.calls;
+    expect(calls.some(c => String(c[0]).includes("/projects/archived.json"))).toBe(true);
+  });
+
+  it("fetchProjects({ source: 'archived' }) uses only archived endpoint", async () => {
+    const archived = {
+      id: 2,
+      name: "Old",
+      description: null,
+      archived: true,
+      created_at: "",
+      updated_at: ""
+    };
+    const client = makeClient([{ body: [archived], nextUrl: null }]);
+    const fetcher = new Bc2Fetcher(client);
+    const results: unknown[] = [];
+    for await (const p of fetcher.fetchProjects({ source: "archived" })) {
+      results.push(p);
+    }
+    expect(results).toEqual([archived]);
+    const calls = (client.get as ReturnType<typeof vi.fn>).mock.calls;
+    expect(calls).toHaveLength(1);
+    expect(String(calls[0][0])).toContain("/projects/archived.json");
+    expect(String(calls[0][0])).not.toContain("/projects.json");
   });
 
   it("fetchMessages uses topics endpoint, filters Message type, fetches individual messages", async () => {

@@ -70,11 +70,11 @@ describe("POST /projects/[id]/files/upload-complete", () => {
     requireUserMock.mockResolvedValue({ id: "user-1", email: "person@example.com" });
     getProjectMock.mockResolvedValue({
       id: "project-1",
-      storage_project_dir: "/projects/brgs/BRGS-0001-site-refresh"
+      storage_project_dir: "/Projects/BRGS/BRGS-0001-Site Refresh"
     });
     uploadCompleteMock.mockResolvedValue({
       fileId: "id:abc123",
-      path: "/projects/brgs/BRGS-0001-site-refresh/uploads/report.pdf"
+      path: "/Projects/BRGS/BRGS-0001-Site Refresh/uploads/report.pdf"
     });
     createFileMetadataMock.mockResolvedValue({ id: "file-1" });
 
@@ -93,7 +93,7 @@ describe("POST /projects/[id]/files/upload-complete", () => {
           checksum: "abc",
           contentBase64: Buffer.from("pdf").toString("base64"),
           sessionId: "session-1",
-          targetPath: "/projects/brgs/BRGS-0001-site-refresh/uploads/report.pdf"
+          targetPath: "/Projects/BRGS/BRGS-0001-Site Refresh/uploads/report.pdf"
         })
       }),
       { params: Promise.resolve({ id: "project-1" }) }
@@ -109,11 +109,11 @@ describe("POST /projects/[id]/files/upload-complete", () => {
     requireUserMock.mockResolvedValue({ id: "user-1", email: "person@example.com" });
     getProjectMock.mockResolvedValue({
       id: "project-1",
-      storage_project_dir: "/projects/brgs/BRGS-0001-site-refresh"
+      storage_project_dir: "/Projects/BRGS/BRGS-0001-Site Refresh"
     });
     uploadCompleteMock.mockResolvedValue({
       fileId: "id:abc123",
-      path: "/projects/brgs/BRGS-0001-site-refresh/uploads/report.pdf"
+      path: "/Projects/BRGS/BRGS-0001-Site Refresh/uploads/report.pdf"
     });
     createFileMetadataMock.mockResolvedValue({ id: "file-1" });
 
@@ -132,7 +132,7 @@ describe("POST /projects/[id]/files/upload-complete", () => {
           checksum: "abc",
           contentBase64: Buffer.from("pdf").toString("base64"),
           sessionId: "session-1",
-          targetPath: "/projects/brgs/BRGS-0001-site-refresh/uploads/report.pdf"
+          targetPath: "/Projects/BRGS/BRGS-0001-Site Refresh/uploads/report.pdf"
         })
       }),
       { params: Promise.resolve({ id: "project-1" }) }
@@ -149,11 +149,11 @@ describe("POST /projects/[id]/files/upload-complete", () => {
     requireUserMock.mockResolvedValue({ id: "user-1", email: "person@example.com" });
     getProjectMock.mockResolvedValue({
       id: "project-1",
-      storage_project_dir: "/projects/brgs/BRGS-0001-site-refresh"
+      storage_project_dir: "/Projects/BRGS/BRGS-0001-Site Refresh"
     });
     uploadCompleteMock.mockResolvedValue({
       fileId: "id:img123",
-      path: "/projects/brgs/BRGS-0001-site-refresh/uploads/photo.png"
+      path: "/Projects/BRGS/BRGS-0001-Site Refresh/uploads/photo.png"
     });
     createFileMetadataMock.mockResolvedValue({ id: "file-1" });
 
@@ -164,7 +164,7 @@ describe("POST /projects/[id]/files/upload-complete", () => {
       new File([Uint8Array.from([0x89, 0x50, 0x4e, 0x47])], "photo.png", { type: "image/png" })
     );
     formData.append("sessionId", "session-1");
-    formData.append("targetPath", "/projects/brgs/BRGS-0001-site-refresh/uploads/photo.png");
+    formData.append("targetPath", "/Projects/BRGS/BRGS-0001-Site Refresh/uploads/photo.png");
 
     const response = await POST(
       new Request("http://localhost/projects/project-1/files/upload-complete", {
@@ -194,7 +194,7 @@ describe("POST /projects/[id]/files/upload-complete", () => {
     requireUserMock.mockResolvedValue({ id: "user-1", email: "person@example.com" });
     getProjectMock.mockResolvedValue({
       id: "project-1",
-      storage_project_dir: "/projects/brgs/BRGS-0001-site-refresh"
+      storage_project_dir: "/Projects/BRGS/BRGS-0001-Site Refresh"
     });
     uploadCompleteMock.mockRejectedValue({
       error: {
@@ -217,7 +217,7 @@ describe("POST /projects/[id]/files/upload-complete", () => {
           checksum: "abc",
           contentBase64: Buffer.from("pdf").toString("base64"),
           sessionId: "session-1",
-          targetPath: "/projects/brgs/BRGS-0001-site-refresh/uploads/report.pdf"
+          targetPath: "/Projects/BRGS/BRGS-0001-Site Refresh/uploads/report.pdf"
         })
       }),
       { params: Promise.resolve({ id: "project-1" }) }

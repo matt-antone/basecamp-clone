@@ -110,7 +110,8 @@ describe("project metadata repository fields", () => {
     // 3rd call should be the activity touch
     const [touchSql, touchParams] = queryMock.mock.calls[2];
     expect(touchSql).toContain("update projects");
-    expect(touchSql).toContain("last_activity_at = now()");
+    expect(touchSql).toContain("last_activity_at = greatest(");
+    expect(touchSql).toContain("now()");
     expect(touchParams).toEqual(["project-1"]);
   });
 
@@ -156,7 +157,8 @@ describe("project metadata repository fields", () => {
     expect(fallbackParams).toEqual(["project-1", "Website Refresh", "Updated brief", ["ops"], "2026-05-15"]);
     const [touchSql, touchParams] = queryMock.mock.calls[3];
     expect(touchSql).toContain("update projects");
-    expect(touchSql).toContain("last_activity_at = now()");
+    expect(touchSql).toContain("last_activity_at = greatest(");
+    expect(touchSql).toContain("now()");
     expect(touchParams).toEqual(["project-1"]);
   });
 
@@ -202,7 +204,8 @@ describe("project metadata repository fields", () => {
     expect(fallbackParams).toEqual(["project-1", "Website Refresh", "Updated brief", ["ops"]]);
     const [touchSql, touchParams] = queryMock.mock.calls[3];
     expect(touchSql).toContain("update projects");
-    expect(touchSql).toContain("last_activity_at = now()");
+    expect(touchSql).toContain("last_activity_at = greatest(");
+    expect(touchSql).toContain("now()");
     expect(touchParams).toEqual(["project-1"]);
   });
 

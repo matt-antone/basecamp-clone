@@ -180,7 +180,7 @@ async function createProject({ db, client, template, createdBy, createdAt }) {
        $5 || '-' || lpad(next_seq.seq::text, 4, '0'),
        $6,
        $7,
-       '/projects/' || $6 || '/' || ($5 || '-' || lpad(next_seq.seq::text, 4, '0')) || '-' || $7,
+       '/Projects/' || upper(trim($5)) || '/' || upper(trim($5)) || '-' || $6 || '-' || $7,
        $10::text[]
      from next_seq
      returning *`,

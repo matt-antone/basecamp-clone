@@ -146,26 +146,128 @@ export async function updateClientName(id: string, name: string) {
   return result.rows[0] ?? null;
 }
 
-export async function listProjects(includeArchived = true) {
-  const sql = includeArchived
-    ? `select p.*, c.name as client_name, c.code as client_code,
+const projectListSelectColumns = `p.*, c.name as client_name, c.code as client_code,
          case
            when p.project_code is not null and length(trim(p.project_code)) > 0 then p.project_code || '-' || p.name
            else p.name
-         end as display_name
+         end as display_name,
+         (
+           (select count(*)::int from discussion_threads t where t.project_id = p.id) +
+           (select count(*)::int from discussion_comments dc where dc.project_id = p.id)
+         ) as discussion_count,
+         (select count(*)::int from project_files f where f.project_id = p.id) as file_count`;
+
+export type ListProjectsOptions = {
+  clientId?: string | null;
+  search?: string | null;
+};
+
+function projectFtsPredicate(alias = "q") {
+  return `(
+           to_tsvector(
+             'english',
+             coalesce(p.name, '') || ' ' ||
+             coalesce(p.description, '') || ' ' ||
+             coalesce(p.project_code, '') || ' ' ||
+             coalesce(array_to_string(p.tags, ' '), '')
+           ) @@ ${alias}.tsq
+           or (
+             c.id is not null
+             and to_tsvector('english', coalesce(c.name, '') || ' ' || coalesce(c.code, '')) @@ ${alias}.tsq
+           )
+           or exists (
+             select 1 from discussion_threads t
+             where t.project_id = p.id
+               and to_tsvector('english', coalesce(t.title, '') || ' ' || coalesce(t.body_markdown, '')) @@ ${alias}.tsq
+           )
+           or exists (
+             select 1 from discussion_comments cm
+             where cm.project_id = p.id
+               and to_tsvector('english', coalesce(cm.body_markdown, '')) @@ ${alias}.tsq
+           )
+           or exists (
+             select 1 from project_files pf
+             where pf.project_id = p.id
+               and to_tsvector('simple', coalesce(pf.filename, '')) @@ ${alias}.tsq
+           )
+         )`;
+}
+
+function projectFtsRankExpr(alias = "q") {
+  return `(
+           ts_rank_cd(
+             to_tsvector(
+               'english',
+               coalesce(p.name, '') || ' ' ||
+               coalesce(p.description, '') || ' ' ||
+               coalesce(p.project_code, '') || ' ' ||
+               coalesce(array_to_string(p.tags, ' '), '')
+             ),
+             ${alias}.tsq
+           )
+           + case
+               when c.id is not null then
+                 ts_rank_cd(
+                   to_tsvector('english', coalesce(c.name, '') || ' ' || coalesce(c.code, '')),
+                   ${alias}.tsq
+                 )
+               else 0
+             end
+           + coalesce((
+               select max(
+                 ts_rank_cd(
+                   to_tsvector('english', coalesce(t.title, '') || ' ' || coalesce(t.body_markdown, '')),
+                   ${alias}.tsq
+                 )
+               )
+               from discussion_threads t
+               where t.project_id = p.id
+             ), 0)
+           + coalesce((
+               select max(ts_rank_cd(to_tsvector('english', coalesce(cm.body_markdown, '')), ${alias}.tsq))
+               from discussion_comments cm
+               where cm.project_id = p.id
+             ), 0)
+           + coalesce((
+               select max(ts_rank_cd(to_tsvector('simple', coalesce(pf.filename, '')), ${alias}.tsq))
+               from project_files pf
+               where pf.project_id = p.id
+             ), 0)
+         )`;
+}
+
+export async function listProjects(includeArchived = true, options?: ListProjectsOptions) {
+  const clientId = options?.clientId?.trim() ? options.clientId : null;
+  const search = (options?.search ?? "").trim();
+
+  if (search.length > 0) {
+    const archivedClause = includeArchived ? "" : "and p.archived = false";
+    const sql = `select ${projectListSelectColumns}
        from projects p
        left join clients c on c.id = p.client_id
+       cross join lateral (select plainto_tsquery('english', $1) as tsq) q
+       where ($2::uuid is null or p.client_id = $2::uuid)
+         ${archivedClause}
+         and ${projectFtsPredicate("q")}
+       order by ${projectFtsRankExpr("q")} desc, p.created_at desc
+       limit 100`;
+    const result = await query(sql, [search, clientId]);
+    return result.rows;
+  }
+
+  const sql = includeArchived
+    ? `select ${projectListSelectColumns}
+       from projects p
+       left join clients c on c.id = p.client_id
+       where ($1::uuid is null or p.client_id = $1::uuid)
        order by p.created_at desc`
-    : `select p.*, c.name as client_name, c.code as client_code,
-         case
-           when p.project_code is not null and length(trim(p.project_code)) > 0 then p.project_code || '-' || p.name
-           else p.name
-         end as display_name
+    : `select ${projectListSelectColumns}
        from projects p
        left join clients c on c.id = p.client_id
        where p.archived = false
+         and ($1::uuid is null or p.client_id = $1::uuid)
        order by p.created_at desc`;
-  const result = await query(sql);
+  const result = await query(sql, [clientId]);
   return result.rows;
 }
 
@@ -174,35 +276,60 @@ export async function listArchivedProjectsPaginated(options: {
   status?: string;
   page?: number;
   limit?: number;
+  clientId?: string | null;
 }) {
-  const search = (options.search ?? "").trim().toLowerCase();
+  const searchRaw = (options.search ?? "").trim();
+  const searchLower = searchRaw.toLowerCase();
   const status = options.status ?? "all";
   const limit = Math.min(options.limit ?? 20, 100);
   const page = Math.max(options.page ?? 1, 1);
   const offset = (page - 1) * limit;
+  const clientId = options.clientId?.trim() ? options.clientId : null;
 
-  const result = await query<{ total_count: string }>(
-    `select p.*, c.name as client_name, c.code as client_code,
+  const archivedListSelect = `p.*, c.name as client_name, c.code as client_code,
        case
          when p.project_code is not null and length(trim(p.project_code)) > 0 then p.project_code || '-' || p.name
          else p.name
        end as display_name,
-       coalesce(p.last_activity_at, p.updated_at) as last_activity_at,
-       count(*) over() as total_count
+       (
+         (select count(*)::int from discussion_threads t where t.project_id = p.id) +
+         (select count(*)::int from discussion_comments dc where dc.project_id = p.id)
+       ) as discussion_count,
+       (select count(*)::int from project_files f where f.project_id = p.id) as file_count,
+       count(*) over() as total_count`;
+
+  const result =
+    searchRaw.length > 0
+      ? await query<{ total_count: string }>(
+          `select ${archivedListSelect}
+     from projects p
+     left join clients c on c.id = p.client_id
+     cross join lateral (select plainto_tsquery('english', $1) as tsq) q
+     where p.archived = true
+       and ($2::uuid is null or p.client_id = $2::uuid)
+       and ($3 = 'all' or p.status = $3)
+       and ${projectFtsPredicate("q")}
+     order by ${projectFtsRankExpr("q")} desc, coalesce(p.last_activity_at, p.updated_at) desc
+     limit $4 offset $5`,
+          [searchRaw, clientId, status, limit, offset]
+        )
+      : await query<{ total_count: string }>(
+          `select ${archivedListSelect}
      from projects p
      left join clients c on c.id = p.client_id
      where p.archived = true
-       and ($1 = '' or (
-         lower(p.name) like '%' || $1 || '%'
-         or lower(coalesce(p.description, '')) like '%' || $1 || '%'
-         or lower(coalesce(c.name, '')) like '%' || $1 || '%'
-         or lower(coalesce(p.project_code, '')) like '%' || $1 || '%'
+       and ($1::uuid is null or p.client_id = $1::uuid)
+       and ($2 = '' or (
+         lower(p.name) like '%' || $2 || '%'
+         or lower(coalesce(p.description, '')) like '%' || $2 || '%'
+         or lower(coalesce(c.name, '')) like '%' || $2 || '%'
+         or lower(coalesce(p.project_code, '')) like '%' || $2 || '%'
        ))
-       and ($2 = 'all' or p.status = $2)
+       and ($3 = 'all' or p.status = $3)
      order by coalesce(p.last_activity_at, p.updated_at) desc
-     limit $3 offset $4`,
-    [search, status, limit, offset]
-  );
+     limit $4 offset $5`,
+          [clientId, searchLower, status, limit, offset]
+        );
 
   const total = result.rows.length > 0 ? parseInt(result.rows[0].total_count, 10) : 0;
   return {
@@ -296,7 +423,7 @@ export async function createProject(args: {
          $6,
          $7,
          $8::text[],
-         $9 || '/' || $6 || '/' || $5 || '-' || lpad(next_seq.seq::text, 4, '0') || '-' || $7,
+         $9 || '/' || upper(trim($5)) || '/' || upper(trim($5) || '-' || lpad(next_seq.seq::text, 4, '0')) || '-' || coalesce(nullif(trim(regexp_replace(regexp_replace(trim($1), '[\\/:*?"<>|]', '', 'g'), '[[:space:]]+', ' ', 'g')), ''), 'project'),
          $10::date,
          $11
        from next_seq
@@ -334,7 +461,7 @@ export async function createProject(args: {
          $6,
          $7,
          $8::text[],
-         $9 || '/' || $6 || '/' || $5 || '-' || lpad(next_seq.seq::text, 4, '0') || '-' || $7,
+         $9 || '/' || upper(trim($5)) || '/' || upper(trim($5) || '-' || lpad(next_seq.seq::text, 4, '0')) || '-' || coalesce(nullif(trim(regexp_replace(regexp_replace(trim($1), '[\\/:*?"<>|]', '', 'g'), '[[:space:]]+', ' ', 'g')), ''), 'project'),
          $10
        from next_seq
        returning *`,
@@ -479,12 +606,29 @@ export async function updateProject(args: {
   }
 }
 
-export async function touchProjectActivity(projectId: string): Promise<void> {
+export async function touchProjectActivity(projectId: string, activityAt?: Date): Promise<void> {
   try {
-    await query(
-      `update projects set last_activity_at = now() where id = $1`,
-      [projectId]
-    );
+    if (activityAt) {
+      await query(
+        `update projects
+         set last_activity_at = greatest(
+           coalesce(last_activity_at, '-infinity'::timestamptz),
+           $2::timestamptz
+         )
+         where id = $1`,
+        [projectId, activityAt]
+      );
+    } else {
+      await query(
+        `update projects
+         set last_activity_at = greatest(
+           coalesce(last_activity_at, '-infinity'::timestamptz),
+           now()
+         )
+         where id = $1`,
+        [projectId]
+      );
+    }
   } catch {
     // Non-critical — column may not exist if migration is pending
   }
@@ -688,15 +832,21 @@ export async function createThread(args: {
   title: string;
   bodyMarkdown: string;
   authorUserId: string;
+  /** When set (e.g. BC2 migration), row `created_at` / `updated_at` use this instant. */
+  sourceCreatedAt?: Date | null;
 }) {
   const bodyHtml = renderMarkdown(args.bodyMarkdown);
+  const sourceTs = args.sourceCreatedAt ?? null;
   const result = await query(
-    `insert into discussion_threads (project_id, title, body_markdown, body_html, author_user_id)
-     values ($1, $2, $3, $4, $5)
+    `insert into discussion_threads (
+       project_id, title, body_markdown, body_html, author_user_id,
+       created_at, updated_at
+     )
+     values ($1, $2, $3, $4, $5, coalesce($6::timestamptz, now()), coalesce($6::timestamptz, now()))
      returning *`,
-    [args.projectId, args.title, args.bodyMarkdown, bodyHtml, args.authorUserId]
+    [args.projectId, args.title, args.bodyMarkdown, bodyHtml, args.authorUserId, sourceTs]
   );
-  await touchProjectActivity(args.projectId);
+  await touchProjectActivity(args.projectId, args.sourceCreatedAt ?? undefined);
   return result.rows[0];
 }
 
@@ -774,15 +924,21 @@ export async function createComment(args: {
   threadId: string;
   bodyMarkdown: string;
   authorUserId: string;
+  /** When set (e.g. BC2 migration), row `created_at` / `updated_at` use this instant. */
+  sourceCreatedAt?: Date | null;
 }) {
   const bodyHtml = renderMarkdown(args.bodyMarkdown);
+  const sourceTs = args.sourceCreatedAt ?? null;
   const result = await query(
-    `insert into discussion_comments (project_id, thread_id, body_markdown, body_html, author_user_id)
-     values ($1, $2, $3, $4, $5)
+    `insert into discussion_comments (
+       project_id, thread_id, body_markdown, body_html, author_user_id,
+       created_at, updated_at
+     )
+     values ($1, $2, $3, $4, $5, coalesce($6::timestamptz, now()), coalesce($6::timestamptz, now()))
      returning *`,
-    [args.projectId, args.threadId, args.bodyMarkdown, bodyHtml, args.authorUserId]
+    [args.projectId, args.threadId, args.bodyMarkdown, bodyHtml, args.authorUserId, sourceTs]
   );
-  await touchProjectActivity(args.projectId);
+  await touchProjectActivity(args.projectId, args.sourceCreatedAt ?? undefined);
   return result.rows[0];
 }
 
@@ -823,7 +979,10 @@ export async function createFileMetadata(args: {
   threadId?: string | null;
   commentId?: string | null;
   thumbnailUrl?: string | null;
+  /** When set (e.g. BC2 migration), row `created_at` uses this instant. */
+  sourceCreatedAt?: Date | null;
 }) {
+  const sourceTs = args.sourceCreatedAt ?? null;
   const values = [
     args.projectId,
     args.uploaderUserId,
@@ -835,20 +994,22 @@ export async function createFileMetadata(args: {
     args.checksum,
     args.threadId ?? null,
     args.commentId ?? null,
-    args.thumbnailUrl ?? null
+    args.thumbnailUrl ?? null,
+    sourceTs
   ];
 
   try {
     const result = await query(
       `insert into project_files (
-        project_id, uploader_user_id, filename, mime_type, size_bytes, dropbox_file_id, dropbox_path, checksum, thread_id, comment_id, thumbnail_url
+        project_id, uploader_user_id, filename, mime_type, size_bytes, dropbox_file_id, dropbox_path, checksum, thread_id, comment_id, thumbnail_url,
+        created_at
        )
-       values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+       values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, coalesce($12::timestamptz, now()))
        returning *`,
       values
     );
     const file = result.rows[0] ? normalizeProjectFileSizeRow(result.rows[0]) : null;
-    await touchProjectActivity(args.projectId);
+    await touchProjectActivity(args.projectId, args.sourceCreatedAt ?? undefined);
     return file;
   } catch (error) {
     if (!isMissingProjectFileColumnError(error)) {
@@ -858,14 +1019,15 @@ export async function createFileMetadata(args: {
     try {
       const result = await query(
         `insert into project_files (
-          project_id, uploader_user_id, filename, mime_type, size_bytes, dropbox_file_id, dropbox_path, checksum, thread_id, comment_id
+          project_id, uploader_user_id, filename, mime_type, size_bytes, dropbox_file_id, dropbox_path, checksum, thread_id, comment_id,
+          created_at
          )
-         values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+         values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, coalesce($11::timestamptz, now()))
          returning *`,
-        values.slice(0, 10)
+        values.slice(0, 11)
       );
       const file = result.rows[0] ? normalizeProjectFileSizeRow(result.rows[0]) : null;
-      await touchProjectActivity(args.projectId);
+      await touchProjectActivity(args.projectId, args.sourceCreatedAt ?? undefined);
       return file;
     } catch (legacyError) {
       if (!isMissingProjectFileColumnError(legacyError)) {
@@ -879,14 +1041,15 @@ export async function createFileMetadata(args: {
 
     const result = await query(
       `insert into project_files (
-        project_id, uploader_user_id, filename, mime_type, size_bytes, dropbox_file_id, dropbox_path, checksum
+        project_id, uploader_user_id, filename, mime_type, size_bytes, dropbox_file_id, dropbox_path, checksum,
+        created_at
        )
-       values ($1, $2, $3, $4, $5, $6, $7, $8)
+       values ($1, $2, $3, $4, $5, $6, $7, $8, coalesce($9::timestamptz, now()))
        returning *`,
-      values.slice(0, 8)
+      [...values.slice(0, 8), sourceTs]
     );
     const file = result.rows[0] ? normalizeProjectFileSizeRow(result.rows[0]) : null;
-    await touchProjectActivity(args.projectId);
+    await touchProjectActivity(args.projectId, args.sourceCreatedAt ?? undefined);
     return file;
   }
 }

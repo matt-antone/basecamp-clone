@@ -12,7 +12,7 @@ describe("touchProjectActivity", () => {
     queryMock.mockReset();
   });
 
-  it("issues an UPDATE setting last_activity_at = now() for the project", async () => {
+  it("issues an UPDATE bumping last_activity_at with greatest(..., now())", async () => {
     queryMock.mockResolvedValueOnce({ rows: [] });
 
     const { touchProjectActivity } = await import("@/lib/repositories");
@@ -21,8 +21,22 @@ describe("touchProjectActivity", () => {
     expect(queryMock).toHaveBeenCalledTimes(1);
     const [sql, params] = queryMock.mock.calls[0];
     expect(sql).toContain("update projects");
-    expect(sql).toContain("last_activity_at = now()");
+    expect(sql).toContain("last_activity_at");
+    expect(sql).toContain("greatest");
+    expect(sql).toContain("now()");
     expect(params).toEqual(["project-abc"]);
+  });
+
+  it("when given activityAt, uses greatest(..., $2::timestamptz)", async () => {
+    queryMock.mockResolvedValueOnce({ rows: [] });
+
+    const at = new Date("2020-06-01T12:00:00.000Z");
+    const { touchProjectActivity } = await import("@/lib/repositories");
+    await touchProjectActivity("project-abc", at);
+
+    const [sql, params] = queryMock.mock.calls[0];
+    expect(sql).toContain("$2::timestamptz");
+    expect(params).toEqual(["project-abc", at]);
   });
 
   it("does not throw when last_activity_at column does not yet exist", async () => {
@@ -58,7 +72,8 @@ describe("createThread touches project activity", () => {
     expect(queryMock).toHaveBeenCalledTimes(2);
     const [touchSql, touchParams] = queryMock.mock.calls[1];
     expect(touchSql).toContain("update projects");
-    expect(touchSql).toContain("last_activity_at = now()");
+    expect(touchSql).toContain("greatest");
+    expect(touchSql).toContain("now()");
     expect(touchParams).toEqual(["proj-1"]);
   });
 });
@@ -86,7 +101,8 @@ describe("createComment touches project activity", () => {
     expect(queryMock).toHaveBeenCalledTimes(2);
     const [touchSql, touchParams] = queryMock.mock.calls[1];
     expect(touchSql).toContain("update projects");
-    expect(touchSql).toContain("last_activity_at = now()");
+    expect(touchSql).toContain("greatest");
+    expect(touchSql).toContain("now()");
     expect(touchParams).toEqual(["proj-1"]);
   });
 });
@@ -118,7 +134,8 @@ describe("createFileMetadata touches project activity", () => {
     expect(queryMock).toHaveBeenCalledTimes(2);
     const [touchSql, touchParams] = queryMock.mock.calls[1];
     expect(touchSql).toContain("update projects");
-    expect(touchSql).toContain("last_activity_at = now()");
+    expect(touchSql).toContain("greatest");
+    expect(touchSql).toContain("now()");
     expect(touchParams).toEqual(["proj-1"]);
   });
 });

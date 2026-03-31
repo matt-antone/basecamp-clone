@@ -18,9 +18,10 @@ type Props = {
   onToken: (token: string | null) => void;
   onRestore: (project: ArchiveProjectItem) => Promise<void>;
   onOpenCreateDialog: () => void;
+  filterClientId?: string | null;
 };
 
-export function ArchiveTab({ accessToken, onToken, onRestore, onOpenCreateDialog }: Props) {
+export function ArchiveTab({ accessToken, onToken, onRestore, onOpenCreateDialog, filterClientId = null }: Props) {
   const [searchValue, setSearchValue] = useState("");
   const [page, setPage] = useState(1);
   const [result, setResult] = useState<ArchiveResult | null>(null);
@@ -53,6 +54,9 @@ export function ArchiveTab({ accessToken, onToken, onRestore, onOpenCreateDialog
       page: String(page),
       limit: "20"
     });
+    if (filterClientId) {
+      params.set("clientId", filterClientId);
+    }
 
     authedJsonFetch({ accessToken, onToken, path: `/projects/archived?${params}` })
       .then(({ data }) => {
@@ -69,7 +73,7 @@ export function ArchiveTab({ accessToken, onToken, onRestore, onOpenCreateDialog
       });
 
     return () => { cancelled = true; };
-  }, [debouncedSearch, page, accessToken, refreshKey]);
+  }, [debouncedSearch, page, accessToken, filterClientId, refreshKey]);
 
   async function handleRestore(project: ArchiveProjectItem) {
     await onRestore(project);

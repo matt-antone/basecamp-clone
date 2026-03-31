@@ -59,6 +59,16 @@ export interface Bc2Attachment {
   creator: { id: number; name: string };
 }
 
+/** Which BC2 project lists to paginate (`/projects.json` vs `/projects/archived.json`). */
+export type Bc2ProjectSource = "active" | "archived" | "all";
+
+/** Parse Basecamp 2 API ISO timestamps for Postgres `timestamptz` columns. */
+export function parseBc2IsoTimestamptz(iso: string | null | undefined): Date | null {
+  if (iso == null || String(iso).trim() === "") return null;
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
 export class Bc2Fetcher {
   constructor(private client: Bc2Client) {}
 
@@ -66,9 +76,20 @@ export class Bc2Fetcher {
     yield* this.paginate<Bc2Person>("/people.json");
   }
 
-  async *fetchProjects(): AsyncGenerator<Bc2Project> {
-    yield* this.paginate<Bc2Project>("/projects.json");
-    yield* this.paginate<Bc2Project>("/projects/archived.json");
+  /**
+   * Yields BC2 projects from the Basecamp 2 API.
+   * - `active` (default): `/projects.json` only
+   * - `archived`: `/projects/archived.json` only
+   * - `all`: active first, then archived (full account)
+   */
+  async *fetchProjects(options?: { source?: Bc2ProjectSource }): AsyncGenerator<Bc2Project> {
+    const source = options?.source ?? "active";
+    if (source === "active" || source === "all") {
+      yield* this.paginate<Bc2Project>("/projects.json");
+    }
+    if (source === "archived" || source === "all") {
+      yield* this.paginate<Bc2Project>("/projects/archived.json");
+    }
   }
 
   // BC2 has no list endpoint for messages. Topics lists all topic types;

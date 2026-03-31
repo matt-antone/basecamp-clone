@@ -82,8 +82,11 @@ describe("Bc2Client", () => {
     mockFetch.mockResolvedValue(new Response("rate limited", { status: 429 }));
 
     const promise = client.get("/projects.json");
+    const rejection = expect(promise).rejects.toThrow(/rate limit/i);
+
     await vi.runAllTimersAsync();
-    await expect(promise).rejects.toThrow(/rate limit/i);
+    await rejection;
+
     vi.useRealTimers();
   });
 });

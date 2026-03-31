@@ -1,22 +1,17 @@
 "use client";
 
 import Link from "next/link";
-import { OneShotButton } from "@/components/one-shot-button";
-import { DEFAULT_SITE_LOGO_URL, DEFAULT_SITE_TITLE, normalizeSiteLogoUrl, normalizeSiteTitle } from "@/lib/site-branding";
-import { projectsNavHighlight } from "@/lib/projects-view-path";
-import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
+import { OneShotButton } from "@/components/one-shot-button";
 import { authedJsonFetch, fetchAuthSession } from "@/lib/browser-auth";
+import { projectsNavHighlight } from "@/lib/projects-view-path";
+import { DEFAULT_SITE_LOGO_URL, DEFAULT_SITE_TITLE, normalizeSiteLogoUrl, normalizeSiteTitle } from "@/lib/site-branding";
 
 const THEME_KEY = "basecamp-clone-theme";
 
 type Theme = "light" | "dark";
 type SessionUser = { id: string; email?: string };
-type ProjectStats = {
-  active: number;
-  blocked: number;
-  archived: number;
-};
 type SiteSettingsPayload = {
   siteTitle: string | null;
   logoUrl: string | null;
@@ -29,14 +24,13 @@ function applyTheme(theme: Theme) {
   root.classList.add(theme);
 }
 
-export default function ThemeToggle() {
+export default function SiteHeader() {
   const pathname = usePathname();
   const projectsNavActive = projectsNavHighlight(pathname);
 
   const [theme, setTheme] = useState<Theme>("light");
   const [user, setUser] = useState<SessionUser | null>(null);
-  const [accessToken, setAccessToken] = useState<string | null>(null);
-  const [projectStats, setProjectStats] = useState<ProjectStats | null>(null);
+  const [, setAccessToken] = useState<string | null>(null);
   const [siteSettings, setSiteSettings] = useState<SiteSettingsPayload>({
     siteTitle: DEFAULT_SITE_TITLE,
     logoUrl: DEFAULT_SITE_LOGO_URL
@@ -70,13 +64,13 @@ export default function ThemeToggle() {
         }
         const payload = (await response.json().catch(() => null)) as
           | {
-            siteSettings?: {
-              siteTitle?: string | null;
-              logoUrl?: string | null;
-              site_title?: string | null;
-              logo_url?: string | null;
-            };
-          }
+              siteSettings?: {
+                siteTitle?: string | null;
+                logoUrl?: string | null;
+                site_title?: string | null;
+                logo_url?: string | null;
+              };
+            }
           | null;
         const source = payload?.siteSettings ?? null;
         if (!source || cancelled) {
@@ -128,46 +122,6 @@ export default function ThemeToggle() {
     };
   }, []);
 
-  useEffect(() => {
-    if (!user || !accessToken) {
-      setProjectStats(null);
-      return;
-    }
-
-    let canceled = false;
-
-    async function loadProjectStats() {
-      const response = await authedJsonFetch({
-        accessToken,
-        onToken: setAccessToken,
-        path: "/projects?includeArchived=true"
-      });
-      const data = (response.data ?? null) as {
-        projects?: Array<{ archived?: boolean; status?: string | null }>;
-      };
-      if (canceled || !data) {
-        return;
-      }
-
-      const projects = data.projects ?? [];
-      setProjectStats({
-        active: projects.filter((project) => !project.archived).length,
-        blocked: projects.filter((project) => !project.archived && (project.status ?? "").toLowerCase() === "blocked").length,
-        archived: projects.filter((project) => project.archived).length
-      });
-    }
-
-    loadProjectStats().catch(() => {
-      if (!canceled) {
-        setProjectStats(null);
-      }
-    });
-
-    return () => {
-      canceled = true;
-    };
-  }, [user, accessToken]);
-
   function toggleTheme() {
     const nextTheme: Theme = theme === "light" ? "dark" : "light";
     setTheme(nextTheme);
@@ -187,7 +141,6 @@ export default function ThemeToggle() {
   async function signOut() {
     setUser(null);
     setAccessToken(null);
-    setProjectStats(null);
     window.location.href = "/auth/logout";
   }
 
@@ -200,13 +153,6 @@ export default function ThemeToggle() {
         <Link href="/" className="brandLink" aria-label={`${siteSettings.siteTitle} home`}>
           {siteSettings.siteTitle}
         </Link>
-        {user && projectStats && (
-          <div className="brandStats" aria-label="Project summary">
-            <span className="brandStatChip">{projectStats.active} active</span>
-            <span className="brandStatChip">{projectStats.blocked} blocked</span>
-            <span className="brandStatChip">{projectStats.archived} archived</span>
-          </div>
-        )}
       </div>
       <div className="themeTopBarActions">
         {user && (

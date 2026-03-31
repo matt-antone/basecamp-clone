@@ -43,13 +43,13 @@ describe("POST /projects/[id]/restore", () => {
     getProjectMock.mockResolvedValue({
       id: "project-1",
       archived: true,
-      storage_project_dir: "/projects/acme/_Archive/BRGS-0001-website-refresh"
+      storage_project_dir: "/Projects/BRGS/_Archive/BRGS-0001-Acme Website Refresh"
     });
-    getProjectStorageDirMock.mockReturnValue("/projects/acme/_Archive/BRGS-0001-website-refresh");
-    getProjectStorageDirForArchiveStateMock.mockReturnValue("/projects/acme/BRGS-0001-website-refresh");
+    getProjectStorageDirMock.mockReturnValue("/Projects/BRGS/_Archive/BRGS-0001-Acme Website Refresh");
+    getProjectStorageDirForArchiveStateMock.mockReturnValue("/Projects/BRGS/BRGS-0001-Acme Website Refresh");
     moveProjectFolderMock.mockResolvedValue({
-      projectDir: "/projects/acme/BRGS-0001-website-refresh",
-      uploadsDir: "/projects/acme/BRGS-0001-website-refresh/uploads"
+      projectDir: "/Projects/BRGS/BRGS-0001-Acme Website Refresh",
+      uploadsDir: "/Projects/BRGS/BRGS-0001-Acme Website Refresh/uploads"
     });
     setProjectArchivedWithStorageDirMock.mockResolvedValue({
       id: "project-1",
@@ -69,13 +69,13 @@ describe("POST /projects/[id]/restore", () => {
 
     expect(response.status).toBe(200);
     expect(moveProjectFolderMock).toHaveBeenCalledWith({
-      fromPath: "/projects/acme/_Archive/BRGS-0001-website-refresh",
-      toPath: "/projects/acme/BRGS-0001-website-refresh"
+      fromPath: "/Projects/BRGS/_Archive/BRGS-0001-Acme Website Refresh",
+      toPath: "/Projects/BRGS/BRGS-0001-Acme Website Refresh"
     });
     expect(setProjectArchivedWithStorageDirMock).toHaveBeenCalledWith(
       "project-1",
       false,
-      "/projects/acme/BRGS-0001-website-refresh"
+      "/Projects/BRGS/BRGS-0001-Acme Website Refresh"
     );
     await expect(response.json()).resolves.toMatchObject({
       project: { id: "project-1", archived: false }

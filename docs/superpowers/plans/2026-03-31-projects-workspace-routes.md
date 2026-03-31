@@ -6,7 +6,7 @@
 
 **Goal:** Treat Index, Flow (board), and Archive as first-class App Router routes (`/`, `/flow`, `/archive`) with a single shared workspace shell and no duplicate or hidden tab state.
 
-**Architecture:** Routing already matches the target URLs: `app/page.tsx`, `app/flow/page.tsx`, and `app/archive/page.tsx` all render `ProjectsWorkspacePage`, which derives the active panel from `usePathname()` via `projectsViewTabFromPathname` in `lib/projects-view-path.ts`. Top navigation uses the same mapping through `projectsNavHighlight` in `app/theme-toggle.tsx`. This plan tightens the boundary so each route file owns the view explicitly, removes dead/commented duplicate tab UI, aligns metadata, and adds regression tests where the contract changes.
+**Architecture:** Routing already matches the target URLs: `app/page.tsx`, `app/flow/page.tsx`, and `app/archive/page.tsx` all render `ProjectsWorkspacePage`, which derives the active panel from `usePathname()` via `projectsViewTabFromPathname` in `lib/projects-view-path.ts`. Top navigation uses the same mapping through `projectsNavHighlight` in `app/header.tsx`. This plan tightens the boundary so each route file owns the view explicitly, removes dead/commented duplicate tab UI, aligns metadata, and adds regression tests where the contract changes.
 
 **Tech Stack:** Next.js App Router, client workspace bootstrap (`createClientResource`), Vitest for `projects-view-path` and any new props/tests.
 
@@ -22,8 +22,8 @@
 | `app/flow/layout.tsx` | Metadata title "Flow" (exists) |
 | `app/archive/layout.tsx` | Metadata title "Archive" (exists) |
 | `components/projects/projects-workspace-page.tsx` | Shell + conditional views; accept optional `view` prop; remove commented tab bar |
-| `lib/projects-view-path.ts` | Pathname → tab helpers; keep as source for `theme-toggle` |
-| `app/theme-toggle.tsx` | Global Projects / Project Board / Archive links (no change unless copy/URLs change) |
+| `lib/projects-view-path.ts` | Pathname → tab helpers; keep as source for `SiteHeader` |
+| `app/header.tsx` | Global Projects / Project Board / Archive links (no change unless copy/URLs change) |
 | `tests/unit/projects-view-path.test.ts` | Extend if helper behavior changes |
 
 ---
@@ -92,7 +92,7 @@ git commit -m "refactor(projects): pass explicit workspace view from each route"
 **Files:**
 - Modify: `components/projects/projects-workspace-page.tsx` (delete lines ~474–510, the commented `projectsWorkbenchBar` / `projectsViewSwitch` block)
 
-**Rationale:** Primary navigation already lives in `theme-toggle.tsx` (`themeTopBarProjectsNav`). Keeping two tab strips causes drift. If in-page tabs are required later, restore a single component shared with the top bar tokens—not a copy-pasted block.
+**Rationale:** Primary navigation already lives in `header.tsx` (`SiteHeader` / `themeTopBarProjectsNav`). Keeping two tab strips causes drift. If in-page tabs are required later, restore a single component shared with the top bar tokens, not a copy-pasted block.
 
 - [x] **Step 1: Delete the commented JSX block** (entire `{/* <div className="projectsWorkbenchBar"> ... */}` section).
 

@@ -22,9 +22,9 @@ describe("createProject", () => {
           {
             id: "project-1",
             project_code: "BRGS-0007",
-            client_slug: "bright-ridge",
+            client_slug: "Bright-Ridge",
             project_slug: "website-refresh",
-            storage_project_dir: "/projects/bright-ridge/BRGS-0007-website-refresh"
+            storage_project_dir: "/projects/BRGS/BRGS-0007-Website Refresh"
           }
         ]
       });
@@ -48,6 +48,8 @@ describe("createProject", () => {
     expect(sql).toContain("deadline");
     expect(sql).toContain("where client_id = $4::uuid");
     expect(sql).toContain("$4::uuid::text");
+    expect(sql).toContain("upper(trim($5))");
+    expect(sql).toContain("regexp_replace");
     expect(params[5]).toBe("Bright-Ridge");
     expect(params[8]).toBe("/projects");
     expect(params[9]).toBe("2026-04-30");

@@ -127,7 +127,7 @@ export const config = {
   dropboxProjectsRootFolder: () =>
     getOptionalEnv("DROPBOX_PROJECTS_ROOT_FOLDER") ??
     getOptionalEnv("DROPBOX_ROOT_FOLDER") ??
-    "/projects",
+    "/Projects",
   thumbnailWorkerUrl: () => normalizeThumbnailWorkerUrl(getOptionalEnv("THUMBNAIL_WORKER_URL")),
   thumbnailWorkerToken: () => getOptionalEnv("THUMBNAIL_WORKER_TOKEN"),
   thumbnailWorkerTimeoutMs: () => getNumberEnv("THUMBNAIL_WORKER_TIMEOUT_MS", 15000),

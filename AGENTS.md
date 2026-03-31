@@ -21,6 +21,11 @@ Your plans should be from a project management and orchestrator role.
 
 Your plans SHOULD have small easy tasks that a sub-agent can complete before it's context reaches 50% or 100k. 
 
+## BC2 import and migration (layer agents)
+
+- Work on Basecamp 2 import code (`lib/imports/*`), `scripts/migrate-bc2.ts`, BC2-related tests, or import-oriented SQL under `supabase/migrations/` MUST follow the boundaries in `docs/superpowers/agents/2026-03-31-basecamp-clone-layer-agents.md` (one layer per task unless the written plan explicitly combines layers).
+- Cursor applies `.cursor/rules/import-layer-agents.mdc` when matched files are in context; for new chats, include that path or `@` the roster doc so the agent loads it.
+- If a user request conflicts with that roster, the agent MUST surface the conflict and confirm before proceeding.
 
 ## Required Startup Step
 

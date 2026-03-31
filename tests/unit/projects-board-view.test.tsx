@@ -11,10 +11,21 @@ const PROJECT_COLUMNS = [
 ];
 
 describe("ProjectsBoardView", () => {
-  it("renders board columns and cards", () => {
+  it("renders board columns, sorts cards by display title, and clamps descriptions", () => {
     const markup = renderToStaticMarkup(
       <ProjectsBoardView
         items={[
+          {
+            id: "project-2",
+            name: "Zeta Campaign",
+            display_name: "ZZZ-2026 Campaign",
+            description: "Second card",
+            tags: ["launch"],
+            client_id: "client-1",
+            client_name: "Acme",
+            archived: false,
+            status: "complete"
+          },
           {
             id: "project-1",
             name: "Campaign",
@@ -46,6 +57,9 @@ describe("ProjectsBoardView", () => {
     expect(markup).toContain('class="projectFlowGrid"');
     expect(markup).toContain(">Complete<");
     expect(markup).toContain(">ABC-2026 Campaign<");
+    expect(markup.indexOf(">ABC-2026 Campaign<")).toBeLessThan(markup.indexOf(">ZZZ-2026 Campaign<"));
+    expect(markup).toContain("projectFlowCardTitle tone-complete");
+    expect(markup).toContain("projectFlowCardDescription line-clamp-2");
     expect(markup).toContain(">Archive<");
     expect(markup).toContain(">New project<");
   });

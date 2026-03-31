@@ -11,7 +11,9 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "dropbox:refresh-token": "node scripts/get-dropbox-refresh-token.mjs",
-    "seed:dummy-projects": "node --env-file=.env.local scripts/seed-dummy-projects.mjs"
+    "seed:dummy-projects": "node --env-file=.env.local scripts/seed-dummy-projects.mjs",
+    "migrate:active": "npx tsx scripts/migrate-bc2.ts --mode=full --projects=active --files",
+    "db:reset-bc2-data": "npx tsx scripts/reset-bc2-import-data.ts --yes"
   },
   "dependencies": {
     "@mdxeditor/editor": "^3.52.5",

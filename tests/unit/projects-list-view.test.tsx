@@ -24,7 +24,9 @@ describe("ProjectsListView", () => {
             archived: false,
             client_id: "client-1",
             client_name: "Acme",
-            status: "in_progress"
+            status: "in_progress",
+            discussion_count: 3,
+            file_count: 5
           }
         ]}
         projectColumns={PROJECT_COLUMNS}
@@ -44,6 +46,7 @@ describe("ProjectsListView", () => {
     expect(markup).toContain('class="clientLedgerSection"');
     expect(markup).toContain(">Acme<");
     expect(markup).toContain(">ABC-2026 Launch<");
+    expect(markup).toContain("3 discussions · 5 files");
     expect(markup).toContain(">Open<");
     expect(markup).toContain(">New project<");
   });

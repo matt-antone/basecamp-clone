@@ -40,10 +40,11 @@ describe("POST /projects", () => {
     requireUserMock.mockResolvedValue({ id: "user-1", email: "person@example.com" });
     createProjectMock.mockResolvedValue({
       id: "project-1",
+      name: "Website Refresh",
       project_code: "BRGS-0001",
       project_slug: "website-refresh",
-      client_slug: "bright-ridge",
-      storage_project_dir: "/projects/bright-ridge/BRGS-0001-website-refresh"
+      client_slug: "Bright-Ridge",
+      storage_project_dir: "/Projects/BRGS/BRGS-0001-Website Refresh"
     });
     ensureProjectFoldersMock.mockRejectedValue(new Error("Dropbox offline"));
     deleteProjectByIdMock.mockResolvedValue(undefined);
@@ -75,13 +76,14 @@ describe("POST /projects", () => {
     requireUserMock.mockResolvedValue({ id: "user-1", email: "person@example.com" });
     createProjectMock.mockResolvedValue({
       id: "project-1",
+      name: "Website Refresh",
       project_code: "BRGS-0001",
       project_slug: "website-refresh",
-      client_slug: "bright-ridge",
-      storage_project_dir: "/projects/bright-ridge/BRGS-0001-website-refresh"
+      client_slug: "Bright-Ridge",
+      storage_project_dir: "/Projects/BRGS/BRGS-0001-Website Refresh"
     });
     ensureProjectFoldersMock.mockResolvedValue({
-      projectDir: "/projects/bright-ridge/BRGS-0001-website-refresh"
+      projectDir: "/Projects/BRGS/BRGS-0001-Website Refresh"
     });
     setProjectStorageDirMock.mockResolvedValue({
       id: "project-1",
@@ -106,11 +108,52 @@ describe("POST /projects", () => {
     );
 
     expect(response.status).toBe(201);
+    expect(ensureProjectFoldersMock).toHaveBeenCalledWith({
+      clientCodeUpper: "BRGS",
+      projectFolderBaseName: "BRGS-0001-Website Refresh"
+    });
     expect(createProjectMock).toHaveBeenCalledWith(
       expect.objectContaining({
         deadline: "2026-05-30",
         requestor: "Jane Producer"
       })
     );
+  });
+});
+
+describe("GET /projects", () => {
+  beforeEach(() => {
+    listProjectsMock.mockReset();
+  });
+
+  it("parses clientId and search and calls listProjects with expected options", async () => {
+    listProjectsMock.mockResolvedValue([{ id: "p1", name: "Alpha" }]);
+
+    const { GET } = await import("@/app/projects/route");
+    const response = await GET(
+      new Request(
+        "http://localhost/projects?clientId=11111111-1111-1111-1111-111111111111&search=website%20refresh"
+      )
+    );
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({
+      projects: [{ id: "p1", name: "Alpha" }]
+    });
+    expect(listProjectsMock).toHaveBeenCalledWith(true, {
+      clientId: "11111111-1111-1111-1111-111111111111",
+      search: "website refresh"
+    });
+  });
+
+  it("returns 400 when clientId is present but not a valid UUID", async () => {
+    const { GET } = await import("@/app/projects/route");
+    const response = await GET(new Request("http://localhost/projects?clientId=not-a-uuid"));
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toMatchObject({
+      error: "Invalid clientId"
+    });
+    expect(listProjectsMock).not.toHaveBeenCalled();
   });
 });

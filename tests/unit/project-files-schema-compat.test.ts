@@ -31,12 +31,12 @@ describe("project file metadata schema compatibility", () => {
       mimeType: "application/pdf",
       sizeBytes: 42,
       dropboxFileId: "dbx:1",
-      dropboxPath: "/projects/acme/brief.pdf",
+      dropboxPath: "/Projects/BRGS/brief.pdf",
       checksum: "sha256"
     });
 
     expect(created).toEqual({ id: "file-1" });
-    expect(queryMock).toHaveBeenCalledTimes(3);
+    expect(queryMock).toHaveBeenCalledTimes(4);
     expect(queryMock.mock.calls[2]?.[0]).not.toContain("thread_id");
     expect(queryMock.mock.calls[2]?.[0]).not.toContain("comment_id");
     expect(queryMock.mock.calls[2]?.[0]).not.toContain("thumbnail_url");
@@ -63,7 +63,7 @@ describe("project file metadata schema compatibility", () => {
         mimeType: "application/pdf",
         sizeBytes: 42,
         dropboxFileId: "dbx:1",
-        dropboxPath: "/projects/acme/brief.pdf",
+        dropboxPath: "/Projects/BRGS/brief.pdf",
         checksum: "sha256",
         threadId: "11111111-1111-1111-1111-111111111111",
         commentId: "22222222-2222-2222-2222-222222222222"
