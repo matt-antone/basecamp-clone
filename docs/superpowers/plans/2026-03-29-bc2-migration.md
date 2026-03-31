@@ -1,5 +1,7 @@
 # Basecamp 2 → Supabase Migration Implementation Plan
 
+> **STATUS: CLOSED** (2026-03-31) — `lib/imports/bc2-*`, `scripts/migrate-bc2.ts`, migration `0014`, and unit tests are in-repo; integration BC2 tests remain opt-in/skipped without `DATABASE_URL`. Do not dispatch new work from this document without authoring a new plan.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Build a standalone CLI migration script (`scripts/migrate-bc2.ts`) that fetches all data from the Basecamp 2 API and imports it into Supabase using the existing `import_jobs`/`import_logs`/`import_map_*` infrastructure.
@@ -38,7 +40,7 @@
 **Files:**
 - Create: `supabase/migrations/0014_bc2_people_map.sql`
 
-- [ ] **Step 1: Write the migration file**
+- [x] **Step 1: Write the migration file**
 
 ```sql
 -- supabase/migrations/0014_bc2_people_map.sql
@@ -60,7 +62,7 @@ create index if not exists idx_user_profiles_legacy_email
   on user_profiles(email) where is_legacy = true;
 ```
 
-- [ ] **Step 2: Apply migration to your Supabase branch**
+- [x] **Step 2: Apply migration to your Supabase branch**
 
 ```bash
 # Assumes DATABASE_URL is set in .env.local pointing at your dev/migration branch
@@ -76,7 +78,7 @@ client.connect().then(() => client.query(sql)).then(() => { console.log('OK'); c
 
 Expected output: `OK`
 
-- [ ] **Step 3: Verify tables and columns exist**
+- [x] **Step 3: Verify tables and columns exist**
 
 ```bash
 npx tsx -e "
@@ -99,7 +101,7 @@ import_map_people: import_map_people
 is_legacy column: present
 ```
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add supabase/migrations/0014_bc2_people_map.sql
@@ -113,7 +115,7 @@ git commit -m "feat: add import_map_people table and user_profiles.is_legacy col
 **Files:**
 - Modify: `.env.example`
 
-- [ ] **Step 1: Add BC2 variables to `.env.example`**
+- [x] **Step 1: Add BC2 variables to `.env.example`**
 
 Open `.env.example` and append:
 
@@ -125,7 +127,7 @@ BC2_USER_AGENT=          # required by BC2 API: "AppName (you@domain.com)"
 BC2_REQUEST_DELAY_MS=200 # ms between requests (default 200)
 ```
 
-- [ ] **Step 2: Commit**
+- [x] **Step 2: Commit**
 
 ```bash
 git add .env.example
@@ -146,7 +148,7 @@ The BC2 API uses Basic auth via an access token (token as username, `X` as passw
 
 ### Step-by-step
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 ```typescript
 // tests/unit/bc2-client.test.ts
@@ -228,7 +230,7 @@ describe("Bc2Client", () => {
 });
 ```
 
-- [ ] **Step 2: Run to confirm they fail**
+- [x] **Step 2: Run to confirm they fail**
 
 ```bash
 TMPDIR=/tmp/codex-vitest npm run test -- tests/unit/bc2-client.test.ts
@@ -236,7 +238,7 @@ TMPDIR=/tmp/codex-vitest npm run test -- tests/unit/bc2-client.test.ts
 
 Expected: FAIL with "Cannot find module"
 
-- [ ] **Step 3: Implement `lib/imports/bc2-client.ts`**
+- [x] **Step 3: Implement `lib/imports/bc2-client.ts`**
 
 ```typescript
 // lib/imports/bc2-client.ts
@@ -324,7 +326,7 @@ export class Bc2Client {
 }
 ```
 
-- [ ] **Step 4: Run tests to confirm they pass**
+- [x] **Step 4: Run tests to confirm they pass**
 
 ```bash
 TMPDIR=/tmp/codex-vitest npm run test -- tests/unit/bc2-client.test.ts
@@ -332,7 +334,7 @@ TMPDIR=/tmp/codex-vitest npm run test -- tests/unit/bc2-client.test.ts
 
 Expected: All tests pass.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add lib/imports/bc2-client.ts tests/unit/bc2-client.test.ts
@@ -359,7 +361,7 @@ BC2 API endpoints:
 - `GET /projects/{id}/messages/{msgId}/comments.json` — comments per message
 - `GET /projects/{id}/attachments.json` — vault attachments per project
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 ```typescript
 // tests/unit/bc2-fetcher.test.ts
@@ -419,7 +421,7 @@ describe("Bc2Fetcher", () => {
 });
 ```
 
-- [ ] **Step 2: Run to confirm they fail**
+- [x] **Step 2: Run to confirm they fail**
 
 ```bash
 TMPDIR=/tmp/codex-vitest npm run test -- tests/unit/bc2-fetcher.test.ts
@@ -427,7 +429,7 @@ TMPDIR=/tmp/codex-vitest npm run test -- tests/unit/bc2-fetcher.test.ts
 
 Expected: FAIL with "Cannot find module"
 
-- [ ] **Step 3: Implement `lib/imports/bc2-fetcher.ts`**
+- [x] **Step 3: Implement `lib/imports/bc2-fetcher.ts`**
 
 ```typescript
 // lib/imports/bc2-fetcher.ts
@@ -517,7 +519,7 @@ export class Bc2Fetcher {
 }
 ```
 
-- [ ] **Step 4: Run tests to confirm they pass**
+- [x] **Step 4: Run tests to confirm they pass**
 
 ```bash
 TMPDIR=/tmp/codex-vitest npm run test -- tests/unit/bc2-fetcher.test.ts
@@ -525,7 +527,7 @@ TMPDIR=/tmp/codex-vitest npm run test -- tests/unit/bc2-fetcher.test.ts
 
 Expected: All tests pass.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add lib/imports/bc2-fetcher.ts tests/unit/bc2-fetcher.test.ts
@@ -551,7 +553,7 @@ Regex rules (from spec):
 
 Client lookup: match `clients.code` case-insensitively. If no match, create a new client with `code` as both `name` and `code`.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 ```typescript
 // tests/unit/bc2-transformer.test.ts
@@ -591,7 +593,7 @@ describe("parseProjectTitle", () => {
 });
 ```
 
-- [ ] **Step 2: Run to confirm they fail**
+- [x] **Step 2: Run to confirm they fail**
 
 ```bash
 TMPDIR=/tmp/codex-vitest npm run test -- tests/unit/bc2-transformer.test.ts
@@ -599,7 +601,7 @@ TMPDIR=/tmp/codex-vitest npm run test -- tests/unit/bc2-transformer.test.ts
 
 Expected: FAIL with "Cannot find module"
 
-- [ ] **Step 3: Implement the transformer (title parsing only first)**
+- [x] **Step 3: Implement the transformer (title parsing only first)**
 
 ```typescript
 // lib/imports/bc2-transformer.ts
@@ -655,7 +657,7 @@ export async function resolveClientId(code: string): Promise<string> {
 }
 ```
 
-- [ ] **Step 4: Run tests to confirm they pass**
+- [x] **Step 4: Run tests to confirm they pass**
 
 ```bash
 TMPDIR=/tmp/codex-vitest npm run test -- tests/unit/bc2-transformer.test.ts
@@ -663,7 +665,7 @@ TMPDIR=/tmp/codex-vitest npm run test -- tests/unit/bc2-transformer.test.ts
 
 Expected: All tests pass.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add lib/imports/bc2-transformer.ts tests/unit/bc2-transformer.test.ts
@@ -682,7 +684,7 @@ git commit -m "feat: add BC2 project title parser and client resolver"
 
 For each BC2 person: look up `user_profiles` by email. If found, use existing profile. If not, create a legacy profile with `id = 'bc2_{person_id}'`, `is_legacy = true`. Record either way in `import_map_people`.
 
-- [ ] **Step 1: Add failing tests for people resolution**
+- [x] **Step 1: Add failing tests for people resolution**
 
 Append to `tests/unit/bc2-transformer.test.ts`:
 
@@ -749,7 +751,7 @@ describe("resolvePerson", () => {
 });
 ```
 
-- [ ] **Step 2: Run to confirm new tests fail**
+- [x] **Step 2: Run to confirm new tests fail**
 
 ```bash
 TMPDIR=/tmp/codex-vitest npm run test -- tests/unit/bc2-transformer.test.ts
@@ -757,7 +759,7 @@ TMPDIR=/tmp/codex-vitest npm run test -- tests/unit/bc2-transformer.test.ts
 
 Expected: New tests FAIL (resolvePerson not exported).
 
-- [ ] **Step 3: Add `resolvePerson` to `lib/imports/bc2-transformer.ts`**
+- [x] **Step 3: Add `resolvePerson` to `lib/imports/bc2-transformer.ts`**
 
 Append to `lib/imports/bc2-transformer.ts`:
 
@@ -826,7 +828,7 @@ export async function resolvePerson(person: Bc2Person, jobId: string): Promise<R
 }
 ```
 
-- [ ] **Step 4: Run all transformer tests**
+- [x] **Step 4: Run all transformer tests**
 
 ```bash
 TMPDIR=/tmp/codex-vitest npm run test -- tests/unit/bc2-transformer.test.ts
@@ -834,7 +836,7 @@ TMPDIR=/tmp/codex-vitest npm run test -- tests/unit/bc2-transformer.test.ts
 
 Expected: All tests pass.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add lib/imports/bc2-transformer.ts tests/unit/bc2-transformer.test.ts
@@ -854,7 +856,7 @@ The script is the CLI entry point. It parses flags, validates env vars, creates 
 
 This task covers structure and the people + projects phases only. Threads/comments and files come in Tasks 8 and 9.
 
-- [ ] **Step 1: Create `scripts/migrate-bc2.ts` with flag parsing and job setup**
+- [x] **Step 1: Create `scripts/migrate-bc2.ts` with flag parsing and job setup**
 
 ```typescript
 #!/usr/bin/env npx tsx
@@ -1125,7 +1127,7 @@ main().catch(err => {
 });
 ```
 
-- [ ] **Step 2: Run the script in dry mode (validate it starts up)**
+- [x] **Step 2: Run the script in dry mode (validate it starts up)**
 
 ```bash
 BC2_ACCOUNT_ID=test BC2_ACCESS_TOKEN=test BC2_USER_AGENT="Test (test@test.com)" \
@@ -1134,7 +1136,7 @@ BC2_ACCOUNT_ID=test BC2_ACCESS_TOKEN=test BC2_USER_AGENT="Test (test@test.com)" 
 
 Expected: It starts but fails when trying to fetch from BC2 (no real credentials) — that's fine. The goal is it compiles and parses flags without crashing before the network call.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add scripts/migrate-bc2.ts
@@ -1152,7 +1154,7 @@ git commit -m "feat: add BC2 migration script with flag parsing, job creation, p
 
 For each project, fetch all messages (threads) and their comments. Insert into `discussion_threads` / `discussion_comments` via existing repository functions. Map via `import_map_threads` / `import_map_comments`.
 
-- [ ] **Step 1: Add `migrateThreadsAndComments` function and wire it into `main`**
+- [x] **Step 1: Add `migrateThreadsAndComments` function and wire it into `main`**
 
 Add the following function before `main()` in `scripts/migrate-bc2.ts`:
 
@@ -1278,7 +1280,7 @@ Update the final console.log to:
   );
 ```
 
-- [ ] **Step 2: Commit**
+- [x] **Step 2: Commit**
 
 ```bash
 git add scripts/migrate-bc2.ts
@@ -1313,7 +1315,7 @@ createFileMetadata({
 
 For BC2 file downloads, use the attachment `url` field with the same auth headers as `Bc2Client.get()`.
 
-- [ ] **Step 1: Add `migrateFiles` function to `scripts/migrate-bc2.ts`**
+- [x] **Step 1: Add `migrateFiles` function to `scripts/migrate-bc2.ts`**
 
 Add before `main()`:
 
@@ -1420,7 +1422,7 @@ async function migrateFiles(
 }
 ```
 
-- [ ] **Step 2: Wire `migrateFiles` into `main()`**
+- [x] **Step 2: Wire `migrateFiles` into `main()`**
 
 In `main()`, after the threads/comments call, add:
 
@@ -1438,7 +1440,7 @@ Update the final `console.log` line to:
   );
 ```
 
-- [ ] **Step 3: Verify the script compiles cleanly**
+- [x] **Step 3: Verify the script compiles cleanly**
 
 ```bash
 npx tsc --noEmit --project tsconfig.json 2>&1 | head -30
@@ -1446,7 +1448,7 @@ npx tsc --noEmit --project tsconfig.json 2>&1 | head -30
 
 Fix any type errors before proceeding. Common issues: missing Dropbox import paths (check what `lib/dropbox.ts` actually exports using grep).
 
-- [ ] **Step 4: Smoke-test in dry mode**
+- [x] **Step 4: Smoke-test in dry mode**
 
 ```bash
 BC2_ACCOUNT_ID=test BC2_ACCESS_TOKEN=test BC2_USER_AGENT="Test (test@test.com)" \
@@ -1455,7 +1457,7 @@ BC2_ACCOUNT_ID=test BC2_ACCESS_TOKEN=test BC2_USER_AGENT="Test (test@test.com)" 
 
 Expected: Script starts, tries to fetch people from BC2, then fails with a network/auth error (expected — no real credentials). The goal is clean flag parsing and compilation.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add scripts/migrate-bc2.ts
@@ -1475,7 +1477,7 @@ The spec requires: after Google UID is confirmed, check for a `user_profiles` ro
 
 This is a **minor, targeted addition** — do not refactor the auth flow around it.
 
-- [ ] **Step 1: Find the first-login profile creation location**
+- [x] **Step 1: Find the first-login profile creation location**
 
 ```bash
 grep -rn "createUserProfile" app/ lib/
@@ -1483,7 +1485,7 @@ grep -rn "createUserProfile" app/ lib/
 
 Note the file(s) returned and read the relevant section before making changes.
 
-- [ ] **Step 2: Write failing test for legacy reconciliation**
+- [x] **Step 2: Write failing test for legacy reconciliation**
 
 In the test file for that auth module (or create `tests/unit/bc2-legacy-reconcile.test.ts`):
 
@@ -1525,7 +1527,7 @@ describe("reconcileLegacyProfile", () => {
 });
 ```
 
-- [ ] **Step 3: Run to confirm tests fail**
+- [x] **Step 3: Run to confirm tests fail**
 
 ```bash
 TMPDIR=/tmp/codex-vitest npm run test -- tests/unit/bc2-legacy-reconcile.test.ts
@@ -1533,7 +1535,7 @@ TMPDIR=/tmp/codex-vitest npm run test -- tests/unit/bc2-legacy-reconcile.test.ts
 
 Expected: FAIL (reconcileLegacyProfile not exported)
 
-- [ ] **Step 4: Add `reconcileLegacyProfile` to `lib/imports/bc2-transformer.ts`**
+- [x] **Step 4: Add `reconcileLegacyProfile` to `lib/imports/bc2-transformer.ts`**
 
 Append to `lib/imports/bc2-transformer.ts`:
 
@@ -1567,7 +1569,7 @@ export async function reconcileLegacyProfile(
 }
 ```
 
-- [ ] **Step 5: Call `reconcileLegacyProfile` in the first-login path**
+- [x] **Step 5: Call `reconcileLegacyProfile` in the first-login path**
 
 In the file identified in Step 1, after the Google UID is confirmed and `createUserProfile` is called, add:
 
@@ -1581,7 +1583,7 @@ await reconcileLegacyProfile(userEmail, googleUid);
 
 The call should be best-effort — wrap in try/catch if the surrounding code uses best-effort patterns, or let it throw if the surrounding code handles errors.
 
-- [ ] **Step 6: Run tests**
+- [x] **Step 6: Run tests**
 
 ```bash
 TMPDIR=/tmp/codex-vitest npm run test -- tests/unit/bc2-legacy-reconcile.test.ts
@@ -1589,7 +1591,7 @@ TMPDIR=/tmp/codex-vitest npm run test -- tests/unit/bc2-legacy-reconcile.test.ts
 
 Expected: All tests pass.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add lib/imports/bc2-transformer.ts tests/unit/bc2-legacy-reconcile.test.ts
@@ -1608,7 +1610,7 @@ git commit -m "feat: reconcile BC2 legacy profiles on first Google login"
 
 This integration test runs against a real (test-branch) database. It mocks the BC2 HTTP layer (no real API calls) but uses real `query()` calls against the DB. It validates: (1) clean run creates expected rows, (2) re-run is idempotent (no duplicates).
 
-- [ ] **Step 1: Write the test**
+- [x] **Step 1: Write the test**
 
 ```typescript
 // tests/integration/bc2-migrate.test.ts
@@ -1683,7 +1685,7 @@ describe.skipIf(SKIP)("BC2 migration integration", () => {
 });
 ```
 
-- [ ] **Step 2: Run the integration test (requires DATABASE_URL)**
+- [x] **Step 2: Run the integration test (requires DATABASE_URL)**
 
 ```bash
 TMPDIR=/tmp/codex-vitest npm run test -- tests/integration/bc2-migrate.test.ts
@@ -1691,7 +1693,7 @@ TMPDIR=/tmp/codex-vitest npm run test -- tests/integration/bc2-migrate.test.ts
 
 Expected: All tests pass. If DATABASE_URL is not set, tests are skipped (not failed).
 
-- [ ] **Step 3: Run all tests to confirm no regressions**
+- [x] **Step 3: Run all tests to confirm no regressions**
 
 ```bash
 TMPDIR=/tmp/codex-vitest npm run test
@@ -1699,7 +1701,7 @@ TMPDIR=/tmp/codex-vitest npm run test
 
 Expected: All previously passing tests still pass.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add tests/integration/bc2-migrate.test.ts

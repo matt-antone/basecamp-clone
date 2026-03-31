@@ -1,5 +1,7 @@
 ## Basecamp 2 Replacement v1 Plan (Dropbox + Google Workspace Auth)
 
+> **STATUS: CLOSED** (2026-03-31) — Historical product and enhancement planning. The running app and repository are authoritative; this file is background only. Do not treat open-ended bullets below as a live backlog without a new plan.
+
 ### Summary
 Build a greenfield `Next.js + Supabase` app replacing your Basecamp 2 usage for projects, threaded discussions, and file storage.  
 Authentication is Google OAuth only, restricted to your Google Workspace domain.  

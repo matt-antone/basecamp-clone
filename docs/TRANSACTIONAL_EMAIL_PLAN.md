@@ -1,5 +1,7 @@
 # Mailgun Migration for Transactional Email
 
+> **STATUS: CLOSED** (2026-03-31) — Archived planning only. **Mailgun was not migrated:** `lib/mailer.ts` still uses nodemailer/SMTP. Reopen with a new task if you want this provider swap executed.
+
 ## Summary
 Replace the current Google Workspace SMTP-based transactional email path with Mailgun's HTTP API while keeping the app's notification behavior unchanged. Thread and comment creation must still succeed even if email delivery fails, and Google OAuth sign-in stays out of scope for this change.
 

@@ -13,6 +13,7 @@ export function ProjectsBoard() {
     renderProjectTitle,
     moveProject,
     toggleArchive,
+    openCreateDialog,
     setStatus,
     domainAllowed
   } = useProjectsWorkspace();
@@ -94,6 +95,7 @@ export function ProjectsBoard() {
       onArchiveProject={(project) =>
         toggleArchive(project).catch((error) => setStatus(error instanceof Error ? error.message : "Archive failed"))
       }
+      onOpenCreateDialog={openCreateDialog}
     />
   ) : null;
 

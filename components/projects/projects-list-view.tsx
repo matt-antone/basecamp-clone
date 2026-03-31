@@ -85,12 +85,19 @@ export function ProjectsListView(props: ProjectsListViewProps) {
 
   return (
     <div className="projectClientAtlas">
+      <div className="projectsHeader">
+        <h1>Project List</h1>
+        <OneShotButton type="button" className="projectPrimaryButton" onClick={onOpenCreateDialog}>
+          New project
+        </OneShotButton>
+      </div>
       {groups.map((group) => (
         <section key={group.label} className="clientLedgerSection">
           <header className="clientLedgerIntro">
             <div className="clientLedgerCopy">
-              <p className="clientLedgerEyebrow">Client</p>
-              <h2>{group.label}</h2>
+              <h2>
+                {group.label}
+              </h2>
               <p className="clientLedgerSummary">
                 {projectColumns.map((column) => {
                   const count = group.projects.filter((project) => normalizeProjectColumn(project) === column.key).length;
@@ -103,7 +110,6 @@ export function ProjectsListView(props: ProjectsListViewProps) {
                 })}
               </p>
             </div>
-            <span className="clientLedgerTotal">{group.projects.length}</span>
           </header>
           <ul className="clientProjectLedger">
             {group.projects.map((project) => (

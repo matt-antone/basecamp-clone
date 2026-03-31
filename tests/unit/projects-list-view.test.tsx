@@ -45,6 +45,7 @@ describe("ProjectsListView", () => {
     expect(markup).toContain(">Acme<");
     expect(markup).toContain(">ABC-2026 Launch<");
     expect(markup).toContain(">Open<");
+    expect(markup).toContain(">New project<");
   });
 
   it("shows create CTA in empty active list state", () => {

@@ -1,5 +1,7 @@
 # Supabase Edge MCP Server — Implementation Plan
 
+> **STATUS: CLOSED** (2026-03-31) — Edge function, migrations, and MCP unit/integration tests exist in-repo. Do not dispatch new work from this document without authoring a new plan.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Deploy a Supabase Edge Function that exposes basecamp-clone data to AI agents (Claude, Codex, Cursor, OpenClaw) via 15 MCP tools covering projects, threads, comments, files, and agent profiles.
@@ -39,7 +41,7 @@
 - Modify: `vitest.config.ts`
 - Create: `supabase/functions/basecamp-mcp/deno.json`
 
-- [ ] **Step 1: Install test dependencies**
+- [x] **Step 1: Install test dependencies**
 
 ```bash
 npm install --save-dev bcryptjs @types/bcryptjs
@@ -47,7 +49,7 @@ npm install --save-dev bcryptjs @types/bcryptjs
 
 Expected: `bcryptjs` and `@types/bcryptjs` added to `devDependencies` in package.json.
 
-- [ ] **Step 2: Update vitest.config.ts to include edge function files**
+- [x] **Step 2: Update vitest.config.ts to include edge function files**
 
 ```typescript
 import { defineConfig } from "vitest/config";
@@ -69,7 +71,7 @@ export default defineConfig({
 
 Note: No changes needed to the include pattern — `tests/**/*.test.ts` already covers the new test files. The edge function source files (auth.ts, db.ts, tools.ts) use bare specifiers that resolve through node_modules. Only index.ts uses Deno-specific APIs and is not unit-tested.
 
-- [ ] **Step 3: Create deno.json import map**
+- [x] **Step 3: Create deno.json import map**
 
 ```json
 {
@@ -87,7 +89,7 @@ Note: No changes needed to the include pattern — `tests/**/*.test.ts` already 
 
 Save to: `supabase/functions/basecamp-mcp/deno.json`
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add package.json package-lock.json vitest.config.ts supabase/functions/basecamp-mcp/deno.json
@@ -101,7 +103,7 @@ git commit -m "chore: setup for basecamp-mcp edge function"
 **Files:**
 - Create: `supabase/migrations/0011_mcp_agents.sql`
 
-- [ ] **Step 1: Write the migration**
+- [x] **Step 1: Write the migration**
 
 ```sql
 -- agent_clients: stores per-agent credentials (replaces MCP_CLIENTS_JSON env var)
@@ -169,7 +171,7 @@ $$;
 
 Save to: `supabase/migrations/0011_mcp_agents.sql`
 
-- [ ] **Step 2: Apply migration**
+- [x] **Step 2: Apply migration**
 
 ```bash
 # If using Supabase CLI:
@@ -179,7 +181,7 @@ npx supabase db push
 # Verify: both tables and the RPC appear in the schema.
 ```
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add supabase/migrations/0011_mcp_agents.sql
@@ -194,7 +196,7 @@ git commit -m "feat(mcp): add agent_clients, agent_profiles tables and search RP
 - Create: `supabase/functions/basecamp-mcp/auth.ts`
 - Create: `tests/unit/mcp-auth.test.ts`
 
-- [ ] **Step 1: Write failing tests**
+- [x] **Step 1: Write failing tests**
 
 ```typescript
 // tests/unit/mcp-auth.test.ts
@@ -291,7 +293,7 @@ describe("ensureProfile", () => {
 });
 ```
 
-- [ ] **Step 2: Run tests to confirm they fail**
+- [x] **Step 2: Run tests to confirm they fail**
 
 ```bash
 npx vitest run tests/unit/mcp-auth.test.ts
@@ -299,7 +301,7 @@ npx vitest run tests/unit/mcp-auth.test.ts
 
 Expected: FAIL — `Cannot find module '../../supabase/functions/basecamp-mcp/auth.ts'`
 
-- [ ] **Step 3: Implement auth.ts**
+- [x] **Step 3: Implement auth.ts**
 
 ```typescript
 // supabase/functions/basecamp-mcp/auth.ts
@@ -369,7 +371,7 @@ export async function ensureProfile(
 }
 ```
 
-- [ ] **Step 4: Run tests to confirm they pass**
+- [x] **Step 4: Run tests to confirm they pass**
 
 ```bash
 npx vitest run tests/unit/mcp-auth.test.ts
@@ -377,7 +379,7 @@ npx vitest run tests/unit/mcp-auth.test.ts
 
 Expected: All 9 tests PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add supabase/functions/basecamp-mcp/auth.ts tests/unit/mcp-auth.test.ts
@@ -393,7 +395,7 @@ git commit -m "feat(mcp): auth module with rate limiter and bcrypt agent resolut
 
 No dedicated tests — these helpers are thin wrappers tested through tool tests in Tasks 5–7.
 
-- [ ] **Step 1: Implement db.ts**
+- [x] **Step 1: Implement db.ts**
 
 ```typescript
 // supabase/functions/basecamp-mcp/db.ts
@@ -727,7 +729,7 @@ export async function updateProfile(
 }
 ```
 
-- [ ] **Step 2: Commit**
+- [x] **Step 2: Commit**
 
 ```bash
 git add supabase/functions/basecamp-mcp/db.ts
@@ -742,7 +744,7 @@ git commit -m "feat(mcp): db query helpers for all 15 tools"
 - Create: `supabase/functions/basecamp-mcp/tools.ts` (read tools section)
 - Create: `tests/unit/mcp-read-tools.test.ts`
 
-- [ ] **Step 1: Write failing tests**
+- [x] **Step 1: Write failing tests**
 
 ```typescript
 // tests/unit/mcp-read-tools.test.ts
@@ -869,7 +871,7 @@ describe("search_content", () => {
 });
 ```
 
-- [ ] **Step 2: Run tests to confirm they fail**
+- [x] **Step 2: Run tests to confirm they fail**
 
 ```bash
 npx vitest run tests/unit/mcp-read-tools.test.ts
@@ -877,7 +879,7 @@ npx vitest run tests/unit/mcp-read-tools.test.ts
 
 Expected: FAIL — `Cannot find module '../../supabase/functions/basecamp-mcp/tools.ts'`
 
-- [ ] **Step 3: Implement tools.ts (read tools only)**
+- [x] **Step 3: Implement tools.ts (read tools only)**
 
 ```typescript
 // supabase/functions/basecamp-mcp/tools.ts
@@ -1004,7 +1006,7 @@ export function registerTools(
 }
 ```
 
-- [ ] **Step 4: Run tests to confirm they pass**
+- [x] **Step 4: Run tests to confirm they pass**
 
 ```bash
 npx vitest run tests/unit/mcp-read-tools.test.ts
@@ -1012,7 +1014,7 @@ npx vitest run tests/unit/mcp-read-tools.test.ts
 
 Expected: All 8 tests PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add supabase/functions/basecamp-mcp/tools.ts tests/unit/mcp-read-tools.test.ts
@@ -1027,7 +1029,7 @@ git commit -m "feat(mcp): read tools — list_projects, get_project, get_thread,
 - Modify: `supabase/functions/basecamp-mcp/tools.ts`
 - Create: `tests/unit/mcp-write-tools.test.ts`
 
-- [ ] **Step 1: Write failing tests**
+- [x] **Step 1: Write failing tests**
 
 ```typescript
 // tests/unit/mcp-write-tools.test.ts
@@ -1144,7 +1146,7 @@ describe("update_comment", () => {
 });
 ```
 
-- [ ] **Step 2: Run tests to confirm they fail**
+- [x] **Step 2: Run tests to confirm they fail**
 
 ```bash
 npx vitest run tests/unit/mcp-write-tools.test.ts
@@ -1152,7 +1154,7 @@ npx vitest run tests/unit/mcp-write-tools.test.ts
 
 Expected: FAIL — tools not yet registered in tools.ts.
 
-- [ ] **Step 3: Add write tools to tools.ts**
+- [x] **Step 3: Add write tools to tools.ts**
 
 Append inside the `registerTools` function, after the read tools section:
 
@@ -1284,7 +1286,7 @@ Append inside the `registerTools` function, after the read tools section:
   );
 ```
 
-- [ ] **Step 4: Run tests to confirm they pass**
+- [x] **Step 4: Run tests to confirm they pass**
 
 ```bash
 npx vitest run tests/unit/mcp-write-tools.test.ts
@@ -1292,7 +1294,7 @@ npx vitest run tests/unit/mcp-write-tools.test.ts
 
 Expected: All 7 tests PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add supabase/functions/basecamp-mcp/tools.ts tests/unit/mcp-write-tools.test.ts
@@ -1307,7 +1309,7 @@ git commit -m "feat(mcp): write tools — create/update project, thread, comment
 - Modify: `supabase/functions/basecamp-mcp/tools.ts`
 - Create: `tests/unit/mcp-file-profile-tools.test.ts`
 
-- [ ] **Step 1: Write failing tests**
+- [x] **Step 1: Write failing tests**
 
 ```typescript
 // tests/unit/mcp-file-profile-tools.test.ts
@@ -1413,7 +1415,7 @@ describe("update_my_profile", () => {
 });
 ```
 
-- [ ] **Step 2: Run tests to confirm they fail**
+- [x] **Step 2: Run tests to confirm they fail**
 
 ```bash
 npx vitest run tests/unit/mcp-file-profile-tools.test.ts
@@ -1421,7 +1423,7 @@ npx vitest run tests/unit/mcp-file-profile-tools.test.ts
 
 Expected: FAIL — tools not yet registered.
 
-- [ ] **Step 3: Add file and profile tools to tools.ts**
+- [x] **Step 3: Add file and profile tools to tools.ts**
 
 Append inside `registerTools`, after the write tools section:
 
@@ -1489,7 +1491,7 @@ Append inside `registerTools`, after the write tools section:
   );
 ```
 
-- [ ] **Step 4: Run all unit tests**
+- [x] **Step 4: Run all unit tests**
 
 ```bash
 npx vitest run tests/unit/mcp-auth.test.ts tests/unit/mcp-read-tools.test.ts tests/unit/mcp-write-tools.test.ts tests/unit/mcp-file-profile-tools.test.ts
@@ -1497,7 +1499,7 @@ npx vitest run tests/unit/mcp-auth.test.ts tests/unit/mcp-read-tools.test.ts tes
 
 Expected: All tests PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add supabase/functions/basecamp-mcp/tools.ts tests/unit/mcp-file-profile-tools.test.ts
@@ -1513,7 +1515,7 @@ git commit -m "feat(mcp): file and profile tools — create_file, get_my_profile
 
 No unit tests — index.ts is Deno-specific (Deno.serve, Deno.env) and is covered by the integration smoke test.
 
-- [ ] **Step 1: Implement index.ts**
+- [x] **Step 1: Implement index.ts**
 
 ```typescript
 // supabase/functions/basecamp-mcp/index.ts
@@ -1590,7 +1592,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
 });
 ```
 
-- [ ] **Step 2: Commit**
+- [x] **Step 2: Commit**
 
 ```bash
 git add supabase/functions/basecamp-mcp/index.ts
@@ -1604,7 +1606,7 @@ git commit -m "feat(mcp): Deno edge function entry point with auth, rate limitin
 **Files:**
 - Modify: `.env.example`
 
-- [ ] **Step 1: Add MCP vars to .env.example**
+- [x] **Step 1: Add MCP vars to .env.example**
 
 Open `.env.example` and append:
 
@@ -1629,7 +1631,7 @@ MCP_SMOKE_CLIENT_ID=
 MCP_SMOKE_SECRET=
 ```
 
-- [ ] **Step 2: Commit**
+- [x] **Step 2: Commit**
 
 ```bash
 git add .env.example
@@ -1645,7 +1647,7 @@ git commit -m "chore(mcp): add MCP env vars to .env.example"
 
 Requires a deployed edge function and env vars: `MCP_SMOKE_URL`, `MCP_SMOKE_CLIENT_ID`, `MCP_SMOKE_SECRET`. Not run in CI.
 
-- [ ] **Step 1: Deploy the edge function**
+- [x] **Step 1: Deploy the edge function**
 
 ```bash
 npx supabase functions deploy basecamp-mcp
@@ -1661,7 +1663,7 @@ MCP_SMOKE_CLIENT_ID=<your-client-id>
 MCP_SMOKE_SECRET=<the secret you inserted into agent_clients>
 ```
 
-- [ ] **Step 2: Insert a test agent into agent_clients**
+- [x] **Step 2: Insert a test agent into agent_clients**
 
 In the Supabase dashboard > SQL editor:
 
@@ -1676,7 +1678,7 @@ values (
 on conflict (client_id) do nothing;
 ```
 
-- [ ] **Step 3: Write the smoke test**
+- [x] **Step 3: Write the smoke test**
 
 ```typescript
 // tests/integration/mcp-smoke.test.ts
@@ -1758,7 +1760,7 @@ describe.skipIf(!SMOKE_URL || !CLIENT_ID || !SECRET)("MCP smoke tests (live)", (
 });
 ```
 
-- [ ] **Step 4: Run smoke tests**
+- [x] **Step 4: Run smoke tests**
 
 ```bash
 MCP_SMOKE_URL=https://... MCP_SMOKE_CLIENT_ID=<your-client-id> MCP_SMOKE_SECRET=your-secret npx vitest run tests/integration/mcp-smoke.test.ts
@@ -1766,7 +1768,7 @@ MCP_SMOKE_URL=https://... MCP_SMOKE_CLIENT_ID=<your-client-id> MCP_SMOKE_SECRET=
 
 Expected: All 6 tests PASS (skip message if env vars absent).
 
-- [ ] **Step 5: Final unit test run**
+- [x] **Step 5: Final unit test run**
 
 ```bash
 npx vitest run tests/unit/mcp-auth.test.ts tests/unit/mcp-read-tools.test.ts tests/unit/mcp-write-tools.test.ts tests/unit/mcp-file-profile-tools.test.ts
@@ -1774,7 +1776,7 @@ npx vitest run tests/unit/mcp-auth.test.ts tests/unit/mcp-read-tools.test.ts tes
 
 Expected: All tests PASS.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add tests/integration/mcp-smoke.test.ts

@@ -1,5 +1,7 @@
 # Projects workspace: URL-first tabs implementation plan
 
+> **STATUS: CLOSED** (2026-03-31) — URL-first routes are implemented via `ProjectsWorkspaceProvider` plus `ProjectsList` / `ProjectsBoard` / `ProjectsArchive` on `/`, `/flow`, and `/archive` (not the single `ProjectsWorkspacePage` + `view` prop described in early tasks). Optional `metadata` on `app/page.tsx` was not added (YAGNI). Do not dispatch new work from this document without authoring a new plan.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Treat Index, Flow (board), and Archive as first-class App Router routes (`/`, `/flow`, `/archive`) with a single shared workspace shell and no duplicate or hidden tab state.
@@ -35,7 +37,7 @@
 - Modify: `app/archive/page.tsx`
 - Test: add or extend `tests/unit/projects-workspace-page.test.tsx` (or minimal component test) if the team wants prop contract coverage; otherwise manual QA
 
-- [ ] **Step 1: Define the prop**
+- [x] **Step 1: Define the prop**
 
 Add optional `view?: ProjectsViewTab` to the default export. Inside `ProjectsPageContent`, compute:
 
@@ -45,7 +47,7 @@ const activeTab = view ?? projectsViewTabFromPathname(pathname);
 
 Keep pathname fallback so any stray reuse of the component still behaves. Document in a one-line comment that route `page.tsx` files SHOULD pass `view` for explicit ownership.
 
-- [ ] **Step 2: Wire each route**
+- [x] **Step 2: Wire each route**
 
 ```tsx
 // app/page.tsx
@@ -71,12 +73,12 @@ export default function Page() {
 }
 ```
 
-- [ ] **Step 3: Run TypeScript check**
+- [x] **Step 3: Run TypeScript check**
 
 Run: `cd basecamp-clone && npx tsc --noEmit`  
 Expected: no errors.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add app/page.tsx app/flow/page.tsx app/archive/page.tsx components/projects/projects-workspace-page.tsx
@@ -92,14 +94,14 @@ git commit -m "refactor(projects): pass explicit workspace view from each route"
 
 **Rationale:** Primary navigation already lives in `theme-toggle.tsx` (`themeTopBarProjectsNav`). Keeping two tab strips causes drift. If in-page tabs are required later, restore a single component shared with the top bar tokens—not a copy-pasted block.
 
-- [ ] **Step 1: Delete the commented JSX block** (entire `{/* <div className="projectsWorkbenchBar"> ... */}` section).
+- [x] **Step 1: Delete the commented JSX block** (entire `{/* <div className="projectsWorkbenchBar"> ... */}` section).
 
-- [ ] **Step 2: Run lint on the touched file**
+- [x] **Step 2: Run lint on the touched file**
 
 Run: `cd basecamp-clone && npx eslint components/projects/projects-workspace-page.tsx`  
 Expected: clean.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add components/projects/projects-workspace-page.tsx
@@ -113,25 +115,25 @@ git commit -m "chore(projects): drop commented duplicate projects tab bar"
 **Files:**
 - Modify: `app/page.tsx` OR add `app/(marketing)/` grouping only if the team accepts route-group churn (YAGNI default: **only** add `metadata` export to `app/page.tsx` if product wants a distinct title from root layout).
 
-- [ ] **Step 1 (optional):** Export `metadata` from `app/page.tsx` with `title: "Projects"` or template `%s | SiteName` consistent with `generateMetadata` in `app/layout.tsx`.
+- [x] **Step 1 (optional):** Export `metadata` from `app/page.tsx` with `title: "Projects"` or template `%s | SiteName` consistent with `generateMetadata` in `app/layout.tsx`.
 
-- [ ] **Step 2: Commit** (if step 1 done)
+- [x] **Step 2: Commit** (if step 1 done)
 
 ---
 
 ### Task 4: Regression verification
 
-- [ ] **Step 1: Unit tests**
+- [x] **Step 1: Unit tests**
 
 Run: `cd basecamp-clone && npx vitest run tests/unit/projects-view-path.test.ts`  
 Expected: all pass.
 
-- [ ] **Step 2: Broader test pass (if available)**
+- [x] **Step 2: Broader test pass (if available)**
 
 Run: `npm run test`  
 Expected: all pass.
 
-- [ ] **Step 3: Manual browser check**
+- [x] **Step 3: Manual browser check**
 
 1. Signed-in user: `/` shows list + filter shelf; `/flow` shows board columns; `/archive` shows archive tab.
 2. Top bar highlights: Projects on `/`, Project Board on `/flow`, Archive on `/archive`.

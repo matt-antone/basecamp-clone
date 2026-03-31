@@ -39,6 +39,7 @@ describe("ProjectsBoardView", () => {
         onCardDragStart={vi.fn()}
         onCardDragEnd={vi.fn()}
         onArchiveProject={vi.fn()}
+        onOpenCreateDialog={vi.fn()}
       />
     );
 
@@ -46,5 +47,6 @@ describe("ProjectsBoardView", () => {
     expect(markup).toContain(">Complete<");
     expect(markup).toContain(">ABC-2026 Campaign<");
     expect(markup).toContain(">Archive<");
+    expect(markup).toContain(">New project<");
   });
 });

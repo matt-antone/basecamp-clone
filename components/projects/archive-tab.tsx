@@ -17,9 +17,10 @@ type Props = {
   accessToken: string | null;
   onToken: (token: string | null) => void;
   onRestore: (project: ArchiveProjectItem) => Promise<void>;
+  onOpenCreateDialog: () => void;
 };
 
-export function ArchiveTab({ accessToken, onToken, onRestore }: Props) {
+export function ArchiveTab({ accessToken, onToken, onRestore, onOpenCreateDialog }: Props) {
   const [searchValue, setSearchValue] = useState("");
   const [page, setPage] = useState(1);
   const [result, setResult] = useState<ArchiveResult | null>(null);
@@ -81,6 +82,12 @@ export function ArchiveTab({ accessToken, onToken, onRestore }: Props) {
 
   return (
     <div className="archiveTabRoot">
+      <div className="projectsHeader">
+        <h1>Archive</h1>
+        <OneShotButton type="button" className="projectPrimaryButton" onClick={onOpenCreateDialog}>
+          New project
+        </OneShotButton>
+      </div>
       <section className="projectsFilterShelf">
         <div className="projectsFilterControls">
           <label className="projectsSearchShell">
