@@ -1,22 +1,38 @@
 import { requireUser } from "@/lib/auth";
 import { badRequest, notFound, ok, serverError, unauthorized } from "@/lib/http";
-import { setProjectStatus } from "@/lib/repositories";
+import { PROJECT_STATUSES_ZOD, isProjectStatus, type ProjectStatus } from "@/lib/project-status";
+import { getProject, setProjectStatus } from "@/lib/repositories";
 import { z } from "zod";
 
 const setProjectStatusSchema = z.object({
-  status: z.enum(["new", "in_progress", "blocked", "complete"])
+  status: z.enum(PROJECT_STATUSES_ZOD)
 });
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
-    await requireUser(request);
+    const user = await requireUser(request);
     const { id } = await params;
     const payload = setProjectStatusSchema.parse(await request.json());
-    const project = await setProjectStatus(id, payload.status);
+    const project = await getProject(id, user.id);
     if (!project) {
       return notFound("Project not found");
     }
-    return ok({ project });
+
+    const currentStatus = getCurrentProjectStatus(project.status);
+    const transitionError = validateProjectStatusTransition({
+      currentStatus,
+      nextStatus: payload.status,
+      archived: project.archived === true
+    });
+    if (transitionError) {
+      return badRequest(transitionError);
+    }
+
+    const updatedProject = await setProjectStatus(id, payload.status);
+    if (!updatedProject) {
+      return notFound("Project not found");
+    }
+    return ok({ project: updatedProject });
   } catch (error) {
     if (error instanceof Error && /auth|token|workspace/i.test(error.message)) {
       return unauthorized(error.message);
@@ -26,4 +42,40 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     }
     return serverError();
   }
+}
+
+function getCurrentProjectStatus(rawStatus: unknown): ProjectStatus {
+  return typeof rawStatus === "string" && isProjectStatus(rawStatus) ? rawStatus : "new";
+}
+
+function validateProjectStatusTransition(args: {
+  currentStatus: ProjectStatus;
+  nextStatus: ProjectStatus;
+  archived: boolean;
+}) {
+  const { currentStatus, nextStatus, archived } = args;
+
+  if (currentStatus === nextStatus) {
+    return null;
+  }
+
+  if (nextStatus === "billing") {
+    if (currentStatus !== "complete" || archived) {
+      return "Projects can move to billing only from an active complete state.";
+    }
+    return null;
+  }
+
+  if (currentStatus === "billing") {
+    if (nextStatus === "in_progress") {
+      return null;
+    }
+    return "Billing projects can only reopen to In Progress.";
+  }
+
+  if (nextStatus === "new" || nextStatus === "in_progress" || nextStatus === "blocked" || nextStatus === "complete") {
+    return null;
+  }
+
+  return "Invalid project status transition.";
 }

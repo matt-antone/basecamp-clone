@@ -5,9 +5,13 @@ const { enqueueThumbnailJobAndNotifyBestEffortMock } = vi.hoisted(() => ({
   enqueueThumbnailJobAndNotifyBestEffortMock: vi.fn()
 }));
 
-vi.mock("@/lib/thumbnail-enqueue-after-save", () => ({
-  enqueueThumbnailJobAndNotifyBestEffort: enqueueThumbnailJobAndNotifyBestEffortMock
-}));
+vi.mock("@/lib/thumbnail-enqueue-after-save", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/thumbnail-enqueue-after-save")>();
+  return {
+    ...actual,
+    enqueueThumbnailJobAndNotifyBestEffort: enqueueThumbnailJobAndNotifyBestEffortMock
+  };
+});
 
 describe("importBc2FileFromAttachment", () => {
   const originalFetch = globalThis.fetch;
@@ -64,7 +68,8 @@ describe("importBc2FileFromAttachment", () => {
     const query = vi
       .fn()
       .mockResolvedValueOnce({ rows: [] }) // import_map miss
-      .mockResolvedValueOnce({ rows: [] }); // insert ok
+      .mockResolvedValueOnce({ rows: [] }) // project_files: no bc row yet
+      .mockResolvedValueOnce({ rows: [] }); // insert map ok
 
     const uploadComplete = vi.fn().mockResolvedValue({
       fileId: "drop-1",
@@ -106,7 +111,8 @@ describe("importBc2FileFromAttachment", () => {
         projectId: "proj-1",
         threadId: "t1",
         commentId: "c1",
-        dropboxFileId: "drop-1"
+        dropboxFileId: "drop-1",
+        bcAttachmentId: "99"
       })
     );
     expect(query).toHaveBeenCalledWith(
@@ -121,5 +127,113 @@ describe("importBc2FileFromAttachment", () => {
       fileRecord: { id: "file-row-1" },
       requestId: "bc2-job-1-99"
     });
+  });
+
+  it("does not enqueue thumbnails when projectArchived is true", async () => {
+    vi.mocked(fetch).mockResolvedValue(new Response(new Uint8Array([1, 2, 3]), { status: 200 }));
+
+    const query = vi
+      .fn()
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] });
+
+    const createFileMetadata = vi.fn().mockResolvedValue({ id: "file-row-arch" });
+
+    const result = await importBc2FileFromAttachment({
+      query: query as never,
+      jobId: "job-1",
+      projectLocalId: "proj-1",
+      storageDir: "/root/CODE/client-proj",
+      personMap: new Map([[1, "profile-1"]]),
+      attachment: baseAttachment,
+      threadId: null,
+      commentId: null,
+      downloadEnv: { username: "u", password: "p", userAgent: "UA" },
+      adapter: { uploadComplete: vi.fn().mockResolvedValue({ fileId: "d1", path: "/p", rev: "r" }) },
+      createFileMetadata: createFileMetadata as never,
+      logRecord: vi.fn(),
+      incrementCounters: vi.fn(),
+      projectArchived: true,
+      retryAttempts: 1
+    });
+
+    expect(result).toEqual({ status: "imported", localFileId: "file-row-arch" });
+    expect(enqueueThumbnailJobAndNotifyBestEffortMock).not.toHaveBeenCalled();
+  });
+
+  it("imports with thread only (message attachment; comment_id null)", async () => {
+    vi.mocked(fetch).mockResolvedValue(new Response(new Uint8Array([1, 2, 3]), { status: 200 }));
+
+    const query = vi
+      .fn()
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] });
+
+    const createFileMetadata = vi.fn().mockResolvedValue({ id: "file-msg-1" });
+
+    const result = await importBc2FileFromAttachment({
+      query: query as never,
+      jobId: "job-1",
+      projectLocalId: "proj-1",
+      storageDir: "/root/CODE/client-proj",
+      personMap: new Map([[1, "profile-1"]]),
+      attachment: baseAttachment,
+      threadId: "thread-only",
+      commentId: null,
+      downloadEnv: { username: "u", password: "p", userAgent: "UA" },
+      adapter: { uploadComplete: vi.fn().mockResolvedValue({ fileId: "d1", path: "/p", rev: "r" }) },
+      createFileMetadata: createFileMetadata as never,
+      logRecord: vi.fn(),
+      incrementCounters: vi.fn(),
+      retryAttempts: 1
+    });
+
+    expect(result.status).toBe("imported");
+    expect(createFileMetadata).toHaveBeenCalledWith(
+      expect.objectContaining({
+        threadId: "thread-only",
+        commentId: null,
+        bcAttachmentId: "99"
+      })
+    );
+  });
+
+  it("skips when project_files already has bc_attachment_id but import_map is empty", async () => {
+    const query = vi
+      .fn()
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{ id: "orphan-local" }] })
+      .mockResolvedValueOnce({ rows: [] });
+
+    const createFileMetadata = vi.fn();
+    const result = await importBc2FileFromAttachment({
+      query: query as never,
+      jobId: "job-1",
+      projectLocalId: "proj-1",
+      storageDir: "/root/CODE/client-proj",
+      personMap: new Map([[1, "profile-1"]]),
+      attachment: baseAttachment,
+      threadId: null,
+      commentId: null,
+      downloadEnv: { username: "u", password: "p", userAgent: "UA" },
+      adapter: { uploadComplete: vi.fn() },
+      createFileMetadata: createFileMetadata as never,
+      logRecord: vi.fn(),
+      incrementCounters: vi.fn()
+    });
+
+    expect(result).toEqual({ status: "skipped_existing", localFileId: "orphan-local" });
+    expect(fetch).not.toHaveBeenCalled();
+    expect(createFileMetadata).not.toHaveBeenCalled();
+    expect(query).toHaveBeenCalledWith(
+      "select id from project_files where project_id = $1 and bc_attachment_id = $2 limit 1",
+      ["proj-1", "99"]
+    );
+    expect(query).toHaveBeenCalledWith(
+      "insert into import_map_files (basecamp_file_id, local_file_id) values ($1, $2) on conflict (basecamp_file_id) do nothing",
+      ["99", "orphan-local"]
+    );
   });
 });

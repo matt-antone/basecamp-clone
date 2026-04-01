@@ -4,7 +4,12 @@ import { useRouter } from "next/navigation";
 import type { ProjectDialogValues } from "@/components/project-dialog-form";
 import { PageLoadingState } from "@/components/loading-shells";
 import { createClientResource } from "@/lib/client-resource";
-import { createProjectDialogValues, normalizeProjectColumn, parseProjectTags } from "@/lib/project-utils";
+import {
+  createProjectDialogValues,
+  normalizeProjectColumn,
+  parseProjectTags,
+  type ProjectColumn
+} from "@/lib/project-utils";
 import { authedJsonFetch, fetchAuthSession } from "@/lib/browser-auth";
 import type { FeaturedFeedPost } from "@/lib/featured-feed";
 import {
@@ -43,9 +48,10 @@ export type Project = {
   pm_note?: string | null;
 };
 
-export type ProjectColumn = "new" | "in_progress" | "blocked" | "complete";
+export type { ProjectColumn };
 
-export type ProjectSort = "created" | "title" | "deadline";
+/** UI sort only; API still accepts `sort=deadline` for compatibility. */
+export type ProjectSort = "created" | "title";
 
 type RefreshProjectsOptions = {
   accessToken?: string | null;
@@ -110,7 +116,7 @@ function buildProjectsUrl(options?: { clientId?: string | null; search?: string;
   const params = new URLSearchParams({ includeArchived: "true" });
   const clientId = options?.clientId ?? null;
   const search = options?.search?.trim() ?? "";
-  const sort = options?.sort ?? "created";
+  const sort = options?.sort ?? "title";
 
   if (clientId) {
     params.set("clientId", clientId);
@@ -118,8 +124,9 @@ function buildProjectsUrl(options?: { clientId?: string | null; search?: string;
   if (search) {
     params.set("search", search);
   }
-  if (sort !== "created") {
-    params.set("sort", sort);
+  // API: omit `sort` for newest-first (`created_at`); `sort=title` for A–Z.
+  if (sort === "title") {
+    params.set("sort", "title");
   }
 
   return `/projects?${params.toString()}`;
@@ -172,13 +179,13 @@ function ProjectsWorkspaceInner({ initial, children }: { initial: ProjectsBootst
   const latestFeaturedPosts = initial.latestFeaturedPosts;
   const [filterClientId, setFilterClientId] = useState<string | null>(null);
   const [activeSearch, setActiveSearch] = useState("");
-  const [projectSort, setProjectSort] = useState<ProjectSort>("created");
+  const [projectSort, setProjectSort] = useState<ProjectSort>("title");
 
   const [projectForm, setProjectForm] = useState<ProjectDialogValues>(createProjectDialogValues());
   const [isCreatingProject, setIsCreatingProject] = useState(false);
   const createDialogRef = useRef<HTMLDialogElement | null>(null);
   const refreshAbortControllerRef = useRef<AbortController | null>(null);
-  const projectSortRef = useRef<ProjectSort>("created");
+  const projectSortRef = useRef<ProjectSort>("title");
   projectSortRef.current = projectSort;
 
   const activeProjects = useMemo(() => projects.filter((project) => !project.archived), [projects]);

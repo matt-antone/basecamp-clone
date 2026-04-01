@@ -3,9 +3,12 @@ import Link from "next/link";
 import { type CSSProperties, type FocusEvent, type ReactNode } from "react";
 import { OneShotButton } from "@/components/one-shot-button";
 import { ProjectTagList } from "@/components/project-tag-list";
-import { formatProjectCreatedAtLocal, formatProjectDeadlineLocal, normalizeProjectColumn } from "@/lib/project-utils";
-
-type ProjectColumn = "new" | "in_progress" | "blocked" | "complete";
+import {
+  formatProjectCreatedAtLocal,
+  formatProjectDeadlineLocal,
+  normalizeProjectColumn,
+  type ProjectColumn
+} from "@/lib/project-utils";
 
 type ProjectColumnDefinition = {
   key: ProjectColumn;

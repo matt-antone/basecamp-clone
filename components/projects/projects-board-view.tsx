@@ -3,9 +3,12 @@ import Link from "next/link";
 import { type CSSProperties, type DragEvent, type ReactNode } from "react";
 import { OneShotButton } from "@/components/one-shot-button";
 import { ProjectTagList } from "@/components/project-tag-list";
-import { formatProjectCreatedAtLocal, formatProjectDeadlineLocal, normalizeProjectColumn } from "@/lib/project-utils";
-
-type ProjectColumn = "new" | "in_progress" | "blocked" | "complete";
+import {
+  formatProjectCreatedAtLocal,
+  formatProjectDeadlineLocal,
+  normalizeProjectColumn,
+  type ProjectColumn
+} from "@/lib/project-utils";
 
 type ProjectColumnDefinition = {
   key: ProjectColumn;
@@ -42,6 +45,7 @@ export type ProjectsBoardViewProps = {
   onColumnDrop: (event: DragEvent<HTMLElement>, column: ProjectColumn) => void;
   onCardDragStart: (event: DragEvent<HTMLLIElement>, projectId: string) => void;
   onCardDragEnd: () => void;
+  onSendToBilling: (project: ProjectBoardItem) => void;
   onArchiveProject: (project: ProjectBoardItem) => void;
   onOpenCreateDialog: () => void;
 };
@@ -60,6 +64,7 @@ export function ProjectsBoardView(props: ProjectsBoardViewProps) {
     onColumnDrop,
     onCardDragStart,
     onCardDragEnd,
+    onSendToBilling,
     onArchiveProject,
     onOpenCreateDialog
   } = props;
@@ -144,13 +149,24 @@ export function ProjectsBoardView(props: ProjectsBoardViewProps) {
                     </div>
                     <div className="projectFlowCardFoot">
                       <div className="projectFlowCardActions">
-                        {column.title === "Complete" && <OneShotButton
-                          type="button"
-                          className="projectActionButton"
-                          onClick={() => onArchiveProject(project)}
-                        >
-                          Archive
-                        </OneShotButton>}
+                        {column.title === "Complete" && (
+                          <>
+                            <OneShotButton
+                              type="button"
+                              className="projectPrimaryButton projectActionButton"
+                              onClick={() => onSendToBilling(project)}
+                            >
+                              Send to billing
+                            </OneShotButton>
+                            <OneShotButton
+                              type="button"
+                              className="projectActionButton"
+                              onClick={() => onArchiveProject(project)}
+                            >
+                              Archive now
+                            </OneShotButton>
+                          </>
+                        )}
                       </div>
                     </div>
                   </li>

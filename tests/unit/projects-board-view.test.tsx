@@ -51,6 +51,7 @@ describe("ProjectsBoardView", () => {
         onColumnDrop={vi.fn()}
         onCardDragStart={vi.fn()}
         onCardDragEnd={vi.fn()}
+        onSendToBilling={vi.fn()}
         onArchiveProject={vi.fn()}
         onOpenCreateDialog={vi.fn()}
       />
@@ -62,7 +63,8 @@ describe("ProjectsBoardView", () => {
     expect(markup.indexOf(">ABC-2026 Campaign<")).toBeLessThan(markup.indexOf(">ZZZ-2026 Campaign<"));
     expect(markup).toContain("projectFlowCardTitle tone-complete");
     expect(markup).toContain("projectFlowCardDescription line-clamp-2");
-    expect(markup).toContain(">Archive<");
+    expect(markup).toContain(">Send to billing<");
+    expect(markup).toContain(">Archive now<");
     expect(markup).toContain(">New project<");
     expect(markup).toContain('class="projectCreatedMeta"');
     expect(markup).toContain("2025-01-10T08:00:00.000Z");

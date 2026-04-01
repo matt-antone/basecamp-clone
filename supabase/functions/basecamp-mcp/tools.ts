@@ -4,6 +4,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { AgentIdentity } from "./auth.ts";
 import * as db from "./db.ts";
 import { marked } from "marked";
+import { PROJECT_STATUSES_ZOD } from "../../../lib/project-status.ts";
 
 interface ToolServer {
   tool<S extends Record<string, z.ZodTypeAny>>(
@@ -148,13 +149,13 @@ export function registerTools(
 
   server.tool(
     "update_project",
-    "Update mutable project fields. Only provided fields are changed. status must be one of: new, in_progress, blocked, complete.",
+    "Update mutable project fields. Only provided fields are changed. status must be one of: new, in_progress, blocked, complete, billing.",
     {
       project_id: z.string().uuid(),
       name: z.string().min(1).optional(),
       description: z.string().optional(),
       deadline: z.string().date().optional(),
-      status: z.enum(["new", "in_progress", "blocked", "complete"]).optional(),
+      status: z.enum(PROJECT_STATUSES_ZOD).optional(),
       archived: z.boolean().optional(),
     },
     async ({ project_id, ...params }) => {

@@ -41,10 +41,14 @@ export async function GET(request: Request) {
       sort = sortParam;
     }
 
+    const billingOnly =
+      url.searchParams.get("billingOnly") === "true" || url.searchParams.get("billing") === "1";
+
     const projects = await listProjects(includeArchived, {
       clientId,
       search,
-      ...(search.length === 0 && sort ? { sort } : {})
+      ...(search.length === 0 && sort ? { sort } : {}),
+      ...(billingOnly ? { billingOnly: true } : {})
     });
     return ok({ projects });
   } catch (error) {

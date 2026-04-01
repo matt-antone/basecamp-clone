@@ -73,6 +73,44 @@ describe("POST /projects/[id]/files/upload-complete", () => {
     enqueueThumbnailJobAndNotifyBestEffortMock.mockResolvedValue(undefined);
   });
 
+  it("does not enqueue thumbnails when project is archived", async () => {
+    requireUserMock.mockResolvedValue({ id: "user-1", email: "person@example.com" });
+    getProjectMock.mockResolvedValue({
+      id: "project-1",
+      archived: true,
+      storage_project_dir: "/Projects/BRGS/BRGS-0001-Site Refresh"
+    });
+    uploadCompleteMock.mockResolvedValue({
+      fileId: "id:abc123",
+      path: "/Projects/BRGS/BRGS-0001-Site Refresh/uploads/report.pdf"
+    });
+    createFileMetadataMock.mockResolvedValue({ id: "file-1" });
+
+    const { POST } = await import("@/app/projects/[id]/files/upload-complete/route");
+    const response = await POST(
+      new Request("http://localhost/projects/project-1/files/upload-complete", {
+        method: "POST",
+        headers: {
+          authorization: "Bearer token",
+          "content-type": "application/json"
+        },
+        body: JSON.stringify({
+          filename: "report.pdf",
+          mimeType: "application/pdf",
+          sizeBytes: 1234,
+          checksum: "abc",
+          contentBase64: Buffer.from("pdf").toString("base64"),
+          sessionId: "session-1",
+          targetPath: "/Projects/BRGS/BRGS-0001-Site Refresh/uploads/report.pdf"
+        })
+      }),
+      { params: Promise.resolve({ id: "project-1" }) }
+    );
+
+    expect(response.status).toBe(201);
+    expect(enqueueThumbnailJobAndNotifyBestEffortMock).not.toHaveBeenCalled();
+  });
+
   it("uploads successfully and enqueues thumbnail job best-effort", async () => {
     requireUserMock.mockResolvedValue({ id: "user-1", email: "person@example.com" });
     getProjectMock.mockResolvedValue({

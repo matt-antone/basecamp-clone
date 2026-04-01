@@ -14,6 +14,7 @@ import {
   type Bc2ProjectSource
 } from "../lib/imports/bc2-fetcher";
 import type { Bc2DownloadEnv } from "../lib/imports/bc2-attachment-download";
+import { resolveBc2AttachmentLinkage } from "../lib/imports/bc2-attachment-linkage";
 import { importBc2FileFromAttachment } from "../lib/imports/bc2-migrate-single-file";
 import {
   parseProjectTitle,
@@ -331,18 +332,19 @@ async function migrateFiles(
   mode: RunMode,
   includeFiles: boolean,
   downloadEnv: Bc2DownloadEnv
-): Promise<number> {
+): Promise<{ imported: number; skipped: number }> {
   if (!includeFiles || mode === "dry") {
     if (mode === "dry") {
       process.stdout.write("Files phase skipped (dry mode)\n");
     } else {
       process.stdout.write("Files phase skipped (--files not set)\n");
     }
-    return 0;
+    return { imported: 0, skipped: 0 };
   }
 
   const adapter = new DropboxStorageAdapter();
-  let fileCount = 0;
+  let imported = 0;
+  let skipped = 0;
 
   process.stdout.write("Migrating files...\n");
 
@@ -368,13 +370,15 @@ async function migrateFiles(
       attachmentQueue.push(attachment);
     }
 
-    let projectFileCount = 0;
+    let projectImported = 0;
+    let projectSkipped = 0;
 
     // Process in batches of CONCURRENCY
     for (let batchStart = 0; batchStart < attachmentQueue.length; batchStart += CONCURRENCY) {
       const batch = attachmentQueue.slice(batchStart, batchStart + CONCURRENCY);
 
       await Promise.all(batch.map(async (attachment) => {
+        const { threadId, commentId } = await resolveBc2AttachmentLinkage(query, attachment);
         const result = await importBc2FileFromAttachment({
           query,
           jobId,
@@ -382,13 +386,14 @@ async function migrateFiles(
           storageDir,
           personMap,
           attachment,
-          threadId: null,
-          commentId: null,
+          threadId,
+          commentId,
           downloadEnv,
           adapter,
           createFileMetadata,
           logRecord,
           incrementCounters,
+          projectArchived: Boolean(projectRecord.archived),
           onDownload429: (id, waitMs) => {
             process.stderr.write(
               `  download 429 — waiting ${waitMs / 1000}s (attachment ${id})\n`
@@ -399,19 +404,25 @@ async function migrateFiles(
           process.stderr.write(
             `  file ${attachment.id} (${attachment.name}) FAILED: ${result.error}\n`
           );
+        } else if (result.status === "imported") {
+          projectImported++;
+          imported++;
         } else {
-          projectFileCount++;
-          fileCount++;
+          projectSkipped++;
+          skipped++;
         }
       }));
     }
 
     process.stdout.write(
-      `  [${pad(i + 1, projects.length)}/${projects.length}] ${project.name}  ${projectFileCount} files\n`
+      `  [${pad(i + 1, projects.length)}/${projects.length}] ${project.name}  ${projectImported} imported, ${projectSkipped} skipped (already present)\n`
     );
   }
 
-  return fileCount;
+  process.stdout.write(
+    `Files phase: ${imported} imported, ${skipped} skipped (existing BC attachment / map)\n`
+  );
+  return { imported, skipped };
 }
 
 // ── Threads and comments phase ────────────────────────────────────────────────
@@ -439,15 +450,16 @@ async function migrateThreadsAndComments(
     let projectComments = 0;
 
     let storageDirForCommentFiles: string | null = null;
+    let projectArchivedForFiles = false;
     if (fileAdapter) {
       const projectRow = await query(
         "select id, storage_project_dir, client_slug, project_slug, project_code, archived from projects where id = $1",
         [project.localId]
       );
       if (projectRow.rows[0]) {
-        storageDirForCommentFiles = getProjectStorageDir(
-          projectRow.rows[0] as Record<string, unknown>
-        );
+        const row = projectRow.rows[0] as Record<string, unknown>;
+        storageDirForCommentFiles = getProjectStorageDir(row);
+        projectArchivedForFiles = Boolean(row.archived);
       }
     }
 
@@ -487,6 +499,41 @@ async function migrateThreadsAndComments(
 
         projectThreads++;
         threadCount++;
+
+        if (
+          fileAdapter &&
+          storageDirForCommentFiles &&
+          (message.attachments?.length ?? 0) > 0
+        ) {
+          for (const att of message.attachments ?? []) {
+            const fileResult = await importBc2FileFromAttachment({
+              query,
+              jobId,
+              projectLocalId: project.localId,
+              storageDir: storageDirForCommentFiles,
+              personMap,
+              attachment: att,
+              threadId: localThreadId,
+              commentId: null,
+              downloadEnv,
+              adapter: fileAdapter,
+              createFileMetadata,
+              logRecord,
+              incrementCounters,
+              projectArchived: projectArchivedForFiles,
+              onDownload429: (id, waitMs) => {
+                process.stderr.write(
+                  `  download 429 — waiting ${waitMs / 1000}s (attachment ${id})\n`
+                );
+              }
+            });
+            if (fileResult.status === "failed") {
+              process.stderr.write(
+                `  message ${message.id} attachment ${att.id} FAILED: ${fileResult.error}\n`
+              );
+            }
+          }
+        }
 
         // Migrate comments — embedded in the individual message response
         for (const comment of (message.comments ?? [])) {
@@ -538,6 +585,7 @@ async function migrateThreadsAndComments(
                     createFileMetadata,
                     logRecord,
                     incrementCounters,
+                    projectArchived: projectArchivedForFiles,
                     onDownload429: (id, waitMs) => {
                       process.stderr.write(
                         `  download 429 — waiting ${waitMs / 1000}s (attachment ${id})\n`
@@ -687,7 +735,7 @@ async function main() {
     ));
   }
 
-  const fileCount = await migrateFiles(
+  const { imported: filesImported, skipped: filesSkipped } = await migrateFiles(
     jobId,
     fetcher,
     projects,
@@ -701,7 +749,7 @@ async function main() {
     await finishJob(jobId, "completed");
   }
   console.log(
-    `\nDone — ${projects.length} projects, ${threadCount} threads, ${commentCount} comments, ${fileCount} files (job_id=${jobId})`
+    `\nDone — ${projects.length} projects, ${threadCount} threads, ${commentCount} comments, ${filesImported} files imported, ${filesSkipped} files skipped (job_id=${jobId})`
   );
 }
 

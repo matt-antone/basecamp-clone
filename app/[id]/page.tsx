@@ -684,6 +684,59 @@ function ProjectPageContent({ projectId, initial }: { projectId: string; initial
 
       <section className="stackSection">
         <div className="sectionHeader">
+          <h2>Discussions</h2>
+          <OneShotButton
+            className="iconButton"
+            aria-label="Create discussion"
+            onClick={openCreateDiscussionDialog}
+          >
+            <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+              <path fill="currentColor" d="M11 11V5h2v6h6v2h-6v6h-2v-6H5v-2h6Z" />
+            </svg>
+          </OneShotButton>
+        </div>
+        <ul>
+          {threads.map((thread) => (
+            <li key={thread.id} className="projectRow">
+              <span className="discussionAvatarFallback" aria-label={`${getStarterLabel(thread)} initials`}>
+                {getStarterInitials(thread)}
+              </span>
+              <div className="projectMain">
+                <Link href={`/${projectId}/${thread.id}`} className="projectLink">
+                  {thread.title}
+                </Link>
+                <small>{new Date(thread.created_at).toLocaleString()}</small>
+              </div>
+            </li>
+          ))}
+        </ul>
+      </section>
+
+      <ProjectFilesPanel
+        projectId={projectId}
+        token={token}
+        onToken={setToken}
+        files={files}
+        selectedFile={selectedFile}
+        isUploading={isUploading}
+        isFileDragActive={isFileDragActive}
+        fileInputRef={fileInputRef}
+        onFileInputSelection={handleFileInputSelection}
+        onSetFileDragActive={setIsFileDragActive}
+        onOpenProjectFolder={() => openProjectFolder().catch((error) => setStatus(error.message))}
+        onUploadSelectedFile={() => uploadSelectedFile().catch((error) => setStatus(error.message))}
+        onClearSelectedFile={() => {
+          setSelectedFile(null);
+          if (fileInputRef.current) {
+            fileInputRef.current.value = "";
+          }
+        }}
+        onDownloadFile={(fileId) => downloadFile(fileId).catch((error) => setStatus(error.message))}
+        getFileBadgeLabel={getFileBadgeLabel}
+      />
+
+      <section className="stackSection">
+        <div className="sectionHeader">
           <div className="sectionHeaderTitle">
             <h2>Financial Rollup</h2>
             <span className="projectFinancialRate">Global rate {formatUsdMoney(hourlyRateUsd)}/hr</span>
@@ -830,59 +883,6 @@ function ProjectPageContent({ projectId, initial }: { projectId: string; initial
           <strong>{formatUsdMoney(grandTotalUsd)}</strong>
         </div>
       </section>
-
-      <section className="stackSection">
-        <div className="sectionHeader">
-          <h2>Discussions</h2>
-          <OneShotButton
-            className="iconButton"
-            aria-label="Create discussion"
-            onClick={openCreateDiscussionDialog}
-          >
-            <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
-              <path fill="currentColor" d="M11 11V5h2v6h6v2h-6v6h-2v-6H5v-2h6Z" />
-            </svg>
-          </OneShotButton>
-        </div>
-        <ul>
-          {threads.map((thread) => (
-            <li key={thread.id} className="projectRow">
-              <span className="discussionAvatarFallback" aria-label={`${getStarterLabel(thread)} initials`}>
-                {getStarterInitials(thread)}
-              </span>
-              <div className="projectMain">
-                <Link href={`/${projectId}/${thread.id}`} className="projectLink">
-                  {thread.title}
-                </Link>
-                <small>{new Date(thread.created_at).toLocaleString()}</small>
-              </div>
-            </li>
-          ))}
-        </ul>
-      </section>
-
-      <ProjectFilesPanel
-        projectId={projectId}
-        token={token}
-        onToken={setToken}
-        files={files}
-        selectedFile={selectedFile}
-        isUploading={isUploading}
-        isFileDragActive={isFileDragActive}
-        fileInputRef={fileInputRef}
-        onFileInputSelection={handleFileInputSelection}
-        onSetFileDragActive={setIsFileDragActive}
-        onOpenProjectFolder={() => openProjectFolder().catch((error) => setStatus(error.message))}
-        onUploadSelectedFile={() => uploadSelectedFile().catch((error) => setStatus(error.message))}
-        onClearSelectedFile={() => {
-          setSelectedFile(null);
-          if (fileInputRef.current) {
-            fileInputRef.current.value = "";
-          }
-        }}
-        onDownloadFile={(fileId) => downloadFile(fileId).catch((error) => setStatus(error.message))}
-        getFileBadgeLabel={getFileBadgeLabel}
-      />
 
       <CreateDiscussionDialog
         dialogRef={createDiscussionDialogRef}

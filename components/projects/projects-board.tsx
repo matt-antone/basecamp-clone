@@ -11,6 +11,7 @@ export function ProjectsBoard() {
     activeProjects,
     projectColumns,
     renderProjectTitle,
+    authedFetch,
     moveProject,
     toggleArchive,
     openCreateDialog,
@@ -117,6 +118,14 @@ export function ProjectsBoard() {
     }
   }
 
+  async function handleSendToBilling(projectId: string) {
+    await authedFetch(`/projects/${projectId}/status`, {
+      method: "POST",
+      body: JSON.stringify({ status: "billing" })
+    });
+    await refreshProjects({ clientId: filterClientId, search: activeSearch, sort: projectSort });
+  }
+
   function handleBoardColumnDragOver(event: DragEvent<HTMLElement>, column: ProjectColumn) {
     event.preventDefault();
     setDragOverColumn(column);
@@ -177,9 +186,8 @@ export function ProjectsBoard() {
                 aria-label="Sort projects"
                 disabled={effectiveSearch.length >= 2}
               >
-                <option value="created">Default (newest first)</option>
                 <option value="title">Title A–Z</option>
-                <option value="deadline">Deadline soonest</option>
+                <option value="created">Newest First</option>
               </select>
             </label>
             <label className="projectsFilterField projectsSearchShell">
@@ -218,6 +226,11 @@ export function ProjectsBoard() {
       onColumnDrop={handleBoardColumnDrop}
       onCardDragStart={handleBoardCardDragStart}
       onCardDragEnd={handleBoardCardDragEnd}
+      onSendToBilling={(project) =>
+        handleSendToBilling(project.id).catch((error) =>
+          setStatus(error instanceof Error ? error.message : "Failed to send project to billing")
+        )
+      }
       onArchiveProject={(project) =>
         toggleArchive(project).catch((error) => setStatus(error instanceof Error ? error.message : "Archive failed"))
       }

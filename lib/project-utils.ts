@@ -1,3 +1,5 @@
+import type { ProjectStatus } from "./project-status";
+
 export type ProjectDialogSeed = {
   name?: string | null;
   description?: string | null;
@@ -7,10 +9,12 @@ export type ProjectDialogSeed = {
   pm_note?: string | null;
 };
 
-export type ProjectColumn = "new" | "in_progress" | "blocked" | "complete";
+/** Kanban / workspace columns (`billing` uses `/billing`, not the board). */
+export type ProjectColumn = Exclude<ProjectStatus, "billing">;
 
 export function normalizeProjectColumn(projectRecord: { status?: string | null } | null | undefined): ProjectColumn {
   const value = (projectRecord?.status ?? "new").toLowerCase();
+  if (value === "billing") return "complete";
   if (value === "in_progress" || value === "in progress") return "in_progress";
   if (value === "blocked") return "blocked";
   if (value === "complete" || value === "completed") return "complete";

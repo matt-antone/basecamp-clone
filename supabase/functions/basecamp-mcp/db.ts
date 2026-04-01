@@ -8,6 +8,7 @@ export async function listProjects(supabase: SupabaseClient) {
     .from("projects")
     .select("id, name, slug, description, deadline, status, created_at, clients(name)")
     .eq("archived", false)
+    .neq("status", "billing")
     .order("created_at", { ascending: false });
   if (error) throw error;
   return data.map((p: any) => ({ ...p, client_name: p.clients?.name ?? null, clients: undefined }));

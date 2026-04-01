@@ -152,11 +152,13 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       throw new Error("Failed to create file metadata");
     }
 
-    await enqueueThumbnailJobAndNotifyBestEffort({
-      projectId: id,
-      fileRecord: file as Record<string, unknown>,
-      requestId: request.headers.get("x-request-id")?.trim() || randomUUID()
-    });
+    if (!project.archived) {
+      await enqueueThumbnailJobAndNotifyBestEffort({
+        projectId: id,
+        fileRecord: file as Record<string, unknown>,
+        requestId: request.headers.get("x-request-id")?.trim() || randomUUID()
+      });
+    }
 
     return ok({ file }, 201);
   } catch (error) {

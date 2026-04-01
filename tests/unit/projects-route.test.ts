@@ -157,6 +157,26 @@ describe("GET /projects", () => {
     expect(listProjectsMock).not.toHaveBeenCalled();
   });
 
+  it("parses billingOnly=true and passes billingOnly to listProjects", async () => {
+    listProjectsMock.mockResolvedValue([]);
+
+    const { GET } = await import("@/app/projects/route");
+    const response = await GET(new Request("http://localhost/projects?billingOnly=true"));
+
+    expect(response.status).toBe(200);
+    expect(listProjectsMock).toHaveBeenCalledWith(true, { clientId: null, search: "", billingOnly: true });
+  });
+
+  it("passes includeArchived=false alongside the billing filter", async () => {
+    listProjectsMock.mockResolvedValue([]);
+
+    const { GET } = await import("@/app/projects/route");
+    const response = await GET(new Request("http://localhost/projects?billingOnly=true&includeArchived=false"));
+
+    expect(response.status).toBe(200);
+    expect(listProjectsMock).toHaveBeenCalledWith(false, { clientId: null, search: "", billingOnly: true });
+  });
+
   it("parses sort=title and passes sort to listProjects when search is empty", async () => {
     listProjectsMock.mockResolvedValue([]);
 

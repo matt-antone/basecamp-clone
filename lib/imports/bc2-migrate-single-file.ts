@@ -1,7 +1,10 @@
 // lib/imports/bc2-migrate-single-file.ts
 
 import type { QueryResultRow } from "pg";
-import { enqueueThumbnailJobAndNotifyBestEffort } from "../thumbnail-enqueue-after-save";
+import {
+  enqueueThumbnailJobAndNotifyBestEffort,
+  shouldEnqueueThumbnailForProject
+} from "../thumbnail-enqueue-after-save";
 import { downloadBc2Attachment, type Bc2DownloadEnv } from "./bc2-attachment-download";
 import { parseBc2IsoTimestamptz, type Bc2Attachment } from "./bc2-fetcher";
 import { createFileMetadata } from "../repositories";
@@ -52,10 +55,14 @@ export type ImportBc2FileFromAttachmentArgs = {
   onDownload429?: (attachmentId: number, waitMs: number) => void;
   retryAttempts?: number;
   retryDelayMs?: number;
+  /** When true, skip thumbnail enqueue (archived projects). */
+  projectArchived?: boolean;
 };
 
 /**
  * Idempotent: if import_map_files already has basecamp_file_id, returns that local file without downloading.
+ * If project_files already has bc_attachment_id for this project (e.g. map row missing from a partial run),
+ * skips download and backfills import_map_files when needed.
  * Otherwise downloads from BC2, uploads to Dropbox, inserts project_files (with optional thread/comment),
  * and records import_map_files.
  */
@@ -65,18 +72,35 @@ export async function importBc2FileFromAttachment(
   const attempts = args.retryAttempts ?? DEFAULT_RETRY_ATTEMPTS;
   const retryDelayMs = args.retryDelayMs ?? DEFAULT_RETRY_DELAY_MS;
   const { attachment } = args;
+  const bcKey = String(attachment.id);
   let lastError: unknown;
 
   for (let attempt = 1; attempt <= attempts; attempt++) {
     try {
       const existing = await args.query<{ local_file_id: string }>(
         "select local_file_id from import_map_files where basecamp_file_id = $1",
-        [String(attachment.id)]
+        [bcKey]
       );
       if (existing.rows[0]) {
         return {
           status: "skipped_existing",
           localFileId: existing.rows[0].local_file_id
+        };
+      }
+
+      const existingByBc = await args.query<{ id: string }>(
+        "select id from project_files where project_id = $1 and bc_attachment_id = $2 limit 1",
+        [args.projectLocalId, bcKey]
+      );
+      if (existingByBc.rows[0]) {
+        const localFileId = existingByBc.rows[0].id;
+        await args.query(
+          "insert into import_map_files (basecamp_file_id, local_file_id) values ($1, $2) on conflict (basecamp_file_id) do nothing",
+          [bcKey, localFileId]
+        );
+        return {
+          status: "skipped_existing",
+          localFileId
         };
       }
 
@@ -111,6 +135,7 @@ export async function importBc2FileFromAttachment(
         checksum: "",
         threadId: args.threadId,
         commentId: args.commentId,
+        bcAttachmentId: bcKey,
         sourceCreatedAt
       });
       if (!fileRecord) {
@@ -118,11 +143,13 @@ export async function importBc2FileFromAttachment(
       }
       const localFileId = fileRecord.id as string;
 
-      await enqueueThumbnailJobAndNotifyBestEffort({
-        projectId: args.projectLocalId,
-        fileRecord: fileRecord as Record<string, unknown>,
-        requestId: `bc2-${args.jobId}-${attachment.id}`
-      });
+      if (shouldEnqueueThumbnailForProject({ archived: args.projectArchived })) {
+        await enqueueThumbnailJobAndNotifyBestEffort({
+          projectId: args.projectLocalId,
+          fileRecord: fileRecord as Record<string, unknown>,
+          requestId: `bc2-${args.jobId}-${attachment.id}`
+        });
+      }
 
       try {
         await args.query(

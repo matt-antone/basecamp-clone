@@ -215,9 +215,8 @@ export function ProjectsList() {
                   aria-label="Sort projects"
                   disabled={effectiveSearch.length >= 2}
                 >
-                  <option value="created">Default (newest first)</option>
                   <option value="title">Title A–Z</option>
-                  <option value="deadline">Deadline soonest</option>
+                  <option value="created">Newest First</option>
                 </select>
               </label>
               <label className="projectsFilterField projectsSearchShell">

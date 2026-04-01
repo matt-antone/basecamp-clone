@@ -6,6 +6,7 @@ describe("projectsViewTabFromPathname", () => {
     expect(projectsViewTabFromPathname("/")).toBe("list");
     expect(projectsViewTabFromPathname(null)).toBe("list");
     expect(projectsViewTabFromPathname("/flow")).toBe("board");
+    expect(projectsViewTabFromPathname("/billing")).toBe("billing");
     expect(projectsViewTabFromPathname("/archive")).toBe("archived");
   });
 
@@ -19,6 +20,7 @@ describe("projectsNavHighlight", () => {
   it("highlights only workspace routes", () => {
     expect(projectsNavHighlight("/")).toBe("list");
     expect(projectsNavHighlight("/flow")).toBe("board");
+    expect(projectsNavHighlight("/billing")).toBe("billing");
     expect(projectsNavHighlight("/archive")).toBe("archived");
   });
 

@@ -172,6 +172,13 @@ export default function SiteHeader() {
               Project Board
             </Link>
             <Link
+              href="/billing"
+              className={`themeTopBarProjectsLink ${projectsNavActive === "billing" ? "themeTopBarProjectsLinkActive" : ""}`}
+              scroll={false}
+            >
+              Billing
+            </Link>
+            <Link
               href="/archive"
               className={`themeTopBarProjectsLink ${projectsNavActive === "archived" ? "themeTopBarProjectsLinkActive" : ""}`}
               scroll={false}

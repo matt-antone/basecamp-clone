@@ -28,6 +28,14 @@ export interface Bc2Comment {
   attachments?: Bc2Attachment[];
 }
 
+/** BC2 attachment container (message, comment, upload, etc.). See bcx-api attachments.md */
+export interface Bc2Attachable {
+  id: number;
+  type: string;
+  url?: string;
+  app_url?: string;
+}
+
 // Individual message response from GET /projects/{id}/messages/{id}.json
 // Comments are embedded — there is no separate list endpoint for them.
 export interface Bc2Message {
@@ -36,6 +44,8 @@ export interface Bc2Message {
   content: string;
   created_at: string;
   creator: { id: number; name: string };
+  /** Message-level attachments (same shape as `/projects/{id}/attachments.json`). */
+  attachments?: Bc2Attachment[];
   comments: Bc2Comment[];
 }
 
@@ -57,6 +67,8 @@ export interface Bc2Attachment {
   url: string;
   created_at: string;
   creator: { id: number; name: string };
+  /** Present on attachment list/detail — used to link files to threads/comments. */
+  attachable?: Bc2Attachable;
 }
 
 /** Which BC2 project lists to paginate (`/projects.json` vs `/projects/archived.json`). */

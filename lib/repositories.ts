@@ -3,6 +3,7 @@ import { config } from "./config";
 import { query } from "./db";
 import { renderMarkdown } from "./markdown";
 import { DEFAULT_HOURLY_RATE_USD, MAX_EXPENSE_LINE_AMOUNT_USD, MAX_SITE_HOURLY_RATE_USD } from "./project-financials";
+import type { ProjectStatus } from "./project-status";
 
 export type UserProfile = {
   id: string;
@@ -177,6 +178,11 @@ export type ListProjectsOptions = {
   search?: string | null;
   /** Ignored when `search` is non-empty after trim (FTS ordering). */
   sort?: "title" | "deadline" | null;
+  /**
+   * When true: only non-archived projects with `status = 'billing'` (e.g. `/billing`).
+   * When false/omitted: default workspace lists exclude `billing` rows.
+   */
+  billingOnly?: boolean;
 };
 
 function projectFtsPredicate(alias = "q") {
@@ -257,15 +263,18 @@ export async function listProjects(includeArchived = true, options?: ListProject
   const clientId = options?.clientId?.trim() ? options.clientId : null;
   const search = (options?.search ?? "").trim();
   const sort = search.length > 0 ? null : options?.sort ?? null;
+  const billingOnly = options?.billingOnly === true;
 
   if (search.length > 0) {
-    const archivedClause = includeArchived ? "" : "and p.archived = false";
+    const archivedAndBillingClause = billingOnly
+      ? "and p.archived = false and p.status = 'billing'"
+      : `${includeArchived ? "" : "and p.archived = false\n         "}and p.status <> 'billing'`;
     const sql = `select ${projectListSelectColumns}
        from projects p
        left join clients c on c.id = p.client_id
        cross join lateral (select plainto_tsquery('english', $1) as tsq) q
        where ($2::uuid is null or p.client_id = $2::uuid)
-         ${archivedClause}
+         ${archivedAndBillingClause}
          and ${projectFtsPredicate("q")}
        order by ${projectFtsRankExpr("q")} desc, p.created_at desc
        limit 100`;
@@ -280,17 +289,31 @@ export async function listProjects(includeArchived = true, options?: ListProject
         ? `p.deadline asc nulls last, lower(${projectDisplayNameOrderExpr}) asc`
         : `p.created_at desc`;
 
+  if (billingOnly) {
+    const sql = `select ${projectListSelectColumns}
+       from projects p
+       left join clients c on c.id = p.client_id
+       where p.archived = false
+         and p.status = 'billing'
+         and ($1::uuid is null or p.client_id = $1::uuid)
+       order by ${orderBy}`;
+    const result = await query(sql, [clientId]);
+    return result.rows;
+  }
+
   const sql = includeArchived
     ? `select ${projectListSelectColumns}
        from projects p
        left join clients c on c.id = p.client_id
        where ($1::uuid is null or p.client_id = $1::uuid)
+         and p.status <> 'billing'
        order by ${orderBy}`
     : `select ${projectListSelectColumns}
        from projects p
        left join clients c on c.id = p.client_id
        where p.archived = false
          and ($1::uuid is null or p.client_id = $1::uuid)
+         and p.status <> 'billing'
        order by ${orderBy}`;
   const result = await query(sql, [clientId]);
   return result.rows;
@@ -1105,10 +1128,7 @@ export async function setProjectArchivedWithStorageDir(id: string, archived: boo
   return result.rows[0] ?? null;
 }
 
-export async function setProjectStatus(
-  id: string,
-  status: "new" | "in_progress" | "blocked" | "complete"
-) {
+export async function setProjectStatus(id: string, status: ProjectStatus) {
   const result = await query(
     `update projects
      set status = $2, updated_at = now()
@@ -1287,10 +1307,13 @@ export async function createFileMetadata(args: {
   threadId?: string | null;
   commentId?: string | null;
   thumbnailUrl?: string | null;
+  /** Basecamp 2 attachment id — stored when `thumbnail_url` column exists (migration 0022). */
+  bcAttachmentId?: string | null;
   /** When set (e.g. BC2 migration), row `created_at` uses this instant. */
   sourceCreatedAt?: Date | null;
 }) {
   const sourceTs = args.sourceCreatedAt ?? null;
+  const bcId = args.bcAttachmentId ?? null;
   const values = [
     args.projectId,
     args.uploaderUserId,
@@ -1303,16 +1326,17 @@ export async function createFileMetadata(args: {
     args.threadId ?? null,
     args.commentId ?? null,
     args.thumbnailUrl ?? null,
+    bcId,
     sourceTs
   ];
 
   try {
     const result = await query(
       `insert into project_files (
-        project_id, uploader_user_id, filename, mime_type, size_bytes, dropbox_file_id, dropbox_path, checksum, thread_id, comment_id, thumbnail_url,
+        project_id, uploader_user_id, filename, mime_type, size_bytes, dropbox_file_id, dropbox_path, checksum, thread_id, comment_id, thumbnail_url, bc_attachment_id,
         created_at
        )
-       values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, coalesce($12::timestamptz, now()))
+       values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, coalesce($13::timestamptz, now()))
        returning *`,
       values
     );
@@ -1332,7 +1356,7 @@ export async function createFileMetadata(args: {
          )
          values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, coalesce($11::timestamptz, now()))
          returning *`,
-        values.slice(0, 11)
+        [...values.slice(0, 10), sourceTs]
       );
       const file = result.rows[0] ? normalizeProjectFileSizeRow(result.rows[0]) : null;
       await touchProjectActivity(args.projectId, args.sourceCreatedAt ?? undefined);
@@ -1506,8 +1530,10 @@ function isMissingProjectFileColumnError(error: unknown) {
     message.includes('column "thread_id"') ||
     message.includes('column "comment_id"') ||
     message.includes('column "thumbnail_url"') ||
+    message.includes('column "bc_attachment_id"') ||
     message.includes("project_files.thread_id") ||
     message.includes("project_files.comment_id") ||
-    message.includes("project_files.thumbnail_url")
+    message.includes("project_files.thumbnail_url") ||
+    message.includes("project_files.bc_attachment_id")
   );
 }
