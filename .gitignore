@@ -12,5 +12,6 @@ tmp.json
 .temp 
 node-*
 orchestration/*
-thumbnail-*
+# Root-only: do not use bare `thumbnail-*` — it ignores lib/thumbnail-*.ts and breaks builds.
+/thumbnail-*
 certificates
