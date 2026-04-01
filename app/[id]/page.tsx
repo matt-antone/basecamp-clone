@@ -11,6 +11,16 @@ import { ProjectFilesPanel } from "@/components/projects/project-files-panel";
 import { getAvatarProxyUrl } from "@/lib/avatar";
 import { authedFormDataFetch, authedJsonFetch, fetchAuthSession } from "@/lib/browser-auth";
 import { createClientResource } from "@/lib/client-resource";
+import {
+  DEFAULT_HOURLY_RATE_USD,
+  calculateExpenseSubtotalUsd,
+  calculateHoursLineCostUsd,
+  calculateHoursSubtotalUsd,
+  calculateProjectGrandTotalUsd,
+  formatUsdInput,
+  formatUsdMoney,
+  normalizeHourlyRateUsd
+} from "@/lib/project-financials";
 import { createProjectDialogValues, normalizeProjectColumn, parseProjectTags } from "@/lib/project-utils";
 import { useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
@@ -33,6 +43,8 @@ type Project = {
   client_name?: string | null;
   client_code?: string | null;
   requestor?: string | null;
+  /** PM-facing note (max 256); optional until migration applied. */
+  pm_note?: string | null;
   my_hours?: number | string | null;
 };
 
@@ -43,6 +55,14 @@ type ProjectUserHoursEntry = {
   email: string;
   avatarUrl: string | null;
   hours: number | string;
+};
+
+type ProjectExpenseLine = {
+  id: string;
+  projectId: string;
+  label: string;
+  amount: number | string;
+  sortOrder: number;
 };
 
 type Thread = {
@@ -82,6 +102,8 @@ type ProjectPageBootstrap = {
   status: string;
   project: Project | null;
   userHours: ProjectUserHoursEntry[];
+  expenseLines: ProjectExpenseLine[];
+  defaultHourlyRateUsd: number;
   clients: ClientRecord[];
   viewerProfile: ViewerProfile | null;
   threads: Thread[];
@@ -129,6 +151,8 @@ function ProjectPageContent({ projectId, initial }: { projectId: string; initial
 
   const [project, setProject] = useState<Project | null>(initial.project);
   const [userHours, setUserHours] = useState<ProjectUserHoursEntry[]>(initial.userHours);
+  const [expenseLines, setExpenseLines] = useState<ProjectExpenseLine[]>(initial.expenseLines);
+  const [defaultHourlyRateUsd, setDefaultHourlyRateUsd] = useState(initial.defaultHourlyRateUsd);
   const [clients, setClients] = useState<ClientRecord[]>(initial.clients);
   const [viewerProfile, setViewerProfile] = useState<ViewerProfile | null>(initial.viewerProfile);
   const [threads, setThreads] = useState<Thread[]>(initial.threads);
@@ -140,11 +164,16 @@ function ProjectPageContent({ projectId, initial }: { projectId: string; initial
   const [isSavingMyHours, setIsSavingMyHours] = useState(false);
   const [isRestoringProject, setIsRestoringProject] = useState(false);
   const [savingArchivedHoursUserId, setSavingArchivedHoursUserId] = useState<string | null>(null);
+  const [savingExpenseLineId, setSavingExpenseLineId] = useState<string | null>(null);
+  const [deletingExpenseLineId, setDeletingExpenseLineId] = useState<string | null>(null);
+  const [isCreatingExpenseLine, setIsCreatingExpenseLine] = useState(false);
   const [projectForm, setProjectForm] = useState<ProjectDialogValues>(createProjectDialogValues());
   const [title, setTitle] = useState("");
   const [bodyMarkdown, setBodyMarkdown] = useState("");
   const [myHoursInput, setMyHoursInput] = useState("");
   const [archivedHoursInputs, setArchivedHoursInputs] = useState<Record<string, string>>({});
+  const [expenseLineDrafts, setExpenseLineDrafts] = useState<Record<string, { label: string; amount: string }>>({});
+  const [newExpenseLine, setNewExpenseLine] = useState({ label: "", amount: "" });
   const [createDiscussionEditorKey, setCreateDiscussionEditorKey] = useState(0);
   const editProjectDialogRef = useRef<HTMLDialogElement | null>(null);
   const createDiscussionDialogRef = useRef<HTMLDialogElement | null>(null);
@@ -167,6 +196,8 @@ function ProjectPageContent({ projectId, initial }: { projectId: string; initial
     const nextState = await loadProjectData(accessToken, id);
     setProject(nextState.project);
     setUserHours(nextState.userHours);
+    setExpenseLines(nextState.expenseLines);
+    setDefaultHourlyRateUsd(nextState.defaultHourlyRateUsd);
     setThreads(nextState.threads);
     setFiles(nextState.files);
     setClients(nextState.clients);
@@ -184,6 +215,20 @@ function ProjectPageContent({ projectId, initial }: { projectId: string; initial
       Object.fromEntries(userHours.map((entry) => [entry.userId, formatHoursInput(entry.hours)]))
     );
   }, [userHours]);
+
+  useEffect(() => {
+    setExpenseLineDrafts(
+      Object.fromEntries(
+        expenseLines.map((entry) => [
+          entry.id,
+          {
+            label: entry.label,
+            amount: formatUsdInput(entry.amount)
+          }
+        ])
+      )
+    );
+  }, [expenseLines]);
 
   function getStarterLabel(thread: Thread) {
     const fullName = `${thread.starter_first_name ?? ""} ${thread.starter_last_name ?? ""}`.trim();
@@ -232,7 +277,8 @@ function ProjectPageContent({ projectId, initial }: { projectId: string; initial
           deadline: projectForm.deadline || null,
           clientId: project.client_id,
           tags: parseProjectTags(projectForm.tags),
-          requestor: projectForm.requestor.trim() || null
+          requestor: projectForm.requestor.trim() || null,
+          pm_note: projectForm.pm_note.trim() || null
         })
       });
       await load(token, projectId);
@@ -290,6 +336,97 @@ function ProjectPageContent({ projectId, initial }: { projectId: string; initial
       setStatus("Team hours saved");
     } finally {
       setSavingArchivedHoursUserId(null);
+    }
+  }
+
+  async function createExpenseLine() {
+    if (!token || !projectId) return;
+
+    const label = newExpenseLine.label.trim();
+    const amountValue = newExpenseLine.amount.trim();
+    const amount = amountValue ? Number(amountValue) : Number.NaN;
+    if (!label) {
+      throw new Error("Expense label is required");
+    }
+    if (!amountValue || !Number.isFinite(amount) || amount < 0) {
+      throw new Error("Expense amount must be a non-negative number");
+    }
+
+    setIsCreatingExpenseLine(true);
+    try {
+      const data = await authedFetch(token, `/projects/${projectId}/expense-lines`, {
+        method: "POST",
+        body: JSON.stringify({
+          label,
+          amount
+        })
+      });
+      const created = (data?.expenseLine ?? null) as ProjectExpenseLine | null;
+      if (created) {
+        setExpenseLines((current) => [...current, created]);
+        setNewExpenseLine({ label: "", amount: "" });
+      }
+      setStatus("Expense line added");
+    } finally {
+      setIsCreatingExpenseLine(false);
+    }
+  }
+
+  async function saveExpenseLine(lineId: string) {
+    if (!token || !projectId) return;
+
+    const draft = expenseLineDrafts[lineId];
+    const label = draft?.label.trim() ?? "";
+    const amountValue = draft?.amount.trim() ?? "";
+    const amount = amountValue ? Number(amountValue) : Number.NaN;
+    const existing = expenseLines.find((entry) => entry.id === lineId);
+    if (!existing) {
+      return;
+    }
+    if (!label) {
+      throw new Error("Expense label is required");
+    }
+    if (!amountValue || !Number.isFinite(amount) || amount < 0) {
+      throw new Error("Expense amount must be a non-negative number");
+    }
+
+    setSavingExpenseLineId(lineId);
+    try {
+      const data = await authedFetch(token, `/projects/${projectId}/expense-lines/${lineId}`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          label,
+          amount,
+          sortOrder: existing.sortOrder
+        })
+      });
+      const updated = (data?.expenseLine ?? null) as ProjectExpenseLine | null;
+      if (updated) {
+        setExpenseLines((current) => current.map((entry) => (entry.id === lineId ? updated : entry)));
+      }
+      setStatus("Expense line saved");
+    } finally {
+      setSavingExpenseLineId(null);
+    }
+  }
+
+  async function deleteExpenseLine(lineId: string) {
+    if (!token || !projectId) return;
+
+    setDeletingExpenseLineId(lineId);
+    try {
+      await authedFetch(token, `/projects/${projectId}/expense-lines/${lineId}`, {
+        method: "DELETE"
+      });
+      setExpenseLines((current) => current.filter((entry) => entry.id !== lineId));
+      setExpenseLineDrafts((current) => {
+        const next = { ...current };
+        delete next[lineId];
+        return next;
+      });
+      setStatus("Expense line deleted");
+    } finally {
+      setDeletingExpenseLineId(null);
     }
   }
 
@@ -397,6 +534,10 @@ function ProjectPageContent({ projectId, initial }: { projectId: string; initial
   const requestor = project?.requestor?.trim() ?? "";
   const projectDescription = project?.description?.trim() ?? "";
   const totalArchivedHours = userHours.reduce((sum, entry) => sum + parseHoursNumber(entry.hours), 0);
+  const hourlyRateUsd = normalizeHourlyRateUsd(defaultHourlyRateUsd);
+  const hoursSubtotalUsd = calculateHoursSubtotalUsd(userHours, hourlyRateUsd);
+  const expenseSubtotalUsd = calculateExpenseSubtotalUsd(expenseLines);
+  const grandTotalUsd = calculateProjectGrandTotalUsd(userHours, expenseLines, hourlyRateUsd);
 
   return (
     <main className="page">
@@ -542,6 +683,155 @@ function ProjectPageContent({ projectId, initial }: { projectId: string; initial
 
       <section className="stackSection">
         <div className="sectionHeader">
+          <div className="sectionHeaderTitle">
+            <h2>Financial Rollup</h2>
+            <span className="projectFinancialRate">Global rate {formatUsdMoney(hourlyRateUsd)}/hr</span>
+          </div>
+        </div>
+
+        <div className="projectFinancialGrid">
+          <section className="projectFinancialCard">
+            <div className="projectFinancialCardHeader">
+              <h3>Hours</h3>
+              <span>{formatHoursValue(totalArchivedHours)}</span>
+            </div>
+            {userHours.length > 0 ? (
+              <div className="projectFinancialTable" role="table" aria-label="Hours rollup">
+                {userHours.map((entry) => (
+                  <div key={entry.userId} className="projectFinancialRow" role="row">
+                    <div className="projectFinancialPerson" role="cell">
+                      {entry.avatarUrl ? (
+                        <img src={getAvatarProxyUrl(entry.avatarUrl)} alt="" className="projectHoursAvatar" />
+                      ) : (
+                        <span className="projectHoursAvatar projectHoursAvatarFallback">{getHoursEntryInitials(entry)}</span>
+                      )}
+                      <span>{getHoursEntryLabel(entry)}</span>
+                    </div>
+                    <span role="cell">{formatHoursValue(entry.hours)}</span>
+                    <span role="cell">{formatUsdMoney(hourlyRateUsd)}/hr</span>
+                    <strong role="cell">{formatUsdMoney(calculateHoursLineCostUsd(entry.hours, hourlyRateUsd))}</strong>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="projectFinancialEmpty">No hours logged yet.</p>
+            )}
+            <div className="projectFinancialSummary">
+              <span>Hours subtotal</span>
+              <strong>{formatUsdMoney(hoursSubtotalUsd)}</strong>
+            </div>
+          </section>
+
+          <section className="projectFinancialCard">
+            <div className="projectFinancialCardHeader">
+              <h3>Expense Lines</h3>
+              <span>{expenseLines.length} items</span>
+            </div>
+            <div className="projectExpenseComposer">
+              <input
+                value={newExpenseLine.label}
+                onChange={(event) => setNewExpenseLine((current) => ({ ...current, label: event.target.value }))}
+                placeholder="Expense label"
+                aria-label="New expense label"
+              />
+              <input
+                type="number"
+                min="0"
+                step="0.01"
+                inputMode="decimal"
+                value={newExpenseLine.amount}
+                onChange={(event) => setNewExpenseLine((current) => ({ ...current, amount: event.target.value }))}
+                placeholder="0.00"
+                aria-label="New expense amount"
+              />
+              <OneShotButton
+                type="button"
+                className="secondary"
+                disabled={isCreatingExpenseLine}
+                onClick={() => createExpenseLine().catch((error) => setStatus(error.message))}
+              >
+                {isCreatingExpenseLine ? "Adding..." : "Add expense"}
+              </OneShotButton>
+            </div>
+            {expenseLines.length > 0 ? (
+              <div className="projectExpenseList">
+                {expenseLines.map((line) => {
+                  const draft = expenseLineDrafts[line.id] ?? {
+                    label: line.label,
+                    amount: formatUsdInput(line.amount)
+                  };
+                  const isDirty = draft.label !== line.label || draft.amount !== formatUsdInput(line.amount);
+
+                  return (
+                    <div key={line.id} className="projectExpenseRow">
+                      <input
+                        value={draft.label}
+                        onChange={(event) =>
+                          setExpenseLineDrafts((current) => ({
+                            ...current,
+                            [line.id]: {
+                              ...draft,
+                              label: event.target.value
+                            }
+                          }))
+                        }
+                        aria-label={`${line.label} label`}
+                      />
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        inputMode="decimal"
+                        value={draft.amount}
+                        onChange={(event) =>
+                          setExpenseLineDrafts((current) => ({
+                            ...current,
+                            [line.id]: {
+                              ...draft,
+                              amount: event.target.value
+                            }
+                          }))
+                        }
+                        aria-label={`${line.label} amount`}
+                      />
+                      <OneShotButton
+                        type="button"
+                        className="secondary"
+                        disabled={savingExpenseLineId === line.id || !isDirty}
+                        onClick={() => saveExpenseLine(line.id).catch((error) => setStatus(error.message))}
+                      >
+                        {savingExpenseLineId === line.id ? "Saving..." : "Save"}
+                      </OneShotButton>
+                      <OneShotButton
+                        type="button"
+                        className="secondary"
+                        disabled={deletingExpenseLineId === line.id}
+                        onClick={() => deleteExpenseLine(line.id).catch((error) => setStatus(error.message))}
+                      >
+                        {deletingExpenseLineId === line.id ? "Deleting..." : "Delete"}
+                      </OneShotButton>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <p className="projectFinancialEmpty">No expense lines yet.</p>
+            )}
+            <div className="projectFinancialSummary">
+              <span>Expense subtotal</span>
+              <strong>{formatUsdMoney(expenseSubtotalUsd)}</strong>
+            </div>
+          </section>
+        </div>
+
+        <div className="projectFinancialGrandTotal">
+          <span>Grand total</span>
+          <strong>{formatUsdMoney(grandTotalUsd)}</strong>
+        </div>
+      </section>
+
+      <section className="stackSection">
+        <div className="sectionHeader">
           <h2>Discussions</h2>
           <OneShotButton
             className="iconButton"
@@ -624,6 +914,7 @@ function ProjectPageContent({ projectId, initial }: { projectId: string; initial
           clients={clients}
           submitting={isSavingProject}
           clientDisabled
+          showPmNote
           onChange={setProjectForm}
           onSubmit={() => saveProject().catch((error) => setStatus(error.message))}
           onCancel={() => editProjectDialogRef.current?.close()}
@@ -706,18 +997,25 @@ function getHoursEntryInitials(entry: ProjectUserHoursEntry) {
 }
 
 async function loadProjectData(accessToken: string, projectId: string) {
-  const [projectRes, threadsRes, filesRes, clientsRes, profileRes] = await Promise.all([
+  const [projectRes, threadsRes, filesRes, clientsRes, profileRes, expenseLinesRes, siteSettingsRes] = await Promise.all([
     authedJsonFetch({ accessToken, path: `/projects/${projectId}` }),
     authedJsonFetch({ accessToken, path: `/projects/${projectId}/threads` }),
     authedJsonFetch({ accessToken, path: `/projects/${projectId}/files` }),
     authedJsonFetch({ accessToken, path: "/clients" }),
-    authedJsonFetch({ accessToken, path: "/profile" })
+    authedJsonFetch({ accessToken, path: "/profile" }),
+    authedJsonFetch({ accessToken, path: `/projects/${projectId}/expense-lines` }),
+    authedJsonFetch({ accessToken, path: "/site-settings" })
   ]);
+  const rawHourlyRate =
+    (siteSettingsRes.data?.siteSettings as { defaultHourlyRateUsd?: number | string | null } | undefined)?.defaultHourlyRateUsd ??
+    DEFAULT_HOURLY_RATE_USD;
 
   return {
     accessToken: projectRes.accessToken,
     project: (projectRes.data?.project ?? null) as Project | null,
     userHours: (projectRes.data?.userHours ?? []) as ProjectUserHoursEntry[],
+    expenseLines: (expenseLinesRes.data?.expenseLines ?? []) as ProjectExpenseLine[],
+    defaultHourlyRateUsd: normalizeHourlyRateUsd(rawHourlyRate),
     threads: (threadsRes.data?.threads ?? []) as Thread[],
     files: (filesRes.data?.files ?? []) as ProjectFile[],
     clients: (clientsRes.data?.clients ?? []) as ClientRecord[],
@@ -732,6 +1030,8 @@ async function loadProjectBootstrap(projectId: string): Promise<ProjectPageBoots
       status: "Loading project…",
       project: null,
       userHours: [],
+        expenseLines: [],
+        defaultHourlyRateUsd: DEFAULT_HOURLY_RATE_USD,
       clients: [],
       viewerProfile: null,
       threads: [],
@@ -749,6 +1049,8 @@ async function loadProjectBootstrap(projectId: string): Promise<ProjectPageBoots
         status: session.status || "Sign in first",
         project: null,
         userHours: [],
+        expenseLines: [],
+        defaultHourlyRateUsd: DEFAULT_HOURLY_RATE_USD,
         clients: [],
         viewerProfile: null,
         threads: [],
@@ -768,6 +1070,8 @@ async function loadProjectBootstrap(projectId: string): Promise<ProjectPageBoots
       status: error instanceof Error ? error.message : "Load failed",
       project: null,
       userHours: [],
+      expenseLines: [],
+      defaultHourlyRateUsd: DEFAULT_HOURLY_RATE_USD,
       clients: [],
       viewerProfile: null,
       threads: [],

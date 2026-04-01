@@ -99,13 +99,15 @@ describe("project metadata repository fields", () => {
     const [sql, params] = queryMock.mock.calls[1];
     expect(sql).toContain("deadline = $5::date");
     expect(sql).toContain("requestor = $6");
+    expect(sql).toContain("pm_note = $7");
     expect(params).toEqual([
       "project-1",
       "Website Refresh",
       "Updated brief",
       ["ops"],
       "2026-05-15",
-      "Jane Producer"
+      "Jane Producer",
+      null
     ]);
     // 3rd call should be the activity touch
     const [touchSql, touchParams] = queryMock.mock.calls[2];
@@ -154,7 +156,8 @@ describe("project metadata repository fields", () => {
     const [fallbackSql, fallbackParams] = queryMock.mock.calls[2];
     expect(fallbackSql).not.toContain("requestor =");
     expect(fallbackSql).toContain("deadline = $5::date");
-    expect(fallbackParams).toEqual(["project-1", "Website Refresh", "Updated brief", ["ops"], "2026-05-15"]);
+    expect(fallbackSql).toContain("pm_note = $6");
+    expect(fallbackParams).toEqual(["project-1", "Website Refresh", "Updated brief", ["ops"], "2026-05-15", null]);
     const [touchSql, touchParams] = queryMock.mock.calls[3];
     expect(touchSql).toContain("update projects");
     expect(touchSql).toContain("last_activity_at = greatest(");
@@ -170,7 +173,8 @@ describe("project metadata repository fields", () => {
             id: "project-1",
             client_id: "client-1",
             tags: ["ops"],
-            requestor: "Jane Producer"
+            requestor: "Jane Producer",
+            pm_note: null
           }
         ]
       })
@@ -261,25 +265,28 @@ describe("project metadata repository fields", () => {
   it("reads and updates site settings", async () => {
     queryMock
       .mockResolvedValueOnce({
-        rows: [{ siteTitle: "Studio Portal", logoUrl: "/logo.png" }]
+        rows: [{ siteTitle: "Studio Portal", logoUrl: "/logo.png", defaultHourlyRateUsd: "175.50" }]
       })
       .mockResolvedValueOnce({
-        rows: [{ siteTitle: "Studio Portal", logoUrl: "https://cdn.example.com/logo.png" }]
+        rows: [{ siteTitle: "Studio Portal", logoUrl: "https://cdn.example.com/logo.png", defaultHourlyRateUsd: "190.25" }]
       });
 
     const { getSiteSettings, upsertSiteSettings } = await import("@/lib/repositories");
     await expect(getSiteSettings()).resolves.toEqual({
       siteTitle: "Studio Portal",
-      logoUrl: "/logo.png"
+      logoUrl: "/logo.png",
+      defaultHourlyRateUsd: "175.50"
     });
     await expect(
       upsertSiteSettings({
         siteTitle: "Studio Portal",
-        logoUrl: "https://cdn.example.com/logo.png"
+        logoUrl: "https://cdn.example.com/logo.png",
+        defaultHourlyRateUsd: 190.25
       })
     ).resolves.toEqual({
       siteTitle: "Studio Portal",
-      logoUrl: "https://cdn.example.com/logo.png"
+      logoUrl: "https://cdn.example.com/logo.png",
+      defaultHourlyRateUsd: "190.25"
     });
   });
 });

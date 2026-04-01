@@ -26,7 +26,8 @@ describe("ProjectsListView", () => {
             client_name: "Acme",
             status: "in_progress",
             discussion_count: 3,
-            file_count: 5
+            file_count: 5,
+            created_at: "2025-06-15T12:00:00.000Z"
           }
         ]}
         projectColumns={PROJECT_COLUMNS}
@@ -47,6 +48,8 @@ describe("ProjectsListView", () => {
     expect(markup).toContain(">Acme<");
     expect(markup).toContain(">ABC-2026 Launch<");
     expect(markup).toContain("3 discussions · 5 files");
+    expect(markup).toContain('class="projectCreatedMeta"');
+    expect(markup).toContain("2025-06-15T12:00:00.000Z");
     expect(markup).toContain(">Open<");
     expect(markup).toContain(">New project<");
   });

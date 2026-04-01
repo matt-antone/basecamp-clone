@@ -1,5 +1,6 @@
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { requireUser } from "@/lib/auth";
+import { enqueueThumbnailJobAndNotifyBestEffort } from "@/lib/thumbnail-enqueue-after-save";
 import { badRequest, notFound, ok, serverError, unauthorized } from "@/lib/http";
 import { createFileMetadata, getComment, getProject, getThread } from "@/lib/repositories";
 import {
@@ -133,6 +134,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       dropboxPath: completed.path
     });
 
+    // `thread_id` / `comment_id` are null for project-level uploads (project Files tab) and for
+    // some imports. Comment attachments send both ids after the comment exists (see discussion page).
     const file = await createFileMetadata({
       projectId: metadata.project_id,
       uploaderUserId: metadata.uploader_user_id,
@@ -148,6 +151,12 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     if (!file) {
       throw new Error("Failed to create file metadata");
     }
+
+    await enqueueThumbnailJobAndNotifyBestEffort({
+      projectId: id,
+      fileRecord: file as Record<string, unknown>,
+      requestId: request.headers.get("x-request-id")?.trim() || randomUUID()
+    });
 
     return ok({ file }, 201);
   } catch (error) {

@@ -23,7 +23,8 @@ describe("/site-settings route", () => {
   it("returns normalized site settings from GET", async () => {
     getSiteSettingsMock.mockResolvedValue({
       siteTitle: "Campfire HQ",
-      logoUrl: "/logo.svg"
+      logoUrl: "/logo.svg",
+      defaultHourlyRateUsd: "175.50"
     });
 
     const { GET } = await import("@/app/site-settings/route");
@@ -33,7 +34,8 @@ describe("/site-settings route", () => {
     await expect(response.json()).resolves.toEqual({
       siteSettings: {
         siteTitle: "Campfire HQ",
-        logoUrl: "/logo.svg"
+        logoUrl: "/logo.svg",
+        defaultHourlyRateUsd: 175.5
       }
     });
   });
@@ -42,7 +44,8 @@ describe("/site-settings route", () => {
     requireUserMock.mockResolvedValue({ id: "user-1", email: "person@example.com" });
     upsertSiteSettingsMock.mockResolvedValue({
       siteTitle: "Campfire HQ",
-      logoUrl: "/logo.svg"
+      logoUrl: "/logo.svg",
+      defaultHourlyRateUsd: "175.50"
     });
 
     const { PATCH } = await import("@/app/site-settings/route");
@@ -55,7 +58,8 @@ describe("/site-settings route", () => {
         },
         body: JSON.stringify({
           siteTitle: "  Campfire HQ  ",
-          logoUrl: "  /logo.svg  "
+          logoUrl: "  /logo.svg  ",
+          defaultHourlyRateUsd: 175.5
         })
       })
     );
@@ -63,13 +67,36 @@ describe("/site-settings route", () => {
     expect(response.status).toBe(200);
     expect(upsertSiteSettingsMock).toHaveBeenCalledWith({
       siteTitle: "Campfire HQ",
-      logoUrl: "/logo.svg"
+      logoUrl: "/logo.svg",
+      defaultHourlyRateUsd: 175.5
     });
     await expect(response.json()).resolves.toEqual({
       siteSettings: {
         siteTitle: "Campfire HQ",
-        logoUrl: "/logo.svg"
+        logoUrl: "/logo.svg",
+        defaultHourlyRateUsd: 175.5
       }
     });
+  });
+
+  it("rejects PATCH when the hourly rate exceeds the allowed range", async () => {
+    requireUserMock.mockResolvedValue({ id: "user-1", email: "person@example.com" });
+
+    const { PATCH } = await import("@/app/site-settings/route");
+    const response = await PATCH(
+      new Request("http://localhost/site-settings", {
+        method: "PATCH",
+        headers: {
+          authorization: "Bearer token",
+          "content-type": "application/json"
+        },
+        body: JSON.stringify({
+          defaultHourlyRateUsd: 1_000_000
+        })
+      })
+    );
+
+    expect(response.status).toBe(400);
+    expect(upsertSiteSettingsMock).not.toHaveBeenCalled();
   });
 });

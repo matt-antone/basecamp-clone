@@ -27,6 +27,7 @@ export type Project = {
   name: string;
   display_name?: string | null;
   description: string | null;
+  /** ISO date `YYYY-MM-DD` or timestamp from API. */
   deadline?: string | null;
   tags?: string[] | null;
   archived: boolean;
@@ -36,14 +37,21 @@ export type Project = {
   client_code?: string | null;
   discussion_count?: number;
   file_count?: number;
+  /** ISO timestamp from API (`projects.created_at`). */
+  created_at?: string | null;
+  /** PM-facing note; max 256 chars; list/board show one line when set. */
+  pm_note?: string | null;
 };
 
 export type ProjectColumn = "new" | "in_progress" | "blocked" | "complete";
+
+export type ProjectSort = "created" | "title" | "deadline";
 
 type RefreshProjectsOptions = {
   accessToken?: string | null;
   clientId?: string | null;
   search?: string;
+  sort?: ProjectSort;
   signal?: AbortSignal;
 };
 
@@ -79,6 +87,8 @@ export type ProjectsWorkspaceContextValue = {
   setFilterClientId: Dispatch<SetStateAction<string | null>>;
   activeSearch: string;
   setActiveSearch: Dispatch<SetStateAction<string>>;
+  projectSort: ProjectSort;
+  setProjectSort: Dispatch<SetStateAction<ProjectSort>>;
   authedFetch: (path: string, options?: RequestInit) => Promise<unknown>;
   refreshProjects: (overrides?: RefreshProjectsOptions) => Promise<void>;
   createProject: () => Promise<void>;
@@ -96,16 +106,20 @@ export type ProjectsWorkspaceContextValue = {
 
 const ProjectsWorkspaceContext = createContext<ProjectsWorkspaceContextValue | null>(null);
 
-function buildProjectsUrl(options?: { clientId?: string | null; search?: string }) {
+function buildProjectsUrl(options?: { clientId?: string | null; search?: string; sort?: ProjectSort }) {
   const params = new URLSearchParams({ includeArchived: "true" });
   const clientId = options?.clientId ?? null;
   const search = options?.search?.trim() ?? "";
+  const sort = options?.sort ?? "created";
 
   if (clientId) {
     params.set("clientId", clientId);
   }
   if (search) {
     params.set("search", search);
+  }
+  if (sort !== "created") {
+    params.set("sort", sort);
   }
 
   return `/projects?${params.toString()}`;
@@ -158,11 +172,14 @@ function ProjectsWorkspaceInner({ initial, children }: { initial: ProjectsBootst
   const latestFeaturedPosts = initial.latestFeaturedPosts;
   const [filterClientId, setFilterClientId] = useState<string | null>(null);
   const [activeSearch, setActiveSearch] = useState("");
+  const [projectSort, setProjectSort] = useState<ProjectSort>("created");
 
   const [projectForm, setProjectForm] = useState<ProjectDialogValues>(createProjectDialogValues());
   const [isCreatingProject, setIsCreatingProject] = useState(false);
   const createDialogRef = useRef<HTMLDialogElement | null>(null);
   const refreshAbortControllerRef = useRef<AbortController | null>(null);
+  const projectSortRef = useRef<ProjectSort>("created");
+  projectSortRef.current = projectSort;
 
   const activeProjects = useMemo(() => projects.filter((project) => !project.archived), [projects]);
 
@@ -204,11 +221,12 @@ function ProjectsWorkspaceInner({ initial, children }: { initial: ProjectsBootst
       try {
         const nextClientId = overrides.clientId !== undefined ? overrides.clientId : filterClientId;
         const nextSearch = overrides.search !== undefined ? overrides.search : activeSearch;
+        const nextSort = overrides.sort !== undefined ? overrides.sort : projectSortRef.current;
         const { accessToken: nextToken, data } = await authedJsonFetch({
           accessToken: overrides.accessToken !== undefined ? overrides.accessToken : accessToken,
           init: { signal: controller.signal },
           onToken: setAccessToken,
-          path: buildProjectsUrl({ clientId: nextClientId, search: nextSearch })
+          path: buildProjectsUrl({ clientId: nextClientId, search: nextSearch, sort: nextSort })
         });
 
         if (nextToken !== accessToken) {
@@ -263,9 +281,9 @@ function ProjectsWorkspaceInner({ initial, children }: { initial: ProjectsBootst
   const toggleArchive = useCallback(
     async (project: Project) => {
       await authedFetch(`/projects/${project.id}/${project.archived ? "restore" : "archive"}`, { method: "POST" });
-      await refreshProjects({ clientId: filterClientId, search: activeSearch });
+      await refreshProjects({ clientId: filterClientId, search: activeSearch, sort: projectSort });
     },
-    [activeSearch, authedFetch, filterClientId, refreshProjects]
+    [activeSearch, authedFetch, filterClientId, projectSort, refreshProjects]
   );
 
   function runWithTransition(update: () => void) {
@@ -303,13 +321,13 @@ function ProjectsWorkspaceInner({ initial, children }: { initial: ProjectsBootst
           method: "POST",
           body: JSON.stringify({ status: targetColumn })
         });
-        await refreshProjects({ clientId: filterClientId, search: activeSearch });
+        await refreshProjects({ clientId: filterClientId, search: activeSearch, sort: projectSort });
       } catch (error) {
         setProjects(previousProjects);
         throw error;
       }
     },
-    [activeSearch, authedFetch, filterClientId, projects, refreshProjects]
+    [activeSearch, authedFetch, filterClientId, projectSort, projects, refreshProjects]
   );
 
   const getProjectClientLabel = useCallback((project: Project) => {
@@ -362,6 +380,8 @@ function ProjectsWorkspaceInner({ initial, children }: { initial: ProjectsBootst
     setFilterClientId,
     activeSearch,
     setActiveSearch,
+    projectSort,
+    setProjectSort,
     authedFetch,
     refreshProjects,
     createProject,

@@ -156,4 +156,50 @@ describe("GET /projects", () => {
     });
     expect(listProjectsMock).not.toHaveBeenCalled();
   });
+
+  it("parses sort=title and passes sort to listProjects when search is empty", async () => {
+    listProjectsMock.mockResolvedValue([]);
+
+    const { GET } = await import("@/app/projects/route");
+    const response = await GET(new Request("http://localhost/projects?sort=title"));
+
+    expect(response.status).toBe(200);
+    expect(listProjectsMock).toHaveBeenCalledWith(true, { clientId: null, search: "", sort: "title" });
+  });
+
+  it("parses sort=deadline and passes sort to listProjects when search is empty", async () => {
+    listProjectsMock.mockResolvedValue([]);
+
+    const { GET } = await import("@/app/projects/route");
+    const response = await GET(new Request("http://localhost/projects?sort=deadline"));
+
+    expect(response.status).toBe(200);
+    expect(listProjectsMock).toHaveBeenCalledWith(true, { clientId: null, search: "", sort: "deadline" });
+  });
+
+  it("does not pass sort to listProjects when search is active (FTS ignores sort)", async () => {
+    listProjectsMock.mockResolvedValue([{ id: "p1", name: "Alpha" }]);
+
+    const { GET } = await import("@/app/projects/route");
+    const response = await GET(
+      new Request("http://localhost/projects?search=foo&sort=title")
+    );
+
+    expect(response.status).toBe(200);
+    expect(listProjectsMock).toHaveBeenCalledWith(true, {
+      clientId: null,
+      search: "foo"
+    });
+  });
+
+  it("returns 400 when sort is not title or deadline", async () => {
+    const { GET } = await import("@/app/projects/route");
+    const response = await GET(new Request("http://localhost/projects?sort=created_at"));
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toMatchObject({
+      error: "Invalid sort"
+    });
+    expect(listProjectsMock).not.toHaveBeenCalled();
+  });
 });

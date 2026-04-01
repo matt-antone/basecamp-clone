@@ -2,6 +2,7 @@ import slugify from "slugify";
 import { config } from "./config";
 import { query } from "./db";
 import { renderMarkdown } from "./markdown";
+import { DEFAULT_HOURLY_RATE_USD, MAX_EXPENSE_LINE_AMOUNT_USD, MAX_SITE_HOURLY_RATE_USD } from "./project-financials";
 
 export type UserProfile = {
   id: string;
@@ -18,6 +19,7 @@ export type NotificationRecipient = Pick<UserProfile, "id" | "email" | "firstNam
 export type SiteSettings = {
   siteTitle: string | null;
   logoUrl: string | null;
+  defaultHourlyRateUsd: number | string | null;
 };
 
 export type ProjectUserHours = {
@@ -27,6 +29,16 @@ export type ProjectUserHours = {
   email: string;
   avatarUrl: string | null;
   hours: number | string;
+};
+
+export type ProjectExpenseLine = {
+  id: string;
+  projectId: string;
+  label: string;
+  amount: number | string;
+  sortOrder: number;
+  createdAt: string;
+  updatedAt: string;
 };
 
 function parseProjectFileSizeBytes(value: unknown) {
@@ -146,11 +158,14 @@ export async function updateClientName(id: string, name: string) {
   return result.rows[0] ?? null;
 }
 
-const projectListSelectColumns = `p.*, c.name as client_name, c.code as client_code,
-         case
+/** Same CASE as `display_name` — use for ORDER BY title / tie-breaks. */
+const projectDisplayNameOrderExpr = `case
            when p.project_code is not null and length(trim(p.project_code)) > 0 then p.project_code || '-' || p.name
            else p.name
-         end as display_name,
+         end`;
+
+const projectListSelectColumns = `p.*, c.name as client_name, c.code as client_code,
+         ${projectDisplayNameOrderExpr} as display_name,
          (
            (select count(*)::int from discussion_threads t where t.project_id = p.id) +
            (select count(*)::int from discussion_comments dc where dc.project_id = p.id)
@@ -160,6 +175,8 @@ const projectListSelectColumns = `p.*, c.name as client_name, c.code as client_c
 export type ListProjectsOptions = {
   clientId?: string | null;
   search?: string | null;
+  /** Ignored when `search` is non-empty after trim (FTS ordering). */
+  sort?: "title" | "deadline" | null;
 };
 
 function projectFtsPredicate(alias = "q") {
@@ -239,6 +256,7 @@ function projectFtsRankExpr(alias = "q") {
 export async function listProjects(includeArchived = true, options?: ListProjectsOptions) {
   const clientId = options?.clientId?.trim() ? options.clientId : null;
   const search = (options?.search ?? "").trim();
+  const sort = search.length > 0 ? null : options?.sort ?? null;
 
   if (search.length > 0) {
     const archivedClause = includeArchived ? "" : "and p.archived = false";
@@ -255,18 +273,25 @@ export async function listProjects(includeArchived = true, options?: ListProject
     return result.rows;
   }
 
+  const orderBy =
+    sort === "title"
+      ? `lower(${projectDisplayNameOrderExpr}) asc`
+      : sort === "deadline"
+        ? `p.deadline asc nulls last, lower(${projectDisplayNameOrderExpr}) asc`
+        : `p.created_at desc`;
+
   const sql = includeArchived
     ? `select ${projectListSelectColumns}
        from projects p
        left join clients c on c.id = p.client_id
        where ($1::uuid is null or p.client_id = $1::uuid)
-       order by p.created_at desc`
+       order by ${orderBy}`
     : `select ${projectListSelectColumns}
        from projects p
        left join clients c on c.id = p.client_id
        where p.archived = false
          and ($1::uuid is null or p.client_id = $1::uuid)
-       order by p.created_at desc`;
+       order by ${orderBy}`;
   const result = await query(sql, [clientId]);
   return result.rows;
 }
@@ -524,6 +549,8 @@ export async function updateProject(args: {
   tags?: string[];
   deadline?: string | null;
   requestor?: string | null;
+  /** Optional PM note; max 256 chars (enforced in DB + API). */
+  pm_note?: string | null;
 }) {
   const current = await getProject(args.id);
   if (!current) {
@@ -548,41 +575,89 @@ export async function updateProject(args: {
       : typeof args.requestor === "string"
         ? args.requestor.trim() || null
         : null;
+  const currentPmNote = (current as { pm_note?: string | null }).pm_note;
+  const nextPmNote =
+    args.pm_note === undefined
+      ? (typeof currentPmNote === "string" ? currentPmNote : null)
+      : typeof args.pm_note === "string"
+        ? args.pm_note.trim() || null
+        : null;
 
   try {
-    const result = await query(
-      `update projects
-       set name = $2,
-           description = $3,
-           tags = $4::text[],
-           deadline = $5::date,
-           requestor = $6,
-           updated_at = now()
-       where id = $1
-       returning *`,
-      [args.id, args.name.trim(), args.description ?? null, nextTags, nextDeadline, nextRequestor]
-    );
+    let result;
+    try {
+      result = await query(
+        `update projects
+         set name = $2,
+             description = $3,
+             tags = $4::text[],
+             deadline = $5::date,
+             requestor = $6,
+             pm_note = $7,
+             updated_at = now()
+         where id = $1
+         returning *`,
+        [args.id, args.name.trim(), args.description ?? null, nextTags, nextDeadline, nextRequestor, nextPmNote]
+      );
+    } catch (inner) {
+      if (!isMissingPmNoteColumnError(inner)) {
+        throw inner;
+      }
+      result = await query(
+        `update projects
+         set name = $2,
+             description = $3,
+             tags = $4::text[],
+             deadline = $5::date,
+             requestor = $6,
+             updated_at = now()
+         where id = $1
+         returning *`,
+        [args.id, args.name.trim(), args.description ?? null, nextTags, nextDeadline, nextRequestor]
+      );
+    }
 
     const updated = result.rows[0] ?? null;
     await touchProjectActivity(args.id);
     return updated;
   } catch (error) {
     if (isMissingProjectRequestorColumnError(error)) {
-      const fallback = await query(
-        `update projects
-         set name = $2,
-             description = $3,
-             tags = $4::text[],
-             deadline = $5::date,
-             updated_at = now()
-         where id = $1
-         returning *`,
-        [args.id, args.name.trim(), args.description ?? null, nextTags, nextDeadline]
-      );
+      try {
+        const fallback = await query(
+          `update projects
+           set name = $2,
+               description = $3,
+               tags = $4::text[],
+               deadline = $5::date,
+               pm_note = $6,
+               updated_at = now()
+           where id = $1
+           returning *`,
+          [args.id, args.name.trim(), args.description ?? null, nextTags, nextDeadline, nextPmNote]
+        );
+        const updated = fallback.rows[0] ?? null;
+        await touchProjectActivity(args.id);
+        return updated;
+      } catch (inner) {
+        if (!isMissingPmNoteColumnError(inner)) {
+          throw inner;
+        }
+        const fallback = await query(
+          `update projects
+           set name = $2,
+               description = $3,
+               tags = $4::text[],
+               deadline = $5::date,
+               updated_at = now()
+           where id = $1
+           returning *`,
+          [args.id, args.name.trim(), args.description ?? null, nextTags, nextDeadline]
+        );
 
-      const updated = fallback.rows[0] ?? null;
-      await touchProjectActivity(args.id);
-      return updated;
+        const updated = fallback.rows[0] ?? null;
+        await touchProjectActivity(args.id);
+        return updated;
+      }
     }
 
     if (!isMissingProjectDeadlineColumnError(error)) {
@@ -660,17 +735,81 @@ export async function listProjectUserHours(projectId: string): Promise<ProjectUs
   }
 }
 
+const projectExpenseLineSelectColumns = `id,
+       project_id as "projectId",
+       label,
+       amount,
+       sort_order as "sortOrder",
+       created_at as "createdAt",
+       updated_at as "updatedAt"`;
+
+function parseFiniteNumber(value: number | string | null | undefined) {
+  if (value === null || value === undefined || value === "") {
+    return null;
+  }
+
+  const parsed = typeof value === "number" ? value : Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function validateDefaultHourlyRateUsd(value: number | string | null | undefined) {
+  const parsed = parseFiniteNumber(value);
+  if (parsed === null || parsed < 0 || parsed > MAX_SITE_HOURLY_RATE_USD) {
+    throw new Error("Default hourly rate must be between 0 and 999999.99");
+  }
+  return parsed;
+}
+
+function validateExpenseLineAmount(value: number | string | null | undefined) {
+  const parsed = parseFiniteNumber(value);
+  if (parsed === null || parsed < 0 || parsed > MAX_EXPENSE_LINE_AMOUNT_USD) {
+    throw new Error("Expense amount must be between 0 and 9999999999.99");
+  }
+  return parsed;
+}
+
+function validateExpenseLineLabel(label: string) {
+  const trimmedLabel = label.trim();
+  if (!trimmedLabel) {
+    throw new Error("Expense label is required");
+  }
+  return trimmedLabel;
+}
+
 export async function getSiteSettings(): Promise<SiteSettings | null> {
   try {
-    const result = await query(
-      `select
-         site_title as "siteTitle",
-         logo_url as "logoUrl"
-       from site_settings
-       where id = 'default'`,
-      []
-    );
-    return (result.rows[0] as SiteSettings | undefined) ?? null;
+    try {
+      const result = await query(
+        `select
+           site_title as "siteTitle",
+           logo_url as "logoUrl",
+           default_hourly_rate_usd as "defaultHourlyRateUsd"
+         from site_settings
+         where id = 'default'`,
+        []
+      );
+      return (result.rows[0] as SiteSettings | undefined) ?? null;
+    } catch (inner) {
+      if (!isMissingSiteSettingsHourlyRateColumnError(inner)) {
+        throw inner;
+      }
+
+      const fallback = await query(
+        `select
+           site_title as "siteTitle",
+           logo_url as "logoUrl"
+         from site_settings
+         where id = 'default'`,
+        []
+      );
+      const row = fallback.rows[0] as Omit<SiteSettings, "defaultHourlyRateUsd"> | undefined;
+      return row
+        ? {
+            ...row,
+            defaultHourlyRateUsd: DEFAULT_HOURLY_RATE_USD
+          }
+        : null;
+    }
   } catch (error) {
     if (isMissingSiteSettingsTableError(error)) {
       return null;
@@ -680,27 +819,172 @@ export async function getSiteSettings(): Promise<SiteSettings | null> {
 }
 
 export async function upsertSiteSettings(settings: SiteSettings): Promise<SiteSettings> {
+  const hourlyRate = validateDefaultHourlyRateUsd(settings.defaultHourlyRateUsd ?? DEFAULT_HOURLY_RATE_USD);
+
   try {
-    const result = await query(
-      `insert into site_settings (id, site_title, logo_url)
-       values ('default', $1, $2)
-       on conflict (id)
-       do update set
-         site_title = excluded.site_title,
-         logo_url = excluded.logo_url,
-         updated_at = now()
-       returning
-         site_title as "siteTitle",
-         logo_url as "logoUrl"`,
-      [settings.siteTitle, settings.logoUrl]
-    );
-    return result.rows[0] as SiteSettings;
+    try {
+      const result = await query(
+        `insert into site_settings (id, site_title, logo_url, default_hourly_rate_usd)
+         values ('default', $1, $2, $3)
+         on conflict (id)
+         do update set
+           site_title = excluded.site_title,
+           logo_url = excluded.logo_url,
+           default_hourly_rate_usd = excluded.default_hourly_rate_usd,
+           updated_at = now()
+         returning
+           site_title as "siteTitle",
+           logo_url as "logoUrl",
+           default_hourly_rate_usd as "defaultHourlyRateUsd"`,
+        [settings.siteTitle, settings.logoUrl, hourlyRate]
+      );
+      return result.rows[0] as SiteSettings;
+    } catch (inner) {
+      if (!isMissingSiteSettingsHourlyRateColumnError(inner)) {
+        throw inner;
+      }
+
+      const fallback = await query(
+        `insert into site_settings (id, site_title, logo_url)
+         values ('default', $1, $2)
+         on conflict (id)
+         do update set
+           site_title = excluded.site_title,
+           logo_url = excluded.logo_url,
+           updated_at = now()
+         returning
+           site_title as "siteTitle",
+           logo_url as "logoUrl"`,
+        [settings.siteTitle, settings.logoUrl]
+      );
+      const row = fallback.rows[0] as Omit<SiteSettings, "defaultHourlyRateUsd">;
+      return {
+        ...row,
+        defaultHourlyRateUsd: hourlyRate
+      };
+    }
   } catch (error) {
     if (!isMissingSiteSettingsTableError(error)) {
       throw error;
     }
 
     throw new Error("site_settings table is not available. Apply migration 0010_site_settings_and_project_deadline.sql first.");
+  }
+}
+
+export async function listProjectExpenseLines(projectId: string): Promise<ProjectExpenseLine[]> {
+  try {
+    const result = await query<ProjectExpenseLine>(
+      `select ${projectExpenseLineSelectColumns}
+       from project_expense_lines
+       where project_id = $1
+       order by sort_order asc, created_at asc`,
+      [projectId]
+    );
+    return result.rows;
+  } catch (error) {
+    if (isMissingProjectExpenseLinesTableError(error)) {
+      return [];
+    }
+    throw error;
+  }
+}
+
+export async function createProjectExpenseLine(args: {
+  projectId: string;
+  label: string;
+  amount: number | string;
+  sortOrder?: number;
+}) {
+  const label = validateExpenseLineLabel(args.label);
+  const amount = validateExpenseLineAmount(args.amount);
+
+  try {
+    const result = await query<ProjectExpenseLine>(
+      `insert into project_expense_lines (project_id, label, amount, sort_order)
+       values (
+         $1,
+         $2,
+         $3,
+         coalesce(
+           $4,
+           (
+             select coalesce(max(sort_order), -1) + 1
+             from project_expense_lines
+             where project_id = $1
+           )
+         )
+       )
+       returning ${projectExpenseLineSelectColumns}`,
+      [args.projectId, label, amount, args.sortOrder ?? null]
+    );
+    await touchProjectActivity(args.projectId);
+    return result.rows[0] ?? null;
+  } catch (error) {
+    if (!isMissingProjectExpenseLinesTableError(error)) {
+      throw error;
+    }
+
+    throw new Error("project_expense_lines table is not available. Apply migration 0020_project_expense_lines.sql first.");
+  }
+}
+
+export async function updateProjectExpenseLine(args: {
+  id: string;
+  projectId: string;
+  label?: string;
+  amount?: number | string;
+  sortOrder?: number;
+}) {
+  const existing = await query<ProjectExpenseLine>(
+    `select ${projectExpenseLineSelectColumns}
+     from project_expense_lines
+     where id = $1 and project_id = $2`,
+    [args.id, args.projectId]
+  );
+  const current = existing.rows[0] ?? null;
+  if (!current) {
+    return null;
+  }
+
+  const label = args.label === undefined ? current.label : validateExpenseLineLabel(args.label);
+  const amount = args.amount === undefined ? current.amount : validateExpenseLineAmount(args.amount);
+  const sortOrder = args.sortOrder ?? current.sortOrder;
+
+  const result = await query<ProjectExpenseLine>(
+    `update project_expense_lines
+     set label = $3,
+         amount = $4,
+         sort_order = $5,
+         updated_at = now()
+     where id = $1
+       and project_id = $2
+     returning ${projectExpenseLineSelectColumns}`,
+    [args.id, args.projectId, label, amount, sortOrder]
+  );
+  await touchProjectActivity(args.projectId);
+  return result.rows[0] ?? null;
+}
+
+export async function deleteProjectExpenseLine(args: { id: string; projectId: string }) {
+  try {
+    const result = await query<{ id: string }>(
+      `delete from project_expense_lines
+       where id = $1 and project_id = $2
+       returning id`,
+      [args.id, args.projectId]
+    );
+    if ((result.rows[0]?.id ?? null) !== null) {
+      await touchProjectActivity(args.projectId);
+      return true;
+    }
+    return false;
+  } catch (error) {
+    if (!isMissingProjectExpenseLinesTableError(error)) {
+      throw error;
+    }
+
+    throw new Error("project_expense_lines table is not available. Apply migration 0020_project_expense_lines.sql first.");
   }
 }
 
@@ -749,12 +1033,36 @@ function isMissingProjectDeadlineColumnError(error: unknown) {
   return /deadline/i.test(error.message) && /does not exist|undefined column/i.test(error.message);
 }
 
+function isMissingPmNoteColumnError(error: unknown) {
+  if (!(error instanceof Error)) {
+    return false;
+  }
+
+  return /pm_note/i.test(error.message) && /does not exist|undefined column/i.test(error.message);
+}
+
 function isMissingSiteSettingsTableError(error: unknown) {
   if (!(error instanceof Error)) {
     return false;
   }
 
   return /site_settings/i.test(error.message) && /does not exist|undefined table/i.test(error.message);
+}
+
+function isMissingSiteSettingsHourlyRateColumnError(error: unknown) {
+  if (!(error instanceof Error)) {
+    return false;
+  }
+
+  return /default_hourly_rate_usd/i.test(error.message) && /does not exist|undefined column/i.test(error.message);
+}
+
+function isMissingProjectExpenseLinesTableError(error: unknown) {
+  if (!(error instanceof Error)) {
+    return false;
+  }
+
+  return /project_expense_lines/i.test(error.message) && /does not exist|undefined table/i.test(error.message);
 }
 
 export async function setProjectStorageDir(id: string, storageProjectDir: string) {

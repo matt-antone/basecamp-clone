@@ -6,6 +6,7 @@ import { OneShotButton } from "@/components/one-shot-button";
 import { getAvatarProxyUrl } from "@/lib/avatar";
 import { authedJsonFetch, fetchAuthSession } from "@/lib/browser-auth";
 import { createClientResource } from "@/lib/client-resource";
+import { DEFAULT_HOURLY_RATE_USD, formatUsdInput } from "@/lib/project-financials";
 import {
   DEFAULT_SITE_LOGO_URL,
   DEFAULT_SITE_TITLE,
@@ -43,6 +44,7 @@ type ProfileForm = {
 type SiteSettingsForm = {
   siteTitle: string;
   logoUrl: string;
+  defaultHourlyRateUsd: string;
 };
 
 const EMPTY_PROFILE: ProfileForm = {
@@ -152,7 +154,8 @@ async function loadSettingsBootstrap(): Promise<SettingsBootstrap> {
       profile: EMPTY_PROFILE,
       siteSettings: {
         siteTitle: DEFAULT_SITE_TITLE,
-        logoUrl: DEFAULT_SITE_LOGO_URL
+          logoUrl: DEFAULT_SITE_LOGO_URL,
+          defaultHourlyRateUsd: formatUsdInput(DEFAULT_HOURLY_RATE_USD)
       }
     };
   }
@@ -167,7 +170,8 @@ async function loadSiteSettings(): Promise<SiteSettingsForm> {
     if (!response.ok) {
       return {
         siteTitle: DEFAULT_SITE_TITLE,
-        logoUrl: DEFAULT_SITE_LOGO_URL
+          logoUrl: DEFAULT_SITE_LOGO_URL,
+          defaultHourlyRateUsd: formatUsdInput(DEFAULT_HOURLY_RATE_USD)
       };
     }
 
@@ -176,6 +180,7 @@ async function loadSiteSettings(): Promise<SiteSettingsForm> {
         siteSettings?: {
           siteTitle?: string | null;
           logoUrl?: string | null;
+          defaultHourlyRateUsd?: number | string | null;
           site_title?: string | null;
           logo_url?: string | null;
         };
@@ -184,15 +189,18 @@ async function loadSiteSettings(): Promise<SiteSettingsForm> {
     const source = payload?.siteSettings ?? null;
     const rawTitle = source?.siteTitle ?? source?.site_title ?? null;
     const rawLogo = source?.logoUrl ?? source?.logo_url ?? null;
+    const rawHourlyRate = source?.defaultHourlyRateUsd ?? DEFAULT_HOURLY_RATE_USD;
 
     return {
       siteTitle: normalizeSiteTitle(rawTitle),
-      logoUrl: normalizeSiteLogoUrl(rawLogo)
+      logoUrl: normalizeSiteLogoUrl(rawLogo),
+      defaultHourlyRateUsd: formatUsdInput(rawHourlyRate)
     };
   } catch {
     return {
       siteTitle: DEFAULT_SITE_TITLE,
-      logoUrl: DEFAULT_SITE_LOGO_URL
+      logoUrl: DEFAULT_SITE_LOGO_URL,
+      defaultHourlyRateUsd: formatUsdInput(DEFAULT_HOURLY_RATE_USD)
     };
   }
 }
@@ -350,25 +358,34 @@ function SettingsPageContent({ initial }: { initial: SettingsBootstrap }) {
     try {
       const nextSiteTitle = siteSettings.siteTitle.trim() || null;
       const nextLogoUrl = siteSettings.logoUrl.trim() || null;
+      const trimmedHourlyRate = siteSettings.defaultHourlyRateUsd.trim();
+      const parsedHourlyRate = trimmedHourlyRate ? Number(trimmedHourlyRate) : Number.NaN;
+      if (trimmedHourlyRate && (!Number.isFinite(parsedHourlyRate) || parsedHourlyRate < 0 || parsedHourlyRate > 999999.99)) {
+        throw new Error("Default hourly rate must be between 0 and 999999.99");
+      }
       const data = await authedFetch(token, "/site-settings", {
         method: "PATCH",
         body: JSON.stringify({
           siteTitle: nextSiteTitle,
-          logoUrl: nextLogoUrl
+          logoUrl: nextLogoUrl,
+          defaultHourlyRateUsd: trimmedHourlyRate ? parsedHourlyRate : DEFAULT_HOURLY_RATE_USD
         })
       });
 
       const payload = (data?.siteSettings ?? null) as {
         siteTitle?: string | null;
         logoUrl?: string | null;
+        defaultHourlyRateUsd?: number | string | null;
         site_title?: string | null;
         logo_url?: string | null;
       } | null;
       const rawTitle = payload?.siteTitle ?? payload?.site_title ?? null;
       const rawLogo = payload?.logoUrl ?? payload?.logo_url ?? null;
+      const rawHourlyRate = payload?.defaultHourlyRateUsd ?? DEFAULT_HOURLY_RATE_USD;
       setSiteSettings({
         siteTitle: normalizeSiteTitle(rawTitle),
-        logoUrl: normalizeSiteLogoUrl(rawLogo)
+        logoUrl: normalizeSiteLogoUrl(rawLogo),
+        defaultHourlyRateUsd: formatUsdInput(rawHourlyRate)
       });
       setStatus("Site settings updated");
     } finally {
@@ -590,6 +607,20 @@ function SettingsPageContent({ initial }: { initial: SettingsBootstrap }) {
                 value={siteSettings.logoUrl}
                 onChange={(e) => setSiteSettings((prev) => ({ ...prev, logoUrl: e.target.value }))}
                 placeholder={DEFAULT_SITE_LOGO_URL}
+              />
+            </label>
+
+            <label>
+              Default hourly rate (USD)
+              <input
+                type="number"
+                min="0"
+                max="999999.99"
+                step="0.01"
+                inputMode="decimal"
+                value={siteSettings.defaultHourlyRateUsd}
+                onChange={(e) => setSiteSettings((prev) => ({ ...prev, defaultHourlyRateUsd: e.target.value }))}
+                placeholder={formatUsdInput(DEFAULT_HOURLY_RATE_USD)}
               />
             </label>
 

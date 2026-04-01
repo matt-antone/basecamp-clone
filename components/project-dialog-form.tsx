@@ -15,6 +15,8 @@ export type ProjectDialogValues = {
   requestor: string;
   tags: string;
   clientId: string;
+  /** PM note; only shown on project detail edit, not create dialog. */
+  pm_note: string;
 };
 
 type ProjectDialogFormProps = {
@@ -24,6 +26,8 @@ type ProjectDialogFormProps = {
   clients: ProjectDialogClient[];
   submitting?: boolean;
   clientDisabled?: boolean;
+  /** When true, show PM note (detail edit only). */
+  showPmNote?: boolean;
   onChange: (values: ProjectDialogValues) => void;
   onSubmit: () => void;
   onCancel: () => void;
@@ -36,6 +40,7 @@ export function ProjectDialogForm({
   clients,
   submitting = false,
   clientDisabled = false,
+  showPmNote = false,
   onChange,
   onSubmit,
   onCancel
@@ -93,6 +98,19 @@ export function ProjectDialogForm({
             placeholder="Tags (comma separated)"
           />
         </label>
+        {showPmNote ? (
+          <label className="dialogField">
+            <span>PM note</span>
+            <textarea
+              value={values.pm_note}
+              maxLength={256}
+              rows={3}
+              onChange={(event) => updateField("pm_note", event.target.value)}
+              placeholder="Short note for the team (shown on list and board)"
+            />
+            <span className="dialogFieldHint">{(values.pm_note ?? "").length}/256</span>
+          </label>
+        ) : null}
         <label className="dialogField">
           <span>Client</span>
           <select

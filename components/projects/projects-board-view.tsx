@@ -3,7 +3,7 @@ import Link from "next/link";
 import { type CSSProperties, type DragEvent, type ReactNode } from "react";
 import { OneShotButton } from "@/components/one-shot-button";
 import { ProjectTagList } from "@/components/project-tag-list";
-import { normalizeProjectColumn } from "@/lib/project-utils";
+import { formatProjectCreatedAtLocal, formatProjectDeadlineLocal, normalizeProjectColumn } from "@/lib/project-utils";
 
 type ProjectColumn = "new" | "in_progress" | "blocked" | "complete";
 
@@ -24,6 +24,9 @@ type ProjectBoardItem = {
   client_code?: string | null;
   status?: string | null;
   archived: boolean;
+  created_at?: string | null;
+  deadline?: string | null;
+  pm_note?: string | null;
 };
 
 export type ProjectsBoardViewProps = {
@@ -96,7 +99,12 @@ export function ProjectsBoardView(props: ProjectsBoardViewProps) {
               </header>
 
               <ul className="projectFlowList">
-                {columnProjects.map((project) => (
+                {columnProjects.map((project) => {
+                  const createdLabel = formatProjectCreatedAtLocal(project.created_at);
+                  const createdRaw = project.created_at?.trim();
+                  const deadlineLabel = formatProjectDeadlineLocal(project.deadline);
+                  const deadlineRaw = project.deadline?.trim();
+                  return (
                   <li
                     key={project.id}
                     className={`projectFlowCard ${draggingProjectId === project.id ? "projectFlowCardDragging" : ""} ${justMovedProjectId === project.id ? "projectFlowCardSettled" : ""}`}
@@ -106,12 +114,29 @@ export function ProjectsBoardView(props: ProjectsBoardViewProps) {
                     onDragEnd={onCardDragEnd}
                   >
                     <div className="projectMain projectFlowCardBody">
-                      <Link
-                        href={`/${project.id}`}
-                        className={`projectLink projectTitle projectFlowCardTitle tone-${normalizeProjectColumn(project)}`}
-                      >
-                        {renderProjectTitle(project.display_name ?? project.name)}
-                      </Link>
+                      <div className="projectTitleRow">
+                        <Link
+                          href={`/${project.id}`}
+                          className={`projectLink projectTitle projectFlowCardTitle tone-${normalizeProjectColumn(project)}`}
+                        >
+                          {renderProjectTitle(project.display_name ?? project.name)}
+                        </Link>
+                        {createdLabel && createdRaw ? (
+                          <time className="projectCreatedMeta" dateTime={createdRaw}>
+                            · {createdLabel}
+                          </time>
+                        ) : null}
+                        {deadlineLabel && deadlineRaw ? (
+                          <time className="projectDeadlineMeta" dateTime={deadlineRaw}>
+                            · Due {deadlineLabel}
+                          </time>
+                        ) : null}
+                      </div>
+                      {project.pm_note?.trim() ? (
+                        <p className="projectPmNote" title={project.pm_note.trim()}>
+                          {project.pm_note.trim()}
+                        </p>
+                      ) : null}
                       <p className="projectDescription projectFlowCardDescription line-clamp-2">
                         {project.description?.trim() || "No description provided."}
                       </p>
@@ -129,7 +154,8 @@ export function ProjectsBoardView(props: ProjectsBoardViewProps) {
                       </div>
                     </div>
                   </li>
-                ))}
+                  );
+                })}
               </ul>
             </section>
           );

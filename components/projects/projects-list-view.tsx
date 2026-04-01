@@ -3,7 +3,7 @@ import Link from "next/link";
 import { type CSSProperties, type FocusEvent, type ReactNode } from "react";
 import { OneShotButton } from "@/components/one-shot-button";
 import { ProjectTagList } from "@/components/project-tag-list";
-import { normalizeProjectColumn } from "@/lib/project-utils";
+import { formatProjectCreatedAtLocal, formatProjectDeadlineLocal, normalizeProjectColumn } from "@/lib/project-utils";
 
 type ProjectColumn = "new" | "in_progress" | "blocked" | "complete";
 
@@ -26,6 +26,9 @@ type ProjectListItem = {
   status?: string | null;
   discussion_count?: number;
   file_count?: number;
+  created_at?: string | null;
+  deadline?: string | null;
+  pm_note?: string | null;
 };
 
 type ProjectGroup = {
@@ -114,7 +117,12 @@ export function ProjectsListView(props: ProjectsListViewProps) {
             </div>
           </header>
           <ul className="clientProjectLedger">
-            {group.projects.map((project) => (
+            {group.projects.map((project) => {
+              const createdLabel = formatProjectCreatedAtLocal(project.created_at);
+              const createdRaw = project.created_at?.trim();
+              const deadlineLabel = formatProjectDeadlineLocal(project.deadline);
+              const deadlineRaw = project.deadline?.trim();
+              return (
               <li
                 key={project.id}
                 className={`projectLedgerItem tone-${normalizeProjectColumn(project)} ${highlightedProjectId === project.id ? "projectLedgerItemActive" : ""}`}
@@ -127,12 +135,29 @@ export function ProjectsListView(props: ProjectsListViewProps) {
                   <span className="projectLedgerStatus">{getProjectStatusLabel(project)}</span>
                 </div>
                 <div className="projectMain projectLedgerBody">
-                  <Link
-                    href={`/${project.id}`}
-                    className={`projectLink projectTitle projectLedgerTitle tone-${normalizeProjectColumn(project)}`}
-                  >
-                    {renderProjectTitle(project.display_name ?? project.name)}
-                  </Link>
+                  <div className="projectTitleRow">
+                    <Link
+                      href={`/${project.id}`}
+                      className={`projectLink projectTitle projectLedgerTitle tone-${normalizeProjectColumn(project)}`}
+                    >
+                      {renderProjectTitle(project.display_name ?? project.name)}
+                    </Link>
+                    {createdLabel && createdRaw ? (
+                      <time className="projectCreatedMeta" dateTime={createdRaw}>
+                        · {createdLabel}
+                      </time>
+                    ) : null}
+                    {deadlineLabel && deadlineRaw ? (
+                      <time className="projectDeadlineMeta" dateTime={deadlineRaw}>
+                        · Due {deadlineLabel}
+                      </time>
+                    ) : null}
+                  </div>
+                  {project.pm_note?.trim() ? (
+                    <p className="projectPmNote" title={project.pm_note.trim()}>
+                      {project.pm_note.trim()}
+                    </p>
+                  ) : null}
                   <p className="projectDescription">{project.description?.trim() || "No description provided."}</p>
                   <ProjectTagList tags={project.tags} className="projectTagListCompact" />
                   <p className="projectLedgerCounts">
@@ -145,7 +170,8 @@ export function ProjectsListView(props: ProjectsListViewProps) {
                   </Link>
                 </div>
               </li>
-            ))}
+              );
+            })}
           </ul>
         </section>
       ))}

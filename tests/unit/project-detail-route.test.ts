@@ -81,7 +81,32 @@ describe("/projects/[id] route", () => {
       clientId: "11111111-1111-1111-1111-111111111111",
       deadline: "2026-05-30",
       tags: ["ops"],
-      requestor: "Jane Producer"
+      requestor: "Jane Producer",
+      pm_note: undefined
     });
+  });
+
+  it("rejects pm_note longer than 256 characters", async () => {
+    requireUserMock.mockResolvedValue({ id: "user-1", email: "person@example.com" });
+
+    const { PATCH } = await import("@/app/projects/[id]/route");
+    const response = await PATCH(
+      new Request("http://localhost/projects/project-1", {
+        method: "PATCH",
+        headers: {
+          authorization: "Bearer token",
+          "content-type": "application/json"
+        },
+        body: JSON.stringify({
+          name: "Website Refresh",
+          clientId: "11111111-1111-1111-1111-111111111111",
+          pm_note: `${"a".repeat(256)}x`
+        })
+      }),
+      { params: Promise.resolve({ id: "project-1" }) }
+    );
+
+    expect(response.status).toBe(400);
+    expect(updateProjectMock).not.toHaveBeenCalled();
   });
 });

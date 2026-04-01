@@ -31,7 +31,21 @@ export async function GET(request: Request) {
     }
 
     const search = (url.searchParams.get("search") ?? "").trim();
-    const projects = await listProjects(includeArchived, { clientId, search });
+
+    const sortParam = url.searchParams.get("sort")?.trim() ?? "";
+    let sort: "title" | "deadline" | undefined;
+    if (sortParam.length > 0) {
+      if (sortParam !== "title" && sortParam !== "deadline") {
+        return badRequest("Invalid sort");
+      }
+      sort = sortParam;
+    }
+
+    const projects = await listProjects(includeArchived, {
+      clientId,
+      search,
+      ...(search.length === 0 && sort ? { sort } : {})
+    });
     return ok({ projects });
   } catch (error) {
     console.error("projects_list_failed", {

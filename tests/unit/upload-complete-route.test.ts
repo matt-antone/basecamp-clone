@@ -6,6 +6,11 @@ const getThreadMock = vi.fn();
 const getCommentMock = vi.fn();
 const createFileMetadataMock = vi.fn();
 const uploadCompleteMock = vi.fn();
+const enqueueThumbnailJobAndNotifyBestEffortMock = vi.fn();
+
+vi.mock("@/lib/thumbnail-enqueue-after-save", () => ({
+  enqueueThumbnailJobAndNotifyBestEffort: enqueueThumbnailJobAndNotifyBestEffortMock
+}));
 
 vi.mock("@/lib/auth", () => ({
   requireUser: requireUserMock
@@ -64,9 +69,11 @@ describe("POST /projects/[id]/files/upload-complete", () => {
     getCommentMock.mockReset();
     createFileMetadataMock.mockReset();
     uploadCompleteMock.mockReset();
+    enqueueThumbnailJobAndNotifyBestEffortMock.mockReset();
+    enqueueThumbnailJobAndNotifyBestEffortMock.mockResolvedValue(undefined);
   });
 
-  it("uploads successfully without calling thumbnail generation", async () => {
+  it("uploads successfully and enqueues thumbnail job best-effort", async () => {
     requireUserMock.mockResolvedValue({ id: "user-1", email: "person@example.com" });
     getProjectMock.mockResolvedValue({
       id: "project-1",
@@ -103,9 +110,17 @@ describe("POST /projects/[id]/files/upload-complete", () => {
     await expect(response.json()).resolves.toMatchObject({
       file: { id: "file-1" }
     });
+    expect(enqueueThumbnailJobAndNotifyBestEffortMock).toHaveBeenCalledTimes(1);
+    expect(enqueueThumbnailJobAndNotifyBestEffortMock).toHaveBeenCalledWith({
+      projectId: "project-1",
+      fileRecord: { id: "file-1" },
+      requestId: expect.stringMatching(
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+      )
+    });
   });
 
-  it("keeps upload successful with no thumbnail side effects", async () => {
+  it("passes x-request-id to thumbnail enqueue when present", async () => {
     requireUserMock.mockResolvedValue({ id: "user-1", email: "person@example.com" });
     getProjectMock.mockResolvedValue({
       id: "project-1",
@@ -123,7 +138,8 @@ describe("POST /projects/[id]/files/upload-complete", () => {
         method: "POST",
         headers: {
           authorization: "Bearer token",
-          "content-type": "application/json"
+          "content-type": "application/json",
+          "x-request-id": "  upstream-req-99  "
         },
         body: JSON.stringify({
           filename: "report.pdf",
@@ -139,9 +155,10 @@ describe("POST /projects/[id]/files/upload-complete", () => {
     );
 
     expect(response.status).toBe(201);
-    expect(createFileMetadataMock).toHaveBeenCalledTimes(1);
-    await expect(response.json()).resolves.toMatchObject({
-      file: { id: "file-1" }
+    expect(enqueueThumbnailJobAndNotifyBestEffortMock).toHaveBeenCalledWith({
+      projectId: "project-1",
+      fileRecord: { id: "file-1" },
+      requestId: "upstream-req-99"
     });
   });
 
@@ -227,5 +244,81 @@ describe("POST /projects/[id]/files/upload-complete", () => {
     await expect(response.json()).resolves.toMatchObject({
       error: expect.stringContaining("invalid_access_token")
     });
+  });
+
+  it("persists threadId and commentId from multipart when provided", async () => {
+    const threadUuid = "11111111-1111-1111-1111-111111111111";
+    const commentUuid = "22222222-2222-2222-2222-222222222222";
+    requireUserMock.mockResolvedValue({ id: "user-1", email: "person@example.com" });
+    getProjectMock.mockResolvedValue({
+      id: "project-1",
+      storage_project_dir: "/Projects/BRGS/BRGS-0001-Site Refresh"
+    });
+    getThreadMock.mockResolvedValue({ id: threadUuid });
+    getCommentMock.mockResolvedValue({ id: commentUuid });
+    uploadCompleteMock.mockResolvedValue({
+      fileId: "id:abc123",
+      path: "/Projects/BRGS/BRGS-0001-Site Refresh/uploads/doc.pdf"
+    });
+    createFileMetadataMock.mockResolvedValue({ id: "file-1" });
+
+    const { POST } = await import("@/app/projects/[id]/files/upload-complete/route");
+    const formData = new FormData();
+    formData.append("file", new File([Uint8Array.from([0x25, 0x50, 0x44, 0x46])], "doc.pdf", { type: "application/pdf" }));
+    formData.append("sessionId", "session-1");
+    formData.append("targetPath", "/Projects/BRGS/BRGS-0001-Site Refresh/uploads/doc.pdf");
+    formData.append("threadId", threadUuid);
+    formData.append("commentId", commentUuid);
+
+    const response = await POST(
+      new Request("http://localhost/projects/project-1/files/upload-complete", {
+        method: "POST",
+        headers: { authorization: "Bearer token" },
+        body: formData
+      }),
+      { params: Promise.resolve({ id: "project-1" }) }
+    );
+
+    expect(response.status).toBe(201);
+    expect(getThreadMock).toHaveBeenCalledWith("project-1", threadUuid);
+    expect(getCommentMock).toHaveBeenCalledWith("project-1", threadUuid, commentUuid);
+    expect(createFileMetadataMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        threadId: threadUuid,
+        commentId: commentUuid
+      })
+    );
+  });
+
+  it("returns 400 when JSON body has commentId without threadId", async () => {
+    requireUserMock.mockResolvedValue({ id: "user-1", email: "person@example.com" });
+    getProjectMock.mockResolvedValue({
+      id: "project-1",
+      storage_project_dir: "/Projects/BRGS/BRGS-0001-Site Refresh"
+    });
+
+    const { POST } = await import("@/app/projects/[id]/files/upload-complete/route");
+    const response = await POST(
+      new Request("http://localhost/projects/project-1/files/upload-complete", {
+        method: "POST",
+        headers: {
+          authorization: "Bearer token",
+          "content-type": "application/json"
+        },
+        body: JSON.stringify({
+          filename: "report.pdf",
+          mimeType: "application/pdf",
+          sizeBytes: 1234,
+          checksum: "abc",
+          contentBase64: Buffer.from("pdf").toString("base64"),
+          sessionId: "session-1",
+          targetPath: "/Projects/BRGS/BRGS-0001-Site Refresh/uploads/report.pdf",
+          commentId: "22222222-2222-2222-2222-222222222222"
+        })
+      }),
+      { params: Promise.resolve({ id: "project-1" }) }
+    );
+
+    expect(response.status).toBe(400);
   });
 });

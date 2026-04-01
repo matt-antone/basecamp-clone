@@ -1,11 +1,21 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { importBc2FileFromAttachment } from "@/lib/imports/bc2-migrate-single-file";
 
+const { enqueueThumbnailJobAndNotifyBestEffortMock } = vi.hoisted(() => ({
+  enqueueThumbnailJobAndNotifyBestEffortMock: vi.fn()
+}));
+
+vi.mock("@/lib/thumbnail-enqueue-after-save", () => ({
+  enqueueThumbnailJobAndNotifyBestEffort: enqueueThumbnailJobAndNotifyBestEffortMock
+}));
+
 describe("importBc2FileFromAttachment", () => {
   const originalFetch = globalThis.fetch;
 
   beforeEach(() => {
     vi.stubGlobal("fetch", vi.fn());
+    enqueueThumbnailJobAndNotifyBestEffortMock.mockReset();
+    enqueueThumbnailJobAndNotifyBestEffortMock.mockResolvedValue(undefined);
   });
 
   afterEach(() => {
@@ -45,6 +55,7 @@ describe("importBc2FileFromAttachment", () => {
     expect(result).toEqual({ status: "skipped_existing", localFileId: "already-local" });
     expect(query).toHaveBeenCalledTimes(1);
     expect(fetch).not.toHaveBeenCalled();
+    expect(enqueueThumbnailJobAndNotifyBestEffortMock).not.toHaveBeenCalled();
   });
 
   it("imports when map is empty: download, upload, createFileMetadata, insert map", async () => {
@@ -104,5 +115,11 @@ describe("importBc2FileFromAttachment", () => {
     );
     expect(logRecord).toHaveBeenCalledWith("job-1", "file", "99", "success");
     expect(incrementCounters).toHaveBeenCalledWith("job-1", 1, 0);
+    expect(enqueueThumbnailJobAndNotifyBestEffortMock).toHaveBeenCalledTimes(1);
+    expect(enqueueThumbnailJobAndNotifyBestEffortMock).toHaveBeenCalledWith({
+      projectId: "proj-1",
+      fileRecord: { id: "file-row-1" },
+      requestId: "bc2-job-1-99"
+    });
   });
 });

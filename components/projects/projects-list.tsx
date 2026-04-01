@@ -3,7 +3,12 @@
 import { OneShotButton } from "@/components/one-shot-button";
 import { ProjectsListView } from "@/components/projects/projects-list-view";
 import { ProjectsWorkspaceShell } from "@/components/projects/projects-workspace-shell";
-import { useProjectsWorkspace, type Project, type ProjectColumn } from "@/components/projects/projects-workspace-context";
+import {
+  useProjectsWorkspace,
+  type Project,
+  type ProjectColumn,
+  type ProjectSort
+} from "@/components/projects/projects-workspace-context";
 import { normalizeProjectColumn } from "@/lib/project-utils";
 import { type FocusEvent, type KeyboardEvent, useEffect, useMemo, useRef, useState } from "react";
 
@@ -13,7 +18,6 @@ export function ProjectsList() {
   const {
     domainAllowed,
     activeProjects,
-    clients,
     projectColumns,
     openCreateDialog,
     renderProjectTitle,
@@ -23,6 +27,8 @@ export function ProjectsList() {
     setFilterClientId,
     activeSearch,
     setActiveSearch,
+    projectSort,
+    setProjectSort,
     refreshProjects
   } = useProjectsWorkspace();
 
@@ -103,9 +109,10 @@ export function ProjectsList() {
     setActiveSearch(effectiveSearch);
     void refreshProjects({
       clientId: filterClientId,
-      search: effectiveSearch
+      search: effectiveSearch,
+      sort: projectSort
     });
-  }, [effectiveSearch, filterClientId, refreshProjects, setActiveSearch]);
+  }, [effectiveSearch, filterClientId, projectSort, refreshProjects, setActiveSearch]);
 
   useEffect(() => {
     const onKeyDown = (event: globalThis.KeyboardEvent) => {
@@ -159,10 +166,22 @@ export function ProjectsList() {
 
   const visibleProjects = filteredActiveProjects;
   const visibleClients = new Set(visibleProjects.map((project) => getProjectClientLabel(project))).size;
-  const sortedClients = useMemo(
-    () => clients.slice().sort((a, b) => a.name.localeCompare(b.name)),
-    [clients]
-  );
+
+  const derivedClientOptions = useMemo(() => {
+    const byId = new Map<string, { id: string; label: string }>();
+    for (const project of visibleProjects) {
+      const cid = project.client_id?.trim();
+      if (!cid) continue;
+      if (!byId.has(cid)) {
+        byId.set(cid, { id: cid, label: getProjectClientLabel(project) });
+      }
+    }
+    return [...byId.values()].sort((a, b) => a.label.localeCompare(b.label));
+  }, [visibleProjects, getProjectClientLabel]);
+
+  const derivedClientIds = useMemo(() => new Set(derivedClientOptions.map((o) => o.id)), [derivedClientOptions]);
+
+  const clientFilterDisabled = Boolean(filterClientId && !derivedClientIds.has(filterClientId));
 
   const workbench =
     domainAllowed ? (
@@ -177,13 +196,28 @@ export function ProjectsList() {
                   value={filterClientId ?? ""}
                   onChange={(event) => setFilterClientId(event.target.value || null)}
                   aria-label="Filter projects by client"
+                  disabled={clientFilterDisabled}
                 >
                   <option value="">All clients</option>
-                  {sortedClients.map((client) => (
+                  {derivedClientOptions.map((client) => (
                     <option key={client.id} value={client.id}>
-                      {client.name}
+                      {client.label}
                     </option>
                   ))}
+                </select>
+              </label>
+              <label className="projectsFilterField projectsClientFilterField">
+                <span className="projectsFilterLabel">Sort</span>
+                <select
+                  className="projectsClientSelect"
+                  value={projectSort}
+                  onChange={(event) => setProjectSort(event.target.value as ProjectSort)}
+                  aria-label="Sort projects"
+                  disabled={effectiveSearch.length >= 2}
+                >
+                  <option value="created">Default (newest first)</option>
+                  <option value="title">Title A–Z</option>
+                  <option value="deadline">Deadline soonest</option>
                 </select>
               </label>
               <label className="projectsFilterField projectsSearchShell">

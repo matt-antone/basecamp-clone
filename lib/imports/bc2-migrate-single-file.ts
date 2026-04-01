@@ -1,6 +1,7 @@
 // lib/imports/bc2-migrate-single-file.ts
 
 import type { QueryResultRow } from "pg";
+import { enqueueThumbnailJobAndNotifyBestEffort } from "../thumbnail-enqueue-after-save";
 import { downloadBc2Attachment, type Bc2DownloadEnv } from "./bc2-attachment-download";
 import { parseBc2IsoTimestamptz, type Bc2Attachment } from "./bc2-fetcher";
 import { createFileMetadata } from "../repositories";
@@ -116,6 +117,12 @@ export async function importBc2FileFromAttachment(
         throw new Error(`createFileMetadata returned null for attachment ${attachment.id}`);
       }
       const localFileId = fileRecord.id as string;
+
+      await enqueueThumbnailJobAndNotifyBestEffort({
+        projectId: args.projectLocalId,
+        fileRecord: fileRecord as Record<string, unknown>,
+        requestId: `bc2-${args.jobId}-${attachment.id}`
+      });
 
       try {
         await args.query(

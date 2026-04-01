@@ -24,7 +24,8 @@ describe("ProjectsBoardView", () => {
             client_id: "client-1",
             client_name: "Acme",
             archived: false,
-            status: "complete"
+            status: "complete",
+            created_at: "2025-01-10T08:00:00.000Z"
           },
           {
             id: "project-1",
@@ -35,7 +36,8 @@ describe("ProjectsBoardView", () => {
             client_id: "client-1",
             client_name: "Acme",
             archived: false,
-            status: "complete"
+            status: "complete",
+            created_at: "2025-03-20T08:00:00.000Z"
           }
         ]}
         projectColumns={PROJECT_COLUMNS}
@@ -62,5 +64,7 @@ describe("ProjectsBoardView", () => {
     expect(markup).toContain("projectFlowCardDescription line-clamp-2");
     expect(markup).toContain(">Archive<");
     expect(markup).toContain(">New project<");
+    expect(markup).toContain('class="projectCreatedMeta"');
+    expect(markup).toContain("2025-01-10T08:00:00.000Z");
   });
 });
