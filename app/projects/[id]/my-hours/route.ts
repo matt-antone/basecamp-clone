@@ -1,6 +1,6 @@
 import { requireUser } from "@/lib/auth";
 import { badRequest, notFound, ok, serverError, unauthorized } from "@/lib/http";
-import { getProject, setProjectUserHours } from "@/lib/repositories";
+import { getProject, listProjectUserHours, setProjectUserHours } from "@/lib/repositories";
 import { z } from "zod";
 
 const patchMyHoursSchema = z.object({
@@ -23,8 +23,11 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       hours: payload.hours
     });
 
-    const refreshed = await getProject(id, user.id);
-    return ok({ project: refreshed });
+    const [refreshedProject, userHours] = await Promise.all([
+      getProject(id, user.id),
+      listProjectUserHours(id)
+    ]);
+    return ok({ project: refreshedProject, userHours });
   } catch (error) {
     if (error instanceof Error && /auth|token|workspace/i.test(error.message)) {
       return unauthorized(error.message);

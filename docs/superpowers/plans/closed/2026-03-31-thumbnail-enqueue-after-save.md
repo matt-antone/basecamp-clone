@@ -1,5 +1,7 @@
 # Thumbnail enqueue after file save — Implementation Plan
 
+> **STATUS: CLOSED** (2026-04-01) — Implemented in `lib/thumbnail-worker-notify.ts`, `lib/thumbnail-enqueue-after-save.ts`, `app/projects/[id]/files/[fileId]/thumbnail/route.ts`, `app/projects/[id]/files/upload-complete/route.ts`, and `lib/imports/bc2-migrate-single-file.ts`. Tests: `tests/unit/thumbnail-enqueue-after-save.test.ts`, `tests/unit/upload-complete-route.test.ts`, `tests/unit/bc2-migrate-single-file.test.ts`, `tests/unit/file-thumbnail-route.test.ts`. Task checkboxes below are archival.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** After a file row is persisted (`createFileMetadata`), enqueue a `thumbnail_jobs` row and best-effort notify the thumbnail worker so previews can warm before the first `GET .../thumbnail` request.
@@ -199,7 +201,7 @@ git commit -m "docs: mark thumbnail enqueue-after-save design approved"
 
 ## Plan review
 
-After drafting, run the plan-document reviewer loop from `writing-plans` SKILL (review `docs/superpowers/plans/2026-03-31-thumbnail-enqueue-after-save.md` against `docs/superpowers/specs/2026-03-31-thumbnail-enqueue-after-save-design.md`); fix any issues within three iterations or escalate to the human.
+After drafting, run the plan-document reviewer loop from `writing-plans` SKILL (review `docs/superpowers/plans/closed/2026-03-31-thumbnail-enqueue-after-save.md` against `docs/superpowers/specs/2026-03-31-thumbnail-enqueue-after-save-design.md`); fix any issues within three iterations or escalate to the human.
 
 ---
 

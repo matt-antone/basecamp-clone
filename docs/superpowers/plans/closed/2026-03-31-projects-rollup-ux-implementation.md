@@ -235,7 +235,7 @@ cd basecamp-clone && npm run test
 ## Plan review loop (optional but recommended per @superpowers/writing-plans)
 
 After the plan is approved for execution, run the **plan-document-reviewer** subagent with:
-- Plan: `docs/superpowers/plans/2026-03-31-projects-rollup-ux-implementation.md`
+- Plan: `docs/superpowers/plans/closed/2026-03-31-projects-rollup-ux-implementation.md`
 - Spec: `docs/superpowers/specs/2026-03-31-projects-rollup-ux-design.md`
 
 Fix any ❌ feedback; re-review until ✅.
@@ -244,6 +244,6 @@ Fix any ❌ feedback; re-review until ✅.
 
 ## Execution handoff
 
-**Plan complete and saved to** `basecamp-clone/docs/superpowers/plans/2026-03-31-projects-rollup-ux-implementation.md`.
+**Plan complete and saved to** `basecamp-clone/docs/superpowers/plans/closed/2026-03-31-projects-rollup-ux-implementation.md`.
 
 **Closed:** Executed with subagent-driven development (phases A–F). Optional follow-up: run orphan `project_files` SQL from Phase E in Supabase when validating data quality; merge or tag as needed for release.

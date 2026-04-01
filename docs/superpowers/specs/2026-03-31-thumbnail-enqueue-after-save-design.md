@@ -3,7 +3,9 @@
 **Date:** 2026-03-31  
 **Status:** Approved
 
-**Related code:** `app/projects/[id]/files/upload-complete/route.ts`, `lib/imports/bc2-migrate-single-file.ts`, `app/projects/[id]/files/[fileId]/thumbnail/route.ts` (`notifyWorkerBestEffort`), `lib/repositories.ts` (`upsertThumbnailJob`, `createFileMetadata`).
+**Related code:** `lib/thumbnail-worker-notify.ts` (`notifyThumbnailWorkerBestEffort`), `lib/thumbnail-enqueue-after-save.ts` (`enqueueThumbnailJobAndNotifyBestEffort`), `app/projects/[id]/files/upload-complete/route.ts`, `lib/imports/bc2-migrate-single-file.ts`, `app/projects/[id]/files/[fileId]/thumbnail/route.ts`, `lib/repositories.ts` (`upsertThumbnailJob`, `createFileMetadata`).
+
+**Implementation plan (closed):** `docs/superpowers/plans/closed/2026-03-31-thumbnail-enqueue-after-save.md`
 
 **Companion spec (separate concern):** [Nightly BC2 sync (transition)](./2026-03-31-transition-nightly-bc2-sync-design.md).
 
@@ -71,6 +73,6 @@ Today **`thumbnail_jobs`** rows are created when **`GET .../files/[fileId]/thumb
 
 ## 9. Approval
 
-- [ ] Thumbnail enqueue behavior approved (best-effort, no hard dependency on worker).
+- [x] Thumbnail enqueue behavior approved (best-effort, no hard dependency on worker).
 
-After approval, update **Status** to **Approved** and add an implementation plan under `docs/superpowers/plans/` (e.g. `2026-03-31-thumbnail-enqueue-after-save.md`).
+Implementation plan archived at `docs/superpowers/plans/closed/2026-03-31-thumbnail-enqueue-after-save.md`.

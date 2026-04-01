@@ -307,6 +307,7 @@ function ProjectPageContent({ projectId, initial }: { projectId: string; initial
         })
       });
       setProject((data?.project ?? null) as Project | null);
+      setUserHours(((data?.userHours ?? []) as ProjectUserHoursEntry[]));
       setStatus("My hours saved");
     } finally {
       setIsSavingMyHours(false);

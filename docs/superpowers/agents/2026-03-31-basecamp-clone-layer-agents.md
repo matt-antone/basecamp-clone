@@ -111,7 +111,7 @@ Run **1 → 7** in sequence unless the active plan explicitly documents a depend
 
 ## Related plans and specs
 
-- Import pipeline plan: `docs/superpowers/plans/2026-03-29-bc2-migration.md`
+- Import pipeline plan: `docs/superpowers/plans/closed/2026-03-29-bc2-migration.md`
 - Original design: `docs/superpowers/specs/2026-03-27-bc2-migration-design.md`
 
 ---

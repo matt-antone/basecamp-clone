@@ -412,7 +412,7 @@ git commit -m "feat(settings): client add/edit dialog with name-only PATCH"
 
 ## Execution handoff
 
-**Plan complete and saved to** `docs/superpowers/plans/2026-03-31-editable-clients-settings.md`.
+**Plan complete and saved to** `docs/superpowers/plans/closed/2026-03-31-editable-clients-settings.md`.
 
 **Two execution options:**
 

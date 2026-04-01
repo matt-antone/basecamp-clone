@@ -30,7 +30,7 @@
 | `app/styles.css` (or relevant) | Denser `.projectFlowCard` / board column spacing |
 | `app/theme-toggle.tsx` → `app/header.tsx` | Rename file; default export `SiteHeader`; remove stats API/state/UI; keep `projectsNavHighlight` |
 | `app/layout.tsx` | Import `./header` |
-| `docs/superpowers/plans/2026-03-31-projects-workspace-routes.md` | Update references `theme-toggle` → `header` (historical accuracy) |
+| `docs/superpowers/plans/closed/2026-03-31-projects-workspace-routes.md` | Update references `theme-toggle` → `header` (historical accuracy) |
 | `tests/unit/projects-route.test.ts` (or new) | `GET` `clientId`, `search`, combined, `400` |
 | `tests/unit/projects-board-view.test.tsx` | Sort + clamp if testable |
 | `tests/unit/*repositories*` | Add only if repo tests exist for SQL helpers |
@@ -209,7 +209,7 @@
 **Files:**
 - Rename/move: `app/theme-toggle.tsx` → `app/header.tsx`
 - Modify: `app/layout.tsx`
-- Modify: `docs/superpowers/plans/2026-03-31-projects-workspace-routes.md` (replace `theme-toggle` references with `header`)
+- Modify: `docs/superpowers/plans/closed/2026-03-31-projects-workspace-routes.md` (replace `theme-toggle` references with `header`)
 - Modify: `docs/superpowers/specs/2026-03-31-projects-workspace-ux-search-design.md` only if paths in spec still say old filename post-implementation (optional)
 
 - [ ] **Step 1:** Remove **`projectStats`** state, fetch, and UI from component.

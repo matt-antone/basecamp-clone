@@ -1,5 +1,7 @@
 # BC2 comment attachment migration — implementation plan
 
+> **STATUS: CLOSED** (2026-03-31) — `lib/imports/bc2-attachment-download.ts`, `bc2-migrate-single-file.ts`, and comment-phase attachment import in `scripts/migrate-bc2.ts` are in-repo. Plan checkboxes below were left stale; treat this file as archival. Do not dispatch new work without a new plan.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** When `migrate-bc2.ts` runs with `--files`, import Basecamp 2 attachments that appear on **discussion comments** into `project_files` with `thread_id` and `comment_id` set, using the same `basecamp_file_id` idempotency as the existing project-wide file phase so each BC2 attachment yields **at most one** local row.
@@ -334,7 +336,7 @@ git add README.md && git commit -m "docs: note BC2 comment attachment import wit
 
 ## Execution handoff
 
-**Plan complete and saved to** `basecamp-clone/docs/superpowers/plans/2026-03-31-bc2-comment-attachments-migration.md`.
+**Plan complete and saved to** `basecamp-clone/docs/superpowers/plans/closed/2026-03-31-bc2-comment-attachments-migration.md`.
 
 **Two execution options:**
 

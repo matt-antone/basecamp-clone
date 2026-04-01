@@ -151,7 +151,7 @@ Expected: all pass.
 
 ## Execution handoff
 
-Plan saved to `docs/superpowers/plans/2026-03-31-projects-workspace-routes.md`.
+Plan saved to `docs/superpowers/plans/closed/2026-03-31-projects-workspace-routes.md`.
 
 **1. Subagent-Driven (recommended)** — one subagent per task; review between tasks.
 
