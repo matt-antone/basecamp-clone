@@ -32,7 +32,7 @@ This spec bundles several UX and data behaviors agreed in brainstorm (2026-04-02
 | Billing tab badge | **Raw** count (no `9+` cap). |
 | Archived client: mutations | **Hard lock**: no new **projects**, **discussions**, **comments**, or **files** while client is archived. Restore requires **un-archive** (or equivalent) first. |
 | Dropbox archived root | **`DROPBOX_ARCHIVED_CLIENTS_ROOT`** — env already added to `.env.example` / `.env.local` (user-configured path under the team space). |
-| Archive / restore **status UX** | **HTTP polling only** — **2 s** interval while move is non-terminal; **no** SSE or Supabase Realtime for this feature in v1 (see § Locked transport). |
+| Archive / restore **status UX** | **HTTP polling only** — **2 s** interval while move is non-terminal; **no** SSE or Supabase Realtime for this feature in v1 (see § Locked transport). **Confirmed by product:** polling over Realtime (2026-04-02). |
 
 ---
 
@@ -191,20 +191,32 @@ The user must **see ongoing feedback** for the whole time the **folder move** (a
 | Requirement | Detail |
 |-------------|--------|
 | **Visible state** | After the user confirms, the UI enters a dedicated **“transfer in progress”** state for **that client** (not a silent background action). |
-| **Updates while waiting** | **Locked transport — HTTP polling only** (see § below). **Do not** use SSE or Supabase Realtime for archive status in this release unless the spec is revised. |
-
-#### Locked transport — HTTP polling (normative)
-
-- **Mechanism:** The browser (or client) **polls** an authenticated **GET** that includes `dropbox_archive_status` (or equivalent), `archived_at`, and `archive_error` / phase fields for the affected **client** — e.g. `GET /clients` (if the list payload includes those columns) or **`GET /clients/:id`** if a single-client endpoint is added.
-- **Interval:** **2 seconds** between requests while status is **non-terminal** (`pending`, `in_progress`, or any state that is not `completed`, `failed`, or `idle` after a terminal outcome — exact enum in implementation).
-- **Stop condition:** Stop polling when the move reaches a **terminal** state (`completed` or `failed`), the user leaves the page **and** there is no in-flight transfer (optional: keep a single global poll only if product requires cross-tab sync; default: poll only on the clients/settings view where archive was started).
-- **Backoff:** Optional: increase interval to **5 s** after **2 minutes** elapsed to reduce load; not required for v1.
-- **Rationale:** One clear pattern, no Realtime publication/RLS tuning for this feature; fits existing `authedFetch` / route handlers.
+| **Updates while waiting** | **HTTP polling** — normative rules in **§ Locked transport** below. **Do not** use SSE or Supabase Realtime for archive status in v1. |
 | **Indeterminate progress** | Show a **spinner or progress bar in indeterminate mode** plus **status text** that changes at least when phase changes: e.g. Queued → Moving folder in Dropbox → Finalizing. If only one Dropbox phase exists, still **pulse / animate** and show **elapsed time** or **last updated** so the screen does not look frozen. |
 | **Copy** | Explain that **large design files can take several minutes**; avoid implying an instant operation. |
 | **Persistence** | If the user **navigates away**, returning to **Settings / clients** (or wherever archive was started) must still show **Archiving…** / **Restoring…** for that row until terminal. Optional: **toast** when complete if they navigated away. |
 | **Failure** | Clear **inline error** on the client row + **Retry** (re-invokes move) without duplicating work when safe (idempotent retry). |
 | **Un-archive** | Same UX pattern when moving back to the active root. |
+
+#### Locked transport — HTTP polling (normative)
+
+**Product decision:** **Polling** is the chosen transport for archive/restore status (confirmed 2026-04-02). Supabase Realtime is **out of scope** for this feature unless the spec is revised.
+
+- **Mechanism:** The browser (or client) **polls** an authenticated **GET** that includes `dropbox_archive_status` (or equivalent), `archived_at`, and `archive_error` / phase fields for the affected **client** — e.g. `GET /clients` (if the list payload includes those columns) or **`GET /clients/:id`** if a single-client endpoint is added.
+- **Interval:** **2 seconds** between requests while status is **non-terminal** (`pending`, `in_progress`, or any state that is not `completed`, `failed`, or `idle` after a terminal outcome — exact enum in implementation).
+- **Stop condition:** Stop polling when the move reaches a **terminal** state (`completed` or `failed`), the user leaves the page **and** there is no in-flight transfer (optional: keep a single global poll only if product requires cross-tab sync; default: poll only on the clients/settings view where archive was started).
+- **Backoff:** Optional: increase interval to **5 s** after **2 minutes** elapsed to reduce load; not required for v1.
+- **Rationale:** Fits existing `authedFetch` / route handlers; no Realtime publication or extra RLS tuning for this feature. Status changes during a Dropbox move are **low frequency**, so up to ~2 s staleness is acceptable.
+
+#### Polling vs Supabase Realtime (reference — not in scope for v1)
+
+| | **HTTP polling (chosen)** | **Supabase Realtime** |
+|--|---------------------------|-------------------------|
+| **Update path** | Repeated **GET** on an interval | **Push** on row `UPDATE` after commit |
+| **Typical latency** | Up to ~one interval (e.g. 2 s) after DB change | Usually sub-second |
+| **Load** | Steady read QPS while watching | Long-lived connection; few HTTP reads |
+| **Implementation** | Same as rest of app | Browser Supabase client, table in Realtime publication, RLS, subscribe lifecycle |
+| **When to reconsider** | If many users/tabs poll heavily, or UX needs instant updates | Future revision only |
 
 ### Enforcement (server-side required)
 
@@ -279,3 +291,4 @@ Reject with **4xx** and clear message when `client.archived_at IS NOT NULL` (or 
 | 2026-04-02 | Review | Added Dropbox **large-folder / long move** concern: two-phase archive, status fields, mutation lock during move, timeout risk. |
 | 2026-04-02 | Review | Required **UX during transfer**: polling/push, indeterminate progress, copy, persistence across navigation, failure + retry; same for un-archive. |
 | 2026-04-02 | Review | **Locked transport:** HTTP polling **2 s** for archive status; SSE/Realtime out of scope for this feature unless spec revised. |
+| 2026-04-02 | Product | **Confirmed polling** over Realtime; fixed broken table; added comparison table (reference). |
