@@ -238,5 +238,5 @@ export function ProjectsBoard() {
     />
   ) : null;
 
-  return <ProjectsWorkspaceShell workbench={workbench} viewport={viewport} />;
+  return <ProjectsWorkspaceShell showHero={false} workbench={workbench} viewport={viewport} />;
 }

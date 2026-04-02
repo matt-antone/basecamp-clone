@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 import Link from "next/link";
 import { type CSSProperties, type DragEvent, type ReactNode } from "react";
 import { OneShotButton } from "@/components/one-shot-button";
@@ -9,6 +9,8 @@ import {
   normalizeProjectColumn,
   type ProjectColumn
 } from "@/lib/project-utils";
+
+const COMPARISON_WINDOW_MS = 30 * 24 * 60 * 60 * 1000;
 
 type ProjectColumnDefinition = {
   key: ProjectColumn;
@@ -69,6 +71,12 @@ export function ProjectsBoardView(props: ProjectsBoardViewProps) {
     onOpenCreateDialog
   } = props;
 
+  const [now, setNow] = React.useState<Date | null>(null);
+
+  useEffect(() => {
+    setNow(new Date())
+  }, []);
+
   return (
     <>
       <div className="projectsHeader">
@@ -107,69 +115,76 @@ export function ProjectsBoardView(props: ProjectsBoardViewProps) {
                 {columnProjects.map((project) => {
                   const createdLabel = formatProjectCreatedAtLocal(project.created_at);
                   const createdRaw = project.created_at?.trim();
+                  const createdTime = createdRaw ? new Date(createdRaw).getTime() : NaN;
+                  const showCreatedYikes =
+                    now != null &&
+                    Number.isFinite(createdTime) &&
+                    now.getTime() - createdTime > COMPARISON_WINDOW_MS;
                   const deadlineLabel = formatProjectDeadlineLocal(project.deadline);
                   const deadlineRaw = project.deadline?.trim();
                   return (
-                  <li
-                    key={project.id}
-                    className={`projectFlowCard ${draggingProjectId === project.id ? "projectFlowCardDragging" : ""} ${justMovedProjectId === project.id ? "projectFlowCardSettled" : ""}`}
-                    style={{ viewTransitionName: `project-${project.id}` } as CSSProperties}
-                    draggable
-                    onDragStart={(event) => onCardDragStart(event, project.id)}
-                    onDragEnd={onCardDragEnd}
-                  >
-                    <div className="projectMain projectFlowCardBody">
-                      <div className="projectTitleRow">
-                        <Link
-                          href={`/${project.id}`}
-                          className={`projectLink projectTitle projectFlowCardTitle tone-${normalizeProjectColumn(project)}`}
-                        >
-                          {renderProjectTitle(project.display_name ?? project.name)}
-                        </Link>
-                        {createdLabel && createdRaw ? (
-                          <time className="projectCreatedMeta" dateTime={createdRaw}>
-                            · {createdLabel}
-                          </time>
+                    <li
+                      key={project.id}
+                      className={`projectFlowCard ${draggingProjectId === project.id ? "projectFlowCardDragging" : ""} ${justMovedProjectId === project.id ? "projectFlowCardSettled" : ""}`}
+                      style={{ viewTransitionName: `project-${project.id}` } as CSSProperties}
+                      draggable
+                      onDragStart={(event) => onCardDragStart(event, project.id)}
+                      onDragEnd={onCardDragEnd}
+                    >
+                      <div className="projectMain projectFlowCardBody">
+                        <div className="projectTitleRow">
+                          <Link
+                            href={`/${project.id}`}
+                            className={`projectLink projectTitle projectFlowCardTitle tone-${normalizeProjectColumn(project)}`}
+                          >
+                            {renderProjectTitle(project.display_name ?? project.name)}
+                          </Link>
+                        </div>
+                        <div className="projectMetaRow">
+                          {createdLabel && createdRaw ? (
+                            <time className="projectCreatedMeta" dateTime={createdRaw}>
+                              <span className="projectCreatedYikes">{showCreatedYikes ? `🔴` : `🟢`}</span> Created: {createdLabel}
+                            </time>
+                          ) : null}
+                          {deadlineLabel && deadlineRaw ? (
+                            <time className="projectDeadlineMeta" dateTime={deadlineRaw}>
+                              Due: {deadlineLabel}
+                            </time>
+                          ) : null}
+                        </div>
+                        {project.pm_note?.trim() ? (
+                          <p className="projectPmNote" title={project.pm_note.trim()}>
+                            {project.pm_note.trim()}
+                          </p>
                         ) : null}
-                        {deadlineLabel && deadlineRaw ? (
-                          <time className="projectDeadlineMeta" dateTime={deadlineRaw}>
-                            · Due {deadlineLabel}
-                          </time>
-                        ) : null}
-                      </div>
-                      {project.pm_note?.trim() ? (
-                        <p className="projectPmNote" title={project.pm_note.trim()}>
-                          {project.pm_note.trim()}
+                        <p className="projectDescription projectFlowCardDescription line-clamp-2">
+                          {project.description?.trim() || "No description provided."}
                         </p>
-                      ) : null}
-                      <p className="projectDescription projectFlowCardDescription line-clamp-2">
-                        {project.description?.trim() || "No description provided."}
-                      </p>
-                      <ProjectTagList tags={project.tags} className="projectTagListCompact" />
-                    </div>
-                    <div className="projectFlowCardFoot">
-                      <div className="projectFlowCardActions">
-                        {column.title === "Complete" && (
-                          <>
-                            <OneShotButton
-                              type="button"
-                              className="projectPrimaryButton projectActionButton"
-                              onClick={() => onSendToBilling(project)}
-                            >
-                              Send to billing
-                            </OneShotButton>
-                            <OneShotButton
-                              type="button"
-                              className="projectActionButton"
-                              onClick={() => onArchiveProject(project)}
-                            >
-                              Archive now
-                            </OneShotButton>
-                          </>
-                        )}
+                        <ProjectTagList tags={project.tags} className="projectTagListCompact" />
                       </div>
-                    </div>
-                  </li>
+                      <div className="projectFlowCardFoot">
+                        <div className="projectFlowCardActions">
+                          {column.title === "Complete" && (
+                            <>
+                              <OneShotButton
+                                type="button"
+                                className="projectPrimaryButton projectActionButton"
+                                onClick={() => onSendToBilling(project)}
+                              >
+                                Send to billing
+                              </OneShotButton>
+                              <OneShotButton
+                                type="button"
+                                className="projectActionButton"
+                                onClick={() => onArchiveProject(project)}
+                              >
+                                Archive now
+                              </OneShotButton>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    </li>
                   );
                 })}
               </ul>
