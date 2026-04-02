@@ -1,9 +1,11 @@
-import { badRequest, ok, serverError } from "@/lib/http";
+import { requireUser } from "@/lib/auth";
+import { badRequest, ok, serverError, unauthorized } from "@/lib/http";
 import { listArchivedProjectsPaginated } from "@/lib/repositories";
 import { z } from "zod";
 
 export async function GET(request: Request) {
   try {
+    await requireUser(request);
     const url = new URL(request.url);
     const search = url.searchParams.get("search") ?? "";
     const status = url.searchParams.get("status") ?? "all";
@@ -27,6 +29,9 @@ export async function GET(request: Request) {
     console.error("archived_projects_fetch_failed", {
       error: error instanceof Error ? error.message : String(error)
     });
+    if (error instanceof Error && /auth|token|workspace/i.test(error.message)) {
+      return unauthorized(error.message);
+    }
     return serverError();
   }
 }

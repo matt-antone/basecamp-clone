@@ -21,6 +21,7 @@ describe("/site-settings route", () => {
   });
 
   it("returns normalized site settings from GET", async () => {
+    requireUserMock.mockResolvedValue({ id: "user-1", email: "person@example.com" });
     getSiteSettingsMock.mockResolvedValue({
       siteTitle: "Campfire HQ",
       logoUrl: "/logo.svg",
@@ -28,7 +29,7 @@ describe("/site-settings route", () => {
     });
 
     const { GET } = await import("@/app/site-settings/route");
-    const response = await GET();
+    const response = await GET(new Request("http://localhost/site-settings"));
 
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toEqual({
@@ -38,6 +39,16 @@ describe("/site-settings route", () => {
         defaultHourlyRateUsd: 175.5
       }
     });
+  });
+
+  it("returns 401 from GET when auth fails", async () => {
+    requireUserMock.mockRejectedValue(new Error("auth required"));
+
+    const { GET } = await import("@/app/site-settings/route");
+    const response = await GET(new Request("http://localhost/site-settings"));
+
+    expect(response.status).toBe(401);
+    expect(getSiteSettingsMock).not.toHaveBeenCalled();
   });
 
   it("trims and persists site settings from PATCH", async () => {

@@ -123,7 +123,19 @@ describe("POST /projects", () => {
 
 describe("GET /projects", () => {
   beforeEach(() => {
+    requireUserMock.mockReset();
+    requireUserMock.mockResolvedValue({ id: "user-1", email: "person@example.com" });
     listProjectsMock.mockReset();
+  });
+
+  it("returns 401 when auth fails", async () => {
+    requireUserMock.mockRejectedValue(new Error("auth missing"));
+
+    const { GET } = await import("@/app/projects/route");
+    const response = await GET(new Request("http://localhost/projects"));
+
+    expect(response.status).toBe(401);
+    expect(listProjectsMock).not.toHaveBeenCalled();
   });
 
   it("parses clientId and search and calls listProjects with expected options", async () => {

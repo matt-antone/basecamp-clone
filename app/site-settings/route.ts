@@ -19,8 +19,9 @@ function normalizeHourlyRateForResponse(value: number | string | null | undefine
   return Number.isFinite(parsed) ? parsed : DEFAULT_HOURLY_RATE_USD;
 }
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
+    await requireUser(request);
     const siteSettings = await getSiteSettings();
     return ok({
       siteSettings: {
@@ -29,7 +30,10 @@ export async function GET() {
         defaultHourlyRateUsd: normalizeHourlyRateForResponse(siteSettings?.defaultHourlyRateUsd)
       }
     });
-  } catch {
+  } catch (error) {
+    if (error instanceof Error && /auth|token|workspace/i.test(error.message)) {
+      return unauthorized(error.message);
+    }
     return serverError();
   }
 }

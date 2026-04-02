@@ -16,6 +16,7 @@ const createProjectSchema = z.object({
 
 export async function GET(request: Request) {
   try {
+    await requireUser(request);
     const url = new URL(request.url);
     const includeArchived = url.searchParams.get("includeArchived") !== "false";
 

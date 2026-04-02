@@ -4,6 +4,7 @@ import { buildAppRedirectUrl, buildGoogleCallbackUrl } from "@/lib/server-auth";
 
 const originalNextPublicSiteUrl = process.env.NEXT_PUBLIC_SITE_URL;
 const originalUrl = process.env.URL;
+const originalNodeEnv = process.env.NODE_ENV;
 
 afterEach(() => {
   if (typeof originalNextPublicSiteUrl === "string") {
@@ -17,12 +18,19 @@ afterEach(() => {
   } else {
     delete process.env.URL;
   }
+
+  if (typeof originalNodeEnv === "string") {
+    process.env.NODE_ENV = originalNodeEnv;
+  } else {
+    delete process.env.NODE_ENV;
+  }
 });
 
 describe("server auth origin resolution", () => {
-  it("prefers forwarded host headers over the internal request url", () => {
+  it("uses request.url origin in non-production when site url is not configured", () => {
     delete process.env.NEXT_PUBLIC_SITE_URL;
     delete process.env.URL;
+    process.env.NODE_ENV = "test";
 
     const request = new NextRequest("http://localhost:3000/auth/google/callback?code=abc", {
       headers: {
@@ -32,11 +40,12 @@ describe("server auth origin resolution", () => {
       }
     });
 
-    expect(buildAppRedirectUrl(request).toString()).toBe("https://projects.example.test/");
-    expect(buildGoogleCallbackUrl(request)).toBe("https://projects.example.test/auth/google/callback");
+    expect(buildAppRedirectUrl(request).toString()).toBe("http://localhost:3000/");
+    expect(buildGoogleCallbackUrl(request)).toBe("http://localhost:3000/auth/google/callback");
   });
 
   it("prefers the configured site url when present", () => {
+    process.env.NODE_ENV = "production";
     process.env.NEXT_PUBLIC_SITE_URL = "https://app.example.test";
 
     const request = new NextRequest("http://localhost:3000/auth/google/callback?code=abc", {
@@ -48,5 +57,16 @@ describe("server auth origin resolution", () => {
 
     expect(buildAppRedirectUrl(request).toString()).toBe("https://app.example.test/");
     expect(buildGoogleCallbackUrl(request)).toBe("https://app.example.test/auth/google/callback");
+  });
+
+  it("fails closed in production when site url is missing", () => {
+    delete process.env.NEXT_PUBLIC_SITE_URL;
+    delete process.env.URL;
+    process.env.NODE_ENV = "production";
+
+    const request = new NextRequest("http://localhost:3000/auth/google/callback?code=abc");
+
+    expect(() => buildAppRedirectUrl(request)).toThrow("Missing required site URL for auth redirects");
+    expect(() => buildGoogleCallbackUrl(request)).toThrow("Missing required site URL for auth redirects");
   });
 });
