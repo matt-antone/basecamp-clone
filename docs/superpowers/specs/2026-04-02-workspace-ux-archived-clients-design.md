@@ -183,6 +183,20 @@ Both must be validated when performing a move (non-empty, normalize paths per ex
 - **Settings or clients table UI:** **Archive client** / **Restore client** actions (confirm destructive-sounding archive).
 - List views: filter archived clients from pickers (create project, etc.).
 
+### UX during Dropbox transfer (required)
+
+The user must **see ongoing feedback** for the whole time the **folder move** (archive or restore) may take — not only a success toast at the end. Dropbox **`move_v2`** does not expose per-file or byte-level progress; the UI should still **update continuously** in a way that feels responsive.
+
+| Requirement | Detail |
+|-------------|--------|
+| **Visible state** | After the user confirms, the UI enters a dedicated **“transfer in progress”** state for **that client** (not a silent background action). |
+| **Updates while waiting** | Use **short-interval polling** of client archive status (`GET /clients/:id` or list endpoint including status), **SSE**, or **Supabase Realtime** on the `clients` row — pick one in implementation; the client must **refresh** until status is terminal (`completed` / `failed`). |
+| **Indeterminate progress** | Show a **spinner or progress bar in indeterminate mode** plus **status text** that changes at least when phase changes: e.g. Queued → Moving folder in Dropbox → Finalizing. If only one Dropbox phase exists, still **pulse / animate** and show **elapsed time** or **last updated** so the screen does not look frozen. |
+| **Copy** | Explain that **large design files can take several minutes**; avoid implying an instant operation. |
+| **Persistence** | If the user **navigates away**, returning to **Settings / clients** (or wherever archive was started) must still show **Archiving…** / **Restoring…** for that row until terminal. Optional: **toast** when complete if they navigated away. |
+| **Failure** | Clear **inline error** on the client row + **Retry** (re-invokes move) without duplicating work when safe (idempotent retry). |
+| **Un-archive** | Same UX pattern when moving back to the active root. |
+
 ### Enforcement (server-side required)
 
 Reject with **4xx** and clear message when `client.archived_at IS NOT NULL` (or equivalent) for:
@@ -200,7 +214,7 @@ Reject with **4xx** and clear message when `client.archived_at IS NOT NULL` (or 
 
 - Cannot create project for archived client via API or UI.
 - Cannot add discussion, comment, or file for projects under archived client **or** while that client’s archive move is **pending / in progress** (see § Enforcement during in-progress archive).
-- Archive UX does not assume the Dropbox move finishes inside a single short HTTP request; user sees **explicit progress or status** (queued / running / failed / done).
+- Archive UX does not assume the Dropbox move finishes inside a single short HTTP request; the user sees **live-updating status** for the full transfer (see § **UX during Dropbox transfer**): polling or push, indeterminate progress + copy, survives navigation, failure + retry.
 - When complete, Dropbox folder for that client lives under configured archived root; stored paths remain consistent or are explicitly updated.
 
 ---
@@ -220,6 +234,7 @@ Reject with **4xx** and clear message when `client.archived_at IS NOT NULL` (or 
 - Unit or integration: API rejects mutations for archived client (representative routes).
 - Repository filter: billing count for header badge matches billing list.
 - Optional: Dropbox adapter move/rename mocked in tests for archive/un-archive.
+- UI: client row or archive flow reflects **in-progress** and **terminal** states when status is polled (or component test with mocked API sequence).
 
 ---
 
@@ -253,3 +268,4 @@ Reject with **4xx** and clear message when `client.archived_at IS NOT NULL` (or 
 |------|--------|-------|
 | 2026-04-02 | Spec from brainstorm | Initial draft |
 | 2026-04-02 | Review | Added Dropbox **large-folder / long move** concern: two-phase archive, status fields, mutation lock during move, timeout risk. |
+| 2026-04-02 | Review | Required **UX during transfer**: polling/push, indeterminate progress, copy, persistence across navigation, failure + retry; same for un-archive. |
