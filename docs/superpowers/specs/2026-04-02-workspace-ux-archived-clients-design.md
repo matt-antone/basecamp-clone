@@ -154,13 +154,29 @@ Both must be validated when performing a move (non-empty, normalize paths per ex
 ### Data model
 
 - Add **`clients.archived_at`** `timestamptz` **null** (null = active) **or** `boolean archived` — **prefer `archived_at`** for audit and “when was this archived.”
+- **Archive lifecycle (recommended):** Large client folders (design sources, many projects) make a naïve “await Dropbox in one HTTP request” risky: **gateway timeouts**, **function max duration**, and **blocked UI** while the move runs. Prefer explicit state beyond a single timestamp:
+  - **`clients.dropbox_archive_status`** `text` (or enum) — e.g. `idle` \| `pending` \| `in_progress` \| `completed` \| `failed` (exact names TBD in implementation), **or**
+  - **`clients.archived_at`** set only when **both** DB rules and Dropbox move are satisfied, plus **`clients.archive_started_at`** / **`archive_error`** for in-flight and failure.
 - Migration + RLS: follow existing `clients` policies; archived clients still **readable** for historical projects (list filters may hide by default).
 
 ### Dropbox behavior
 
-- On **archive**: move the client’s folder from under the active projects root to under `DROPBOX_ARCHIVED_CLIENTS_ROOT`, preserving folder naming conventions used at client creation (document exact path join in implementation).
+- On **archive**: move the **client** folder tree from under the active projects root to under `DROPBOX_ARCHIVED_CLIENTS_ROOT`, preserving folder naming conventions used at client creation (document exact path join in implementation). Implementation today uses **`files/move_v2`** (`moveProjectFolder` in `lib/storage/dropbox-adapter.ts`) — **one API call** for the whole tree, but **response latency grows** with tree size and Dropbox load; treat as **possibly long-running** from the app’s perspective.
 - On **un-archive**: reverse move back under active root (must fail clearly if path collision or Dropbox error).
-- Idempotency and partial failures: if DB update succeeds but Dropbox fails, define **rollback** or **reconcilable error** state (avoid orphaned DB “archived” without moved folder).
+- **Duration and timeouts (resolved concern):**
+  - **Do not** rely on a single synchronous request that must complete before the user gets any response, if folders can be **very large** — risk of **504 / function timeout** and poor UX.
+  - **Preferred v1 pattern:** **Two-phase flow**
+    1. User confirms archive → persist **`pending` / `in_progress`** (and optionally set **`archived_at` only after success** — see enforcement below).
+    2. Run the Dropbox move in a context that tolerates long work: **background job** (queue/cron), **`waitUntil`** / async continuation on Vercel Fluid Compute, or **dedicated long-timeout route** — exact mechanism follows platform limits (document in implementation plan).
+    3. On success: set **`completed`**, set **`archived_at`**, refresh any stored **Dropbox paths** for projects/files under that client if the app keeps absolute paths (path rewrite or re-query metadata — **must** be specified when implementing).
+    4. On failure: **`failed`**, surface error, allow **retry**; do **not** leave “half archived” without operator visibility.
+  - **Simpler fallback (small workspaces only):** synchronous move in the request if product accepts **max folder size** or ops confirms moves finish under **P95** function time; still return **202 + poll** if approaching limits.
+- Idempotency and partial failures: if DB marks archived but Dropbox fails (or inverse), define **reconcilable error** state and **manual retry** — avoid silent drift between DB and Dropbox.
+
+### Enforcement during in-progress archive
+
+- While **`dropbox_archive_status`** is **`pending` or `in_progress`** (or equivalent), apply the **same mutation blocks** as for fully archived clients: **no new** projects, discussions, comments, or uploads — prevents new content being written under paths that are mid-move.
+- **Reads** may stay allowed **only if** paths in DB still resolve during move (if not, show “Archive in progress” and read-only messaging — product may tighten this in implementation once path behavior is clear).
 
 ### API / UI
 
@@ -183,8 +199,9 @@ Reject with **4xx** and clear message when `client.archived_at IS NOT NULL` (or 
 ### Acceptance
 
 - Cannot create project for archived client via API or UI.
-- Cannot add discussion, comment, or file for projects under archived client.
-- Dropbox folder path after archive lives under configured archived root.
+- Cannot add discussion, comment, or file for projects under archived client **or** while that client’s archive move is **pending / in progress** (see § Enforcement during in-progress archive).
+- Archive UX does not assume the Dropbox move finishes inside a single short HTTP request; user sees **explicit progress or status** (queued / running / failed / done).
+- When complete, Dropbox folder for that client lives under configured archived root; stored paths remain consistent or are explicitly updated.
 
 ---
 
@@ -223,7 +240,10 @@ Reject with **4xx** and clear message when `client.archived_at IS NOT NULL` (or 
 
 ## Open questions
 
-_None — superseded by 2026-04-02 brainstorm and user confirmations._
+| Topic | Question |
+|-------|----------|
+| Background execution | Confirm platform choice for long moves: **Vercel `waitUntil` + Fluid**, **queued job + cron**, or **manual “retry move”** only — pick in implementation plan. |
+| Path updates | After `move_v2`, batch-update `dropbox_path` / project dir columns vs lazy refresh — depends on how many rows reference absolute paths today. |
 
 ---
 
@@ -232,3 +252,4 @@ _None — superseded by 2026-04-02 brainstorm and user confirmations._
 | Date | Author | Notes |
 |------|--------|-------|
 | 2026-04-02 | Spec from brainstorm | Initial draft |
+| 2026-04-02 | Review | Added Dropbox **large-folder / long move** concern: two-phase archive, status fields, mutation lock during move, timeout risk. |
