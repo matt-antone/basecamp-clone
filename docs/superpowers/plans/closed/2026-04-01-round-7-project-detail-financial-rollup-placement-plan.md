@@ -2,7 +2,7 @@
 
 **Status:** Done  
 **Closed:** 2026-04-01 — Financial Rollup moved below Discussions and `ProjectFilesPanel` in `app/[id]/page.tsx`; `npm run test` passed.
-**Spec:** [2026-04-01-round-7-project-detail-financial-rollup-placement-design.md](../specs/2026-04-01-round-7-project-detail-financial-rollup-placement-design.md)
+**Spec:** [2026-04-01-round-7-project-detail-financial-rollup-placement-design.md](../../specs/2026-04-01-round-7-project-detail-financial-rollup-placement-design.md)
 
 ---
 

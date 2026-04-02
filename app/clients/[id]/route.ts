@@ -1,6 +1,6 @@
 import { requireUser } from "@/lib/auth";
 import { badRequest, notFound, ok, serverError, unauthorized } from "@/lib/http";
-import { updateClientName } from "@/lib/repositories";
+import { getClientById, updateClientName } from "@/lib/repositories";
 import { z } from "zod";
 
 const patchClientSchema = z.object({
@@ -23,6 +23,23 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     }
     if (error instanceof z.ZodError) {
       return badRequest(error.message);
+    }
+    return serverError();
+  }
+}
+
+export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  try {
+    await requireUser(request);
+    const { id } = await params;
+    const client = await getClientById(id);
+    if (!client) {
+      return notFound("Client not found");
+    }
+    return ok({ client });
+  } catch (error) {
+    if (error instanceof Error && /auth|token|workspace/i.test(error.message)) {
+      return unauthorized(error.message);
     }
     return serverError();
   }

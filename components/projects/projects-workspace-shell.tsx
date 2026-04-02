@@ -22,10 +22,13 @@ function formatFeedDate(value: string | null) {
 
 export function ProjectsWorkspaceShell({
   workbench,
-  viewport
+  viewport,
+  showHero = true
 }: {
   workbench?: ReactNode;
   viewport: ReactNode;
+  /** When false, hides the hero and feed rail (Billing / Archive). Default preserves main projects home. */
+  showHero?: boolean;
 }) {
   const {
     status,
@@ -42,6 +45,7 @@ export function ProjectsWorkspaceShell({
 
   const featuredHeroPost = latestFeaturedPosts[0] ?? null;
   const feedRailPosts = latestFeaturedPosts.length > 1 ? latestFeaturedPosts.slice(1) : latestFeaturedPosts;
+  const creatableClients = clients.filter((client) => !client.archived_at);
   const heroKicker = featuredHeroPost ? `Latest from ${featuredHeroPost.sourceName}` : "Projects index";
   const heroTitle = featuredHeroPost?.title ?? "A calmer way to see what the studio is carrying.";
   const heroIntro =
@@ -49,51 +53,53 @@ export function ProjectsWorkspaceShell({
     "The page should read like an active portfolio wall, not a template dashboard. Track what is moving, what is blocked, and which client lanes need attention next.";
 
   return (
-    <main className="page projectsExperience">
-      <section className="projectsHero">
-        <div className="projectsHeroCopy">
-          <p className={`projectsSessionNote ${domainAllowed && status.startsWith("Signed in as") ? "projectsSessionNoteQuiet" : ""}`}>
-            {status}
-          </p>
-          <>
-            <p className="projectsKicker">{heroKicker}</p>
-            <h1 className={`projectsHeroTitle ${featuredHeroPost ? "projectsHeroTitleFeed" : ""}`}>{heroTitle}</h1>
-            <p className={`projectsHeroIntro ${featuredHeroPost ? "projectsHeroIntroFeed" : ""}`}>{heroIntro}</p>
-            {featuredHeroPost && (
-              <div className="projectsHeroUtilityRow">
-                <div className="projectsHeaderActions">
-                  <a href={featuredHeroPost.url} target="_blank" rel="noreferrer" className="projectPrimaryButton projectPrimaryButtonLink">
-                    Read more
-                  </a>
+    <main className={`page projectsExperience${showHero ? "" : " projectsExperienceNoHero"}`}>
+      {showHero ? (
+        <section className="projectsHero">
+          <div className="projectsHeroCopy">
+            <p className={`projectsSessionNote ${domainAllowed && status.startsWith("Signed in as") ? "projectsSessionNoteQuiet" : ""}`}>
+              {status}
+            </p>
+            <>
+              <p className="projectsKicker">{heroKicker}</p>
+              <h1 className={`projectsHeroTitle ${featuredHeroPost ? "projectsHeroTitleFeed" : ""}`}>{heroTitle}</h1>
+              <p className={`projectsHeroIntro ${featuredHeroPost ? "projectsHeroIntroFeed" : ""}`}>{heroIntro}</p>
+              {featuredHeroPost && (
+                <div className="projectsHeroUtilityRow">
+                  <div className="projectsHeaderActions">
+                    <a href={featuredHeroPost.url} target="_blank" rel="noreferrer" className="projectPrimaryButton projectPrimaryButtonLink">
+                      Read more
+                    </a>
+                  </div>
                 </div>
+              )}
+            </>
+          </div>
+          <aside className="projectsFeedRail" aria-label="Latest feed posts">
+            <p className="projectsFeedEyebrow">Latest posts</p>
+            {feedRailPosts.length > 0 ? (
+              <ul className="projectsFeedList">
+                {feedRailPosts.map((post) => (
+                  <li key={`${post.url}-${post.publishedAt ?? "undated"}`} className="projectsFeedItem">
+                    <div className="projectsFeedMeta">
+                      <span>{post.sourceName}</span>
+                      <span>{formatFeedDate(post.publishedAt)}</span>
+                    </div>
+                    <a href={post.url} target="_blank" rel="noreferrer" className="projectsFeedLink">
+                      {post.title}
+                    </a>
+                    <p className="projectsFeedDescription">{post.description}</p>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <div className="projectsFeedFallback">
+                <p>The feeds are quiet right now, so the homepage is keeping the focus on your project index.</p>
               </div>
             )}
-          </>
-        </div>
-        <aside className="projectsFeedRail" aria-label="Latest feed posts">
-          <p className="projectsFeedEyebrow">Latest posts</p>
-          {feedRailPosts.length > 0 ? (
-            <ul className="projectsFeedList">
-              {feedRailPosts.map((post) => (
-                <li key={`${post.url}-${post.publishedAt ?? "undated"}`} className="projectsFeedItem">
-                  <div className="projectsFeedMeta">
-                    <span>{post.sourceName}</span>
-                    <span>{formatFeedDate(post.publishedAt)}</span>
-                  </div>
-                  <a href={post.url} target="_blank" rel="noreferrer" className="projectsFeedLink">
-                    {post.title}
-                  </a>
-                  <p className="projectsFeedDescription">{post.description}</p>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <div className="projectsFeedFallback">
-              <p>The feeds are quiet right now, so the homepage is keeping the focus on your project index.</p>
-            </div>
-          )}
-        </aside>
-      </section>
+          </aside>
+        </section>
+      ) : null}
 
       {domainAllowed && workbench !== undefined && workbench !== null ? (
         <section className="projectsWorkbench">{workbench}</section>
@@ -106,7 +112,7 @@ export function ProjectsWorkspaceShell({
           title="Create Project"
           submitLabel="Create"
           values={projectForm}
-          clients={clients}
+          clients={creatableClients}
           submitting={isCreatingProject}
           onChange={setProjectForm}
           onSubmit={() => createProject().catch((error) => setStatus(error instanceof Error ? error.message : "Create failed"))}

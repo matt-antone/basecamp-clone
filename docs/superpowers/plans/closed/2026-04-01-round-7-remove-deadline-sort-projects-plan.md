@@ -1,7 +1,7 @@
 # Round 7 — Remove deadline sort — implementation plan
 
 **Status:** Complete  
-**Spec:** [2026-04-01-round-7-remove-deadline-sort-projects-design.md](../specs/2026-04-01-round-7-remove-deadline-sort-projects-design.md)
+**Spec:** [2026-04-01-round-7-remove-deadline-sort-projects-design.md](../../specs/2026-04-01-round-7-remove-deadline-sort-projects-design.md)
 
 ---
 

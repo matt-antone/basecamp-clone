@@ -200,6 +200,93 @@ describe("importBc2FileFromAttachment", () => {
     );
   });
 
+  it("patches thread_id when import_map_files hit and caller provides threadId (branch 1)", async () => {
+    const query = vi
+      .fn()
+      .mockResolvedValueOnce({ rows: [{ local_file_id: "existing-local" }] }) // import_map hit
+      .mockResolvedValueOnce({ rows: [] }); // UPDATE
+
+    const result = await importBc2FileFromAttachment({
+      query: query as never,
+      jobId: "job-1",
+      projectLocalId: "proj-1",
+      storageDir: "/root/CODE/client-proj",
+      personMap: new Map([[1, "profile-1"]]),
+      attachment: baseAttachment,
+      threadId: "t-new",
+      commentId: null,
+      downloadEnv: { username: "u", password: "p", userAgent: "UA" },
+      adapter: { uploadComplete: vi.fn() },
+      createFileMetadata: vi.fn(),
+      logRecord: vi.fn(),
+      incrementCounters: vi.fn()
+    });
+
+    expect(result).toEqual({ status: "skipped_existing", localFileId: "existing-local" });
+    expect(query).toHaveBeenCalledTimes(2);
+    expect(query).toHaveBeenCalledWith(
+      expect.stringContaining("update project_files"),
+      ["existing-local", "t-new", null]
+    );
+  });
+
+  it("patches thread_id/comment_id when bc_attachment_id hit and caller provides linkage (branch 2)", async () => {
+    const query = vi
+      .fn()
+      .mockResolvedValueOnce({ rows: [] }) // import_map miss
+      .mockResolvedValueOnce({ rows: [{ id: "orphan-2" }] }) // project_files bc hit
+      .mockResolvedValueOnce({ rows: [] }) // insert map
+      .mockResolvedValueOnce({ rows: [] }); // UPDATE
+
+    const result = await importBc2FileFromAttachment({
+      query: query as never,
+      jobId: "job-1",
+      projectLocalId: "proj-1",
+      storageDir: "/root/CODE/client-proj",
+      personMap: new Map([[1, "profile-1"]]),
+      attachment: baseAttachment,
+      threadId: "t-link",
+      commentId: "c-link",
+      downloadEnv: { username: "u", password: "p", userAgent: "UA" },
+      adapter: { uploadComplete: vi.fn() },
+      createFileMetadata: vi.fn(),
+      logRecord: vi.fn(),
+      incrementCounters: vi.fn()
+    });
+
+    expect(result).toEqual({ status: "skipped_existing", localFileId: "orphan-2" });
+    expect(query).toHaveBeenCalledTimes(4);
+    expect(query).toHaveBeenCalledWith(
+      expect.stringContaining("update project_files"),
+      ["orphan-2", "t-link", "c-link"]
+    );
+  });
+
+  it("does not call UPDATE when threadId and commentId are both null (null guard)", async () => {
+    const query = vi
+      .fn()
+      .mockResolvedValueOnce({ rows: [{ local_file_id: "null-guard-local" }] }); // import_map hit
+
+    const result = await importBc2FileFromAttachment({
+      query: query as never,
+      jobId: "job-1",
+      projectLocalId: "proj-1",
+      storageDir: "/root/CODE/client-proj",
+      personMap: new Map([[1, "profile-1"]]),
+      attachment: baseAttachment,
+      threadId: null,
+      commentId: null,
+      downloadEnv: { username: "u", password: "p", userAgent: "UA" },
+      adapter: { uploadComplete: vi.fn() },
+      createFileMetadata: vi.fn(),
+      logRecord: vi.fn(),
+      incrementCounters: vi.fn()
+    });
+
+    expect(result).toEqual({ status: "skipped_existing", localFileId: "null-guard-local" });
+    expect(query).toHaveBeenCalledTimes(1);
+  });
+
   it("skips when project_files already has bc_attachment_id but import_map is empty", async () => {
     const query = vi
       .fn()
@@ -235,5 +322,72 @@ describe("importBc2FileFromAttachment", () => {
       "insert into import_map_files (basecamp_file_id, local_file_id) values ($1, $2) on conflict (basecamp_file_id) do nothing",
       ["99", "orphan-local"]
     );
+  });
+
+  it("patches linkage in unique-violation race branch when caller provides linkage", async () => {
+    vi.mocked(fetch).mockResolvedValue(new Response(new Uint8Array([1, 2, 3]), { status: 200 }));
+    const uniqueViolation = Object.assign(new Error("duplicate key"), { code: "23505" });
+    const query = vi
+      .fn()
+      .mockResolvedValueOnce({ rows: [] }) // import_map miss
+      .mockResolvedValueOnce({ rows: [] }) // project_files bc miss
+      .mockRejectedValueOnce(uniqueViolation) // insert map unique violation
+      .mockResolvedValueOnce({ rows: [{ local_file_id: "race-local-1" }] }) // select raced local_file_id
+      .mockResolvedValueOnce({ rows: [] }); // UPDATE
+
+    const result = await importBc2FileFromAttachment({
+      query: query as never,
+      jobId: "job-1",
+      projectLocalId: "proj-1",
+      storageDir: "/root/CODE/client-proj",
+      personMap: new Map([[1, "profile-1"]]),
+      attachment: baseAttachment,
+      threadId: "thread-race",
+      commentId: null,
+      downloadEnv: { username: "u", password: "p", userAgent: "UA" },
+      adapter: { uploadComplete: vi.fn().mockResolvedValue({ fileId: "drop", path: "/x/a.png", rev: "r" }) },
+      createFileMetadata: vi.fn().mockResolvedValue({ id: "fresh-local-id" }) as never,
+      logRecord: vi.fn(),
+      incrementCounters: vi.fn(),
+      retryAttempts: 1
+    });
+
+    expect(result).toEqual({ status: "skipped_existing", localFileId: "race-local-1" });
+    expect(query).toHaveBeenCalledWith(expect.stringContaining("update project_files"), [
+      "race-local-1",
+      "thread-race",
+      null
+    ]);
+  });
+
+  it("does not patch linkage in unique-violation race branch when both linkage args are null", async () => {
+    vi.mocked(fetch).mockResolvedValue(new Response(new Uint8Array([1, 2, 3]), { status: 200 }));
+    const uniqueViolation = Object.assign(new Error("duplicate key"), { code: "23505" });
+    const query = vi
+      .fn()
+      .mockResolvedValueOnce({ rows: [] }) // import_map miss
+      .mockResolvedValueOnce({ rows: [] }) // project_files bc miss
+      .mockRejectedValueOnce(uniqueViolation) // insert map unique violation
+      .mockResolvedValueOnce({ rows: [{ local_file_id: "race-local-2" }] }); // select raced local_file_id
+
+    const result = await importBc2FileFromAttachment({
+      query: query as never,
+      jobId: "job-1",
+      projectLocalId: "proj-1",
+      storageDir: "/root/CODE/client-proj",
+      personMap: new Map([[1, "profile-1"]]),
+      attachment: baseAttachment,
+      threadId: null,
+      commentId: null,
+      downloadEnv: { username: "u", password: "p", userAgent: "UA" },
+      adapter: { uploadComplete: vi.fn().mockResolvedValue({ fileId: "drop", path: "/x/a.png", rev: "r" }) },
+      createFileMetadata: vi.fn().mockResolvedValue({ id: "fresh-local-id" }) as never,
+      logRecord: vi.fn(),
+      incrementCounters: vi.fn(),
+      retryAttempts: 1
+    });
+
+    expect(result).toEqual({ status: "skipped_existing", localFileId: "race-local-2" });
+    expect(query).not.toHaveBeenCalledWith(expect.stringContaining("update project_files"), expect.anything());
   });
 });

@@ -2,13 +2,12 @@
 
 import Link from "next/link";
 import dynamic from "next/dynamic";
+import { AttachmentCollections } from "@/components/discussions/attachment-collections";
 import { DiscussionComposer } from "@/components/discussions/discussion-composer";
 import { InlineLoadingState, PageLoadingState } from "@/components/loading-shells";
 import { OneShotButton } from "@/components/one-shot-button";
 import { authedJsonFetch, ensureAccessToken, fetchAuthSession } from "@/lib/browser-auth";
 import { createClientResource } from "@/lib/client-resource";
-import { formatBytes } from "@/lib/format-bytes";
-import { ThumbnailPreview, isThumbnailPreviewSupported } from "@/components/file-thumbnail-preview";
 import { useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 
@@ -51,6 +50,7 @@ type ThreadDetail = {
   starter_email?: string | null;
   starter_first_name?: string | null;
   starter_last_name?: string | null;
+  threadAttachments?: CommentAttachment[];
   comments: Comment[];
 };
 
@@ -62,10 +62,16 @@ type PendingAttachment = {
   error?: string;
 };
 
+type DiscussionProjectSummary = {
+  display_name?: string | null;
+  name: string;
+};
+
 type DiscussionBootstrap = {
   currentUser: SessionUser | null;
   token: string | null;
   status: string;
+  project: DiscussionProjectSummary | null;
   thread: ThreadDetail | null;
 };
 
@@ -114,6 +120,7 @@ function DiscussionPageContent(props: {
   initial: DiscussionBootstrap;
 }) {
   const { projectId, discussionId, initial } = props;
+  const projectDisplayName = initial.project?.display_name?.trim() || initial.project?.name?.trim() || "Project";
   const [currentUser] = useState<SessionUser | null>(initial.currentUser);
   const [token, setToken] = useState(initial.token);
   const [status, setStatus] = useState(initial.status);
@@ -299,8 +306,13 @@ function DiscussionPageContent(props: {
 
   return (
     <main className="page">
-      <header className="header">
-        <h1>{thread?.title ?? "Discussion"}</h1>
+      <header className="header discussionPageHeader">
+        <div className="discussionPageHeaderTitles">
+          <h1 className="discussionProjectTitle">
+            <Link href={`/${projectId}`}>{projectDisplayName}</Link>
+          </h1>
+          <h2 className="discussionThreadTitle">{thread?.title ?? "Discussion"}</h2>
+        </div>
         <div className="row">
           <Link href={`/${projectId}`} className="linkButton">
             Back to Project
@@ -326,6 +338,18 @@ function DiscussionPageContent(props: {
               </div>
             </div>
             <div className="discussionRichText" dangerouslySetInnerHTML={{ __html: thread.body_html }} />
+            {(thread.threadAttachments?.length ?? 0) > 0 && (
+              <div className="commentAttachmentStack">
+                <AttachmentCollections
+                  attachments={thread.threadAttachments ?? []}
+                  projectId={projectId}
+                  token={token}
+                  onToken={setToken}
+                  onDownload={openDownload}
+                  onError={setStatus}
+                />
+              </div>
+            )}
           </section>
 
           <section className="discussionSection">
@@ -382,82 +406,14 @@ function DiscussionPageContent(props: {
                         <div className="discussionRichText" dangerouslySetInnerHTML={{ __html: comment.body_html }} />
                         {(comment.attachments?.length ?? 0) > 0 && (
                           <div className="commentAttachmentStack">
-                            {comment.attachments?.some((attachment) =>
-                              isThumbnailPreviewSupported({ filename: attachment.filename, mimeType: attachment.mime_type })
-                            ) && (
-                                <ul className="commentAttachmentThumbGrid">
-                                  {comment.attachments
-                                    ?.filter((attachment) =>
-                                      isThumbnailPreviewSupported({
-                                        filename: attachment.filename,
-                                        mimeType: attachment.mime_type
-                                      })
-                                    )
-                                    .map((attachment) => (
-                                      <li key={attachment.id} className="fileThumbItem commentAttachmentThumbItem">
-                                        <OneShotButton
-                                          type="button"
-                                          className="fileThumbHitArea commentAttachmentThumbButton"
-                                          onClick={() => openDownload(attachment.id).catch((error) => setStatus(error.message))}
-                                        >
-                                          <ThumbnailPreview
-                                            projectId={projectId}
-                                            fileId={attachment.id}
-                                            filename={attachment.filename}
-                                            mimeType={attachment.mime_type}
-                                            thumbnailUrl={attachment.thumbnail_url}
-                                            accessToken={token}
-                                            onToken={setToken}
-                                            alt={attachment.filename}
-                                            imageClassName="fileThumbImage"
-                                            fallback={<div className="fileThumbFallback">{getAttachmentBadgeLabel(attachment)}</div>}
-                                          />
-                                        </OneShotButton>
-                                        <div className="fileThumbMeta">
-                                          <OneShotButton
-                                            type="button"
-                                            className="fileDownloadButton"
-                                            onClick={() => openDownload(attachment.id).catch((error) => setStatus(error.message))}
-                                            title={attachment.filename}
-                                          >
-                                            {attachment.filename}
-                                          </OneShotButton>
-                                          <small>{formatBytes(attachment.size_bytes)}</small>
-                                        </div>
-                                      </li>
-                                    ))}
-                                </ul>
-                              )}
-                            {comment.attachments?.some(
-                              (attachment) =>
-                                !isThumbnailPreviewSupported({
-                                  filename: attachment.filename,
-                                  mimeType: attachment.mime_type
-                                })
-                            ) && (
-                                <ul className="commentAttachmentList">
-                                  {comment.attachments
-                                    ?.filter(
-                                      (attachment) =>
-                                        !isThumbnailPreviewSupported({
-                                          filename: attachment.filename,
-                                          mimeType: attachment.mime_type
-                                        })
-                                    )
-                                    .map((attachment) => (
-                                      <li key={attachment.id} className="commentAttachmentItem">
-                                        <OneShotButton
-                                          type="button"
-                                          className="fileDownloadButton"
-                                          onClick={() => openDownload(attachment.id).catch((error) => setStatus(error.message))}
-                                        >
-                                          {attachment.filename}
-                                        </OneShotButton>
-                                        <small>{formatBytes(attachment.size_bytes)}</small>
-                                      </li>
-                                    ))}
-                                </ul>
-                              )}
+                            <AttachmentCollections
+                              attachments={comment.attachments ?? []}
+                              projectId={projectId}
+                              token={token}
+                              onToken={setToken}
+                              onDownload={openDownload}
+                              onError={setStatus}
+                            />
                           </div>
                         )}
                       </>
@@ -551,16 +507,6 @@ function formatAttachmentStage(attachment: PendingAttachment) {
   return "Failed";
 }
 
-function getAttachmentBadgeLabel(attachment: CommentAttachment) {
-  const mime = attachment.mime_type.toLowerCase();
-  if (mime.includes("pdf")) return "PDF";
-  if (mime.includes("spreadsheet") || mime.includes("excel") || mime.includes("csv")) return "SHEET";
-  if (mime.includes("word") || mime.includes("document")) return "DOC";
-  if (mime.includes("zip") || mime.includes("compressed")) return "ZIP";
-  const extension = attachment.filename.split(".").pop()?.trim().toUpperCase();
-  return extension && extension.length <= 5 ? extension : "FILE";
-}
-
 async function postFormDataWithUploadProgress(args: {
   path: string;
   token: string;
@@ -609,6 +555,7 @@ async function loadDiscussionBootstrap(params: {
       currentUser: null,
       token: null,
       status: "Loading discussion…",
+      project: null,
       thread: null
     };
   }
@@ -622,18 +569,27 @@ async function loadDiscussionBootstrap(params: {
         currentUser: null,
         token: null,
         status: session.status || "Sign in first",
+        project: null,
         thread: null
       };
     }
 
-    const threadResponse = await authedJsonFetch({
-      accessToken,
-      path: `/projects/${projectId}/threads/${discussionId}`
-    });
+    const [threadResponse, projectResponse] = await Promise.all([
+      authedJsonFetch({
+        accessToken,
+        path: `/projects/${projectId}/threads/${discussionId}`
+      }),
+      authedJsonFetch({
+        accessToken,
+        path: `/projects/${projectId}`
+      })
+    ]);
+    const project = (projectResponse.data?.project ?? null) as DiscussionProjectSummary | null;
     return {
       currentUser: session.user,
-      token: threadResponse.accessToken,
+      token: projectResponse.accessToken,
       status: session.status,
+      project,
       thread: (threadResponse.data?.thread ?? null) as ThreadDetail | null
     };
   } catch (error) {
@@ -641,6 +597,7 @@ async function loadDiscussionBootstrap(params: {
       currentUser: null,
       token: null,
       status: error instanceof Error ? error.message : "Load failed",
+      project: null,
       thread: null
     };
   }

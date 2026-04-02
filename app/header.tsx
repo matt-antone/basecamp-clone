@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import { OneShotButton } from "@/components/one-shot-button";
-import { fetchAuthSession } from "@/lib/browser-auth";
+import { authedJsonFetch, fetchAuthSession } from "@/lib/browser-auth";
 import { projectsNavHighlight } from "@/lib/projects-view-path";
 import { DEFAULT_SITE_LOGO_URL, DEFAULT_SITE_TITLE, normalizeSiteLogoUrl, normalizeSiteTitle } from "@/lib/site-branding";
 
@@ -30,7 +30,8 @@ export default function SiteHeader() {
 
   const [theme, setTheme] = useState<Theme>("light");
   const [user, setUser] = useState<SessionUser | null>(null);
-  const [, setAccessToken] = useState<string | null>(null);
+  const [accessToken, setAccessToken] = useState<string | null>(null);
+  const [billingStageCount, setBillingStageCount] = useState<number | null>(null);
   const [siteSettings, setSiteSettings] = useState<SiteSettingsPayload>({
     siteTitle: DEFAULT_SITE_TITLE,
     logoUrl: DEFAULT_SITE_LOGO_URL
@@ -64,13 +65,13 @@ export default function SiteHeader() {
         }
         const payload = (await response.json().catch(() => null)) as
           | {
-              siteSettings?: {
-                siteTitle?: string | null;
-                logoUrl?: string | null;
-                site_title?: string | null;
-                logo_url?: string | null;
-              };
-            }
+            siteSettings?: {
+              siteTitle?: string | null;
+              logoUrl?: string | null;
+              site_title?: string | null;
+              logo_url?: string | null;
+            };
+          }
           | null;
         const source = payload?.siteSettings ?? null;
         if (!source || cancelled) {
@@ -122,6 +123,49 @@ export default function SiteHeader() {
     };
   }, []);
 
+  useEffect(() => {
+    if (!user || !accessToken) {
+      setBillingStageCount(null);
+      return;
+    }
+
+    let cancelled = false;
+
+    async function loadBillingCount() {
+      try {
+        const { data } = await authedJsonFetch({
+          accessToken,
+          onToken: setAccessToken,
+          path: "/projects/billing-count"
+        });
+        const raw = (data as { count?: unknown })?.count;
+        const count = typeof raw === "number" && Number.isFinite(raw) ? raw : 0;
+        if (!cancelled) {
+          setBillingStageCount(count);
+        }
+      } catch {
+        if (!cancelled) {
+          setBillingStageCount(null);
+        }
+      }
+    }
+
+    void loadBillingCount();
+
+    function onVisibility() {
+      if (document.visibilityState === "visible") {
+        void loadBillingCount();
+      }
+    }
+
+    document.addEventListener("visibilitychange", onVisibility);
+
+    return () => {
+      cancelled = true;
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
+  }, [user, accessToken, pathname]);
+
   function toggleTheme() {
     const nextTheme: Theme = theme === "light" ? "dark" : "light";
     setTheme(nextTheme);
@@ -146,10 +190,10 @@ export default function SiteHeader() {
 
   return (
     <div className="themeTopBar">
-      <Link href="/" className="brandHomeLink" aria-label="Go to home">
-        <img src={siteSettings.logoUrl || DEFAULT_SITE_LOGO_URL} alt={`${siteSettings.siteTitle} logo`} className="brandLogo" />
-      </Link>
       <div className="brandCluster">
+        <Link href="/" className="brandHomeLink" aria-label="Go to home">
+          <img src={siteSettings.logoUrl || DEFAULT_SITE_LOGO_URL} alt={`${siteSettings.siteTitle} logo`} className="brandLogo" />
+        </Link>
         <Link href="/" className="brandLink" aria-label={`${siteSettings.siteTitle} home`}>
           {siteSettings.siteTitle}
         </Link>
@@ -177,6 +221,11 @@ export default function SiteHeader() {
               scroll={false}
             >
               Billing
+              {billingStageCount !== null && billingStageCount > 0 ? (
+                <span className="themeTopBarProjectsBadge" aria-label={`${billingStageCount} in billing`}>
+                  {billingStageCount > 99 ? "99+" : billingStageCount}
+                </span>
+              ) : null}
             </Link>
             <Link
               href="/archive"

@@ -4,7 +4,7 @@ import {
   calculateExpenseSubtotalUsd,
   calculateHoursLineCostUsd,
   calculateHoursSubtotalUsd,
-  calculateProjectGrandTotalUsd,
+  calculateProjectExpensesTotalUsd,
   roundUsdHalfUp
 } from "@/lib/project-financials";
 
@@ -15,7 +15,7 @@ describe("project financial helpers", () => {
     expect(roundUsdHalfUp(10.015)).toBe(10.02);
   });
 
-  it("calculates line costs and totals from hours plus expenses", () => {
+  it("calculates line costs and hours subtotals (hours USD is not part of project expense total)", () => {
     expect(calculateHoursLineCostUsd("1.335", "150.00")).toBe(200.25);
     expect(
       calculateHoursSubtotalUsd(
@@ -32,15 +32,10 @@ describe("project financial helpers", () => {
         { amount: 12.345 }
       ])
     ).toBe(57.45);
+    expect(calculateProjectExpensesTotalUsd([{ amount: "45.10" }, { amount: 12.345 }])).toBe(57.45);
     expect(
-      calculateProjectGrandTotalUsd(
-        [
-          { hours: "1.335" },
-          { hours: 2 }
-        ],
-        [{ amount: "45.10" }, { amount: 12.345 }],
-        "150.00"
-      )
-    ).toBe(557.7);
+      calculateProjectExpensesTotalUsd([{ amount: "45.10" }, { amount: 12.345 }])
+    ).toBe(calculateExpenseSubtotalUsd([{ amount: "45.10" }, { amount: 12.345 }]));
+    expect(calculateProjectExpensesTotalUsd([])).toBe(0);
   });
 });

@@ -14,7 +14,10 @@ import {
   type Bc2ProjectSource
 } from "../lib/imports/bc2-fetcher";
 import type { Bc2DownloadEnv } from "../lib/imports/bc2-attachment-download";
-import { resolveBc2AttachmentLinkage } from "../lib/imports/bc2-attachment-linkage";
+import {
+  resolveBc2AttachmentLinkage,
+  resolveBc2LinkageFromAttachable
+} from "../lib/imports/bc2-attachment-linkage";
 import { importBc2FileFromAttachment } from "../lib/imports/bc2-migrate-single-file";
 import {
   parseProjectTitle,
@@ -327,6 +330,7 @@ const CONCURRENCY = 1;
 async function migrateFiles(
   jobId: string,
   fetcher: Bc2Fetcher,
+  client: Bc2Client,
   projects: MigratedProject[],
   personMap: Map<number, string>,
   mode: RunMode,
@@ -378,7 +382,38 @@ async function migrateFiles(
       const batch = attachmentQueue.slice(batchStart, batchStart + CONCURRENCY);
 
       await Promise.all(batch.map(async (attachment) => {
-        const { threadId, commentId } = await resolveBc2AttachmentLinkage(query, attachment);
+        let { threadId, commentId } = await resolveBc2AttachmentLinkage(query, attachment);
+
+        // `/attachments.json` can return incomplete attachable payloads.
+        // Fall back to attachment detail before importing discussion-linked files.
+        if (!threadId && !commentId) {
+          try {
+            const detail = await client.get<Bc2Attachment>(
+              `/projects/${project.bc2Id}/attachments/${attachment.id}.json`
+            );
+            const resolved = await resolveBc2LinkageFromAttachable(query, detail.body.attachable);
+            threadId = resolved.threadId;
+            commentId = resolved.commentId;
+          } catch (error) {
+            process.stderr.write(
+              `  warning: could not fetch attachment detail for ${attachment.id}: ${
+                error instanceof Error ? error.message : String(error)
+              }\n`
+            );
+          }
+        }
+
+        const attachableType = attachment.attachable?.type?.trim().toLowerCase() ?? "";
+        const isDiscussionAttachable = attachableType === "message" || attachableType === "comment";
+        if (isDiscussionAttachable && !threadId && !commentId) {
+          process.stderr.write(
+            `  skip ${attachment.id} (${attachment.name}): unresolved ${attachment.attachable?.type} linkage\n`
+          );
+          projectSkipped++;
+          skipped++;
+          return;
+        }
+
         const result = await importBc2FileFromAttachment({
           query,
           jobId,
@@ -738,6 +773,7 @@ async function main() {
   const { imported: filesImported, skipped: filesSkipped } = await migrateFiles(
     jobId,
     fetcher,
+    client,
     projects,
     personMap,
     flags.mode,

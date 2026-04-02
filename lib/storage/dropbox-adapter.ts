@@ -203,34 +203,52 @@ export class DropboxStorageAdapter implements StorageAdapter {
     return { projectDir, uploadsDir };
   }
 
+  async archiveClientRootFolder(args: { clientCodeUpper: string }) {
+    const clientCodeUpper = normalizeClientCode(args.clientCodeUpper);
+    const fromPath = joinDropboxPath(config.dropboxProjectsRootFolder(), clientCodeUpper);
+    const toPath = joinDropboxPath(config.dropboxArchivedClientsRoot(), clientCodeUpper);
+    await this.moveProjectFolder({ fromPath, toPath });
+    return { fromPath, toPath };
+  }
+
+  async restoreClientRootFolder(args: { clientCodeUpper: string }) {
+    const clientCodeUpper = normalizeClientCode(args.clientCodeUpper);
+    const fromPath = joinDropboxPath(config.dropboxArchivedClientsRoot(), clientCodeUpper);
+    const toPath = joinDropboxPath(config.dropboxProjectsRootFolder(), clientCodeUpper);
+    await this.moveProjectFolder({ fromPath, toPath });
+    return { fromPath, toPath };
+  }
+
   async moveProjectFolder(args: { fromPath: string; toPath: string }) {
+    const fromPath = normalizeDropboxFolderPath(args.fromPath, "fromPath");
+    const toPath = normalizeDropboxFolderPath(args.toPath, "toPath");
     if (args.fromPath === args.toPath) {
-      return { projectDir: args.toPath };
+      return { projectDir: toPath };
     }
 
     const client = await this.getClient();
-    const parentDir = getParentDir(args.toPath);
+    const parentDir = getParentDir(toPath);
     if (parentDir) {
       await this.ensureDirectoryChain(parentDir);
     }
 
     try {
       await client.filesMoveV2({
-        from_path: args.fromPath,
-        to_path: args.toPath,
+        from_path: fromPath,
+        to_path: toPath,
         autorename: false
       });
     } catch (error) {
       if (isNotFoundError(error)) {
-        const destinationExists = await this.pathExists(args.toPath);
+        const destinationExists = await this.pathExists(toPath);
         if (destinationExists) {
-          return { projectDir: args.toPath };
+          return { projectDir: toPath };
         }
       }
       throw error;
     }
 
-    return { projectDir: args.toPath };
+    return { projectDir: toPath };
   }
 
   private async createProjectDirWithSuffix(args: { clientDir: string; projectFolderBaseName: string }) {
@@ -347,6 +365,26 @@ function sanitizeFilename(filename: string) {
   const trimmed = filename.trim();
   const normalized = trimmed.replace(/[\\/:*?"<>|]/g, "-");
   return normalized.length > 0 ? normalized : "file";
+}
+
+function normalizeClientCode(value: string) {
+  const normalized = value.trim().toUpperCase();
+  if (!normalized || /[\\/]/.test(normalized)) {
+    throw new Error("Client code must be a single Dropbox folder segment");
+  }
+  return normalized;
+}
+
+function normalizeDropboxFolderPath(path: string, label: string) {
+  const normalized = path.trim().replace(/\/+$/, "");
+  if (!normalized.startsWith("/") || normalized === "/") {
+    throw new Error(`${label} must be an absolute Dropbox folder path`);
+  }
+  return normalized;
+}
+
+function joinDropboxPath(root: string, leaf: string) {
+  return `${normalizeDropboxFolderPath(root, "Dropbox root path")}/${leaf}`;
 }
 
 function getParentDir(path: string) {

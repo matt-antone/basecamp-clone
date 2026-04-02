@@ -21,5 +21,5 @@ export function ProjectsArchive() {
     />
   ) : null;
 
-  return <ProjectsWorkspaceShell viewport={viewport} />;
+  return <ProjectsWorkspaceShell showHero={false} viewport={viewport} />;
 }

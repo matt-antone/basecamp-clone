@@ -1,10 +1,12 @@
 import { requireUser } from "@/lib/auth";
-import { badRequest, notFound, ok, serverError, unauthorized } from "@/lib/http";
+import { badRequest, conflict, notFound, ok, serverError, unauthorized } from "@/lib/http";
 import { getProjectStorageDir } from "@/lib/project-storage";
-import { getProject } from "@/lib/repositories";
+import { assertClientNotArchivedForMutation, getProject } from "@/lib/repositories";
 import { DropboxStorageAdapter } from "@/lib/storage/dropbox-adapter";
 import { isTeamSelectUserRequiredError } from "@/lib/storage/dropbox-adapter";
 import { z } from "zod";
+
+const CLIENT_MUTATION_BLOCK_PATTERN = /client is archived|client archive is in progress/i;
 
 const uploadInitSchema = z.object({
   filename: z.string().min(1),
@@ -20,6 +22,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     if (!project) {
       return notFound("Project not found");
     }
+    await assertClientNotArchivedForMutation(project.client_id, {
+      archived: "Client is archived. Restore it before uploading files.",
+      inProgress: "Client archive is in progress. File uploads are temporarily disabled."
+    });
 
     const payload = uploadInitSchema.parse(await request.json());
     const adapter = new DropboxStorageAdapter();
@@ -41,6 +47,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   } catch (error) {
     if (error instanceof Error && /auth|token|workspace/i.test(error.message)) {
       return unauthorized(error.message);
+    }
+    if (error instanceof Error && CLIENT_MUTATION_BLOCK_PATTERN.test(error.message)) {
+      return conflict(error.message);
     }
     if (error instanceof z.ZodError) {
       return badRequest(error.message);

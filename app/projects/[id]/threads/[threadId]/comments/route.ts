@@ -1,8 +1,17 @@
 import { requireUser } from "@/lib/auth";
 import { createCommentExcerpt, sendCommentCreatedEmail } from "@/lib/mailer";
-import { badRequest, notFound, ok, serverError, unauthorized } from "@/lib/http";
-import { createComment, getProject, getThread, getUserProfileById, listNotificationRecipients } from "@/lib/repositories";
+import { badRequest, conflict, notFound, ok, serverError, unauthorized } from "@/lib/http";
+import {
+  assertClientNotArchivedForMutation,
+  createComment,
+  getProject,
+  getThread,
+  getUserProfileById,
+  listNotificationRecipients
+} from "@/lib/repositories";
 import { z } from "zod";
+
+const CLIENT_MUTATION_BLOCK_PATTERN = /client is archived|client archive is in progress/i;
 
 const createCommentSchema = z.object({
   bodyMarkdown: z.string().min(1)
@@ -36,6 +45,10 @@ export async function POST(
     if (!thread) {
       return notFound("Thread not found");
     }
+    await assertClientNotArchivedForMutation(project.client_id, {
+      archived: "Client is archived. Restore it before posting comments.",
+      inProgress: "Client archive is in progress. New comments are temporarily disabled."
+    });
 
     const payload = createCommentSchema.parse(await request.json());
     const comment = await createComment({
@@ -94,6 +107,9 @@ export async function POST(
   } catch (error) {
     if (error instanceof Error && /auth|token|workspace/i.test(error.message)) {
       return unauthorized(error.message);
+    }
+    if (error instanceof Error && CLIENT_MUTATION_BLOCK_PATTERN.test(error.message)) {
+      return conflict(error.message);
     }
     if (error instanceof z.ZodError) {
       return badRequest(error.message);

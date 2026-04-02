@@ -1,7 +1,7 @@
 # Round 7 — Thumbnails live projects only — implementation plan
 
 **Status:** Done  
-**Spec:** [2026-04-01-round-7-thumbnails-live-projects-only-design.md](../specs/2026-04-01-round-7-thumbnails-live-projects-only-design.md)
+**Spec:** [2026-04-01-round-7-thumbnails-live-projects-only-design.md](../../specs/2026-04-01-round-7-thumbnails-live-projects-only-design.md)
 
 ---
 

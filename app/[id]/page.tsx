@@ -11,17 +11,9 @@ import { ProjectFilesPanel } from "@/components/projects/project-files-panel";
 import { getAvatarProxyUrl } from "@/lib/avatar";
 import { authedFormDataFetch, authedJsonFetch, fetchAuthSession } from "@/lib/browser-auth";
 import { createClientResource } from "@/lib/client-resource";
-import {
-  DEFAULT_HOURLY_RATE_USD,
-  calculateExpenseSubtotalUsd,
-  calculateHoursLineCostUsd,
-  calculateHoursSubtotalUsd,
-  calculateProjectGrandTotalUsd,
-  formatUsdInput,
-  formatUsdMoney,
-  normalizeHourlyRateUsd
-} from "@/lib/project-financials";
+import { calculateProjectExpensesTotalUsd, formatUsdInput, formatUsdMoney } from "@/lib/project-financials";
 import { createProjectDialogValues, normalizeProjectColumn, parseProjectTags } from "@/lib/project-utils";
+import type { ClientRecord } from "@/lib/repositories";
 import { useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 
@@ -84,12 +76,6 @@ type ProjectFile = {
   created_at: string;
 };
 
-type ClientRecord = {
-  id: string;
-  name: string;
-  code: string;
-};
-
 type ViewerProfile = {
   email: string;
   first_name: string | null;
@@ -103,7 +89,6 @@ type ProjectPageBootstrap = {
   project: Project | null;
   userHours: ProjectUserHoursEntry[];
   expenseLines: ProjectExpenseLine[];
-  defaultHourlyRateUsd: number;
   clients: ClientRecord[];
   viewerProfile: ViewerProfile | null;
   threads: Thread[];
@@ -152,7 +137,6 @@ function ProjectPageContent({ projectId, initial }: { projectId: string; initial
   const [project, setProject] = useState<Project | null>(initial.project);
   const [userHours, setUserHours] = useState<ProjectUserHoursEntry[]>(initial.userHours);
   const [expenseLines, setExpenseLines] = useState<ProjectExpenseLine[]>(initial.expenseLines);
-  const [defaultHourlyRateUsd, setDefaultHourlyRateUsd] = useState(initial.defaultHourlyRateUsd);
   const [clients, setClients] = useState<ClientRecord[]>(initial.clients);
   const [viewerProfile, setViewerProfile] = useState<ViewerProfile | null>(initial.viewerProfile);
   const [threads, setThreads] = useState<Thread[]>(initial.threads);
@@ -197,7 +181,6 @@ function ProjectPageContent({ projectId, initial }: { projectId: string; initial
     setProject(nextState.project);
     setUserHours(nextState.userHours);
     setExpenseLines(nextState.expenseLines);
-    setDefaultHourlyRateUsd(nextState.defaultHourlyRateUsd);
     setThreads(nextState.threads);
     setFiles(nextState.files);
     setClients(nextState.clients);
@@ -535,10 +518,7 @@ function ProjectPageContent({ projectId, initial }: { projectId: string; initial
   const requestor = project?.requestor?.trim() ?? "";
   const projectDescription = project?.description?.trim() ?? "";
   const totalArchivedHours = userHours.reduce((sum, entry) => sum + parseHoursNumber(entry.hours), 0);
-  const hourlyRateUsd = normalizeHourlyRateUsd(defaultHourlyRateUsd);
-  const hoursSubtotalUsd = calculateHoursSubtotalUsd(userHours, hourlyRateUsd);
-  const expenseSubtotalUsd = calculateExpenseSubtotalUsd(expenseLines);
-  const grandTotalUsd = calculateProjectGrandTotalUsd(userHours, expenseLines, hourlyRateUsd);
+  const expenseSubtotalUsd = calculateProjectExpensesTotalUsd(expenseLines);
 
   return (
     <main className="page">
@@ -737,10 +717,7 @@ function ProjectPageContent({ projectId, initial }: { projectId: string; initial
 
       <section className="stackSection">
         <div className="sectionHeader">
-          <div className="sectionHeaderTitle">
-            <h2>Financial Rollup</h2>
-            <span className="projectFinancialRate">Global rate {formatUsdMoney(hourlyRateUsd)}/hr</span>
-          </div>
+          <h2>Financial Rollup</h2>
         </div>
 
         <div className="projectFinancialGrid">
@@ -752,7 +729,7 @@ function ProjectPageContent({ projectId, initial }: { projectId: string; initial
             {userHours.length > 0 ? (
               <div className="projectFinancialTable" role="table" aria-label="Hours rollup">
                 {userHours.map((entry) => (
-                  <div key={entry.userId} className="projectFinancialRow" role="row">
+                  <div key={entry.userId} className="projectFinancialRow projectFinancialRowHoursOnly" role="row">
                     <div className="projectFinancialPerson" role="cell">
                       {entry.avatarUrl ? (
                         <img src={getAvatarProxyUrl(entry.avatarUrl)} alt="" className="projectHoursAvatar" />
@@ -762,18 +739,12 @@ function ProjectPageContent({ projectId, initial }: { projectId: string; initial
                       <span>{getHoursEntryLabel(entry)}</span>
                     </div>
                     <span role="cell">{formatHoursValue(entry.hours)}</span>
-                    <span role="cell">{formatUsdMoney(hourlyRateUsd)}/hr</span>
-                    <strong role="cell">{formatUsdMoney(calculateHoursLineCostUsd(entry.hours, hourlyRateUsd))}</strong>
                   </div>
                 ))}
               </div>
             ) : (
               <p className="projectFinancialEmpty">No hours logged yet.</p>
             )}
-            <div className="projectFinancialSummary">
-              <span>Hours subtotal</span>
-              <strong>{formatUsdMoney(hoursSubtotalUsd)}</strong>
-            </div>
           </section>
 
           <section className="projectFinancialCard">
@@ -879,8 +850,8 @@ function ProjectPageContent({ projectId, initial }: { projectId: string; initial
         </div>
 
         <div className="projectFinancialGrandTotal">
-          <span>Grand total</span>
-          <strong>{formatUsdMoney(grandTotalUsd)}</strong>
+          <span>Total (expenses)</span>
+          <strong>{formatUsdMoney(expenseSubtotalUsd)}</strong>
         </div>
       </section>
 
@@ -998,25 +969,20 @@ function getHoursEntryInitials(entry: ProjectUserHoursEntry) {
 }
 
 async function loadProjectData(accessToken: string, projectId: string) {
-  const [projectRes, threadsRes, filesRes, clientsRes, profileRes, expenseLinesRes, siteSettingsRes] = await Promise.all([
+  const [projectRes, threadsRes, filesRes, clientsRes, profileRes, expenseLinesRes] = await Promise.all([
     authedJsonFetch({ accessToken, path: `/projects/${projectId}` }),
     authedJsonFetch({ accessToken, path: `/projects/${projectId}/threads` }),
     authedJsonFetch({ accessToken, path: `/projects/${projectId}/files` }),
     authedJsonFetch({ accessToken, path: "/clients" }),
     authedJsonFetch({ accessToken, path: "/profile" }),
-    authedJsonFetch({ accessToken, path: `/projects/${projectId}/expense-lines` }),
-    authedJsonFetch({ accessToken, path: "/site-settings" })
+    authedJsonFetch({ accessToken, path: `/projects/${projectId}/expense-lines` })
   ]);
-  const rawHourlyRate =
-    (siteSettingsRes.data?.siteSettings as { defaultHourlyRateUsd?: number | string | null } | undefined)?.defaultHourlyRateUsd ??
-    DEFAULT_HOURLY_RATE_USD;
 
   return {
     accessToken: projectRes.accessToken,
     project: (projectRes.data?.project ?? null) as Project | null,
     userHours: (projectRes.data?.userHours ?? []) as ProjectUserHoursEntry[],
     expenseLines: (expenseLinesRes.data?.expenseLines ?? []) as ProjectExpenseLine[],
-    defaultHourlyRateUsd: normalizeHourlyRateUsd(rawHourlyRate),
     threads: (threadsRes.data?.threads ?? []) as Thread[],
     files: (filesRes.data?.files ?? []) as ProjectFile[],
     clients: (clientsRes.data?.clients ?? []) as ClientRecord[],
@@ -1031,8 +997,7 @@ async function loadProjectBootstrap(projectId: string): Promise<ProjectPageBoots
       status: "Loading project…",
       project: null,
       userHours: [],
-        expenseLines: [],
-        defaultHourlyRateUsd: DEFAULT_HOURLY_RATE_USD,
+      expenseLines: [],
       clients: [],
       viewerProfile: null,
       threads: [],
@@ -1051,7 +1016,6 @@ async function loadProjectBootstrap(projectId: string): Promise<ProjectPageBoots
         project: null,
         userHours: [],
         expenseLines: [],
-        defaultHourlyRateUsd: DEFAULT_HOURLY_RATE_USD,
         clients: [],
         viewerProfile: null,
         threads: [],
@@ -1072,7 +1036,6 @@ async function loadProjectBootstrap(projectId: string): Promise<ProjectPageBoots
       project: null,
       userHours: [],
       expenseLines: [],
-      defaultHourlyRateUsd: DEFAULT_HOURLY_RATE_USD,
       clients: [],
       viewerProfile: null,
       threads: [],

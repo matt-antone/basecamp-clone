@@ -13,13 +13,8 @@ import {
   normalizeSiteLogoUrl,
   normalizeSiteTitle
 } from "@/lib/site-branding";
+import type { ClientRecord } from "@/lib/repositories";
 import { useEffect, useRef, useState } from "react";
-
-type ClientRecord = {
-  id: string;
-  name: string;
-  code: string;
-};
 
 type UserProfileRecord = {
   id: string;
@@ -67,6 +62,9 @@ type SettingsBootstrap = {
 };
 
 const settingsBootstrapResource = createClientResource(loadSettingsBootstrap, () => "settings");
+const CLIENT_ARCHIVE_POLL_INTERVAL_MS = 2000;
+
+type ClientArchiveAction = "archive" | "restore";
 
 export default function SettingsPage() {
   const [initial, setInitial] = useState<SettingsBootstrap | null>(null);
@@ -205,6 +203,46 @@ async function loadSiteSettings(): Promise<SiteSettingsForm> {
   }
 }
 
+function getClientArchiveStatus(client: ClientRecord) {
+  return (client.dropbox_archive_status ?? "idle").toLowerCase();
+}
+
+function isClientArchiveRunning(client: ClientRecord) {
+  const status = getClientArchiveStatus(client);
+  return status === "pending" || status === "in_progress";
+}
+
+function getClientArchiveAction(client: ClientRecord): ClientArchiveAction {
+  return client.archived_at ? "restore" : "archive";
+}
+
+function getClientArchiveButtonLabel(client: ClientRecord) {
+  if (isClientArchiveRunning(client)) {
+    return client.archived_at ? "Restoring..." : "Archiving...";
+  }
+  if (getClientArchiveStatus(client) === "failed") {
+    return client.archived_at ? "Retry Restore" : "Retry Archive";
+  }
+  return client.archived_at ? "Restore" : "Archive";
+}
+
+function getClientArchiveSummary(client: ClientRecord) {
+  const status = getClientArchiveStatus(client);
+  if (status === "pending") {
+    return client.archived_at ? "Queued to restore" : "Queued to archive";
+  }
+  if (status === "in_progress") {
+    return client.archived_at ? "Restoring from Dropbox archive" : "Moving client folder to Dropbox archive";
+  }
+  if (status === "failed") {
+    return client.archived_at ? "Restore failed" : "Archive failed";
+  }
+  if (client.archived_at || status === "completed") {
+    return "Archived";
+  }
+  return "Active";
+}
+
 function SettingsPageContent({ initial }: { initial: SettingsBootstrap }) {
   const [token, setToken] = useState(initial.token);
   const [googleAvatarUrl] = useState(initial.googleAvatarUrl);
@@ -330,6 +368,79 @@ function SettingsPageContent({ initial }: { initial: SettingsBootstrap }) {
     }
   }
 
+  async function submitClientArchiveAction(client: ClientRecord) {
+    if (!token) return;
+    const action = getClientArchiveAction(client);
+    const isArchive = action === "archive";
+    const confirmed = window.confirm(
+      isArchive
+        ? `Archive ${client.name}? This moves the client Dropbox folder to the archive root and temporarily blocks new projects, discussions, comments, and uploads until the move finishes.`
+        : `Restore ${client.name}? This moves the client Dropbox folder back to the active root and re-enables new work once the move completes.`
+    );
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      await authedFetch(token, `/clients/${client.id}/${action}`, { method: "POST" });
+      setStatus(isArchive ? `Archiving ${client.name}...` : `Restoring ${client.name}...`);
+      await loadClients(token);
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "Request failed");
+    }
+  }
+
+  const pollingIds = clients
+    .filter((client) => isClientArchiveRunning(client))
+    .map((client) => client.id)
+    .sort()
+    .join(",");
+
+  useEffect(() => {
+    if (!token || !pollingIds) {
+      return;
+    }
+
+    const ids = pollingIds.split(",").filter(Boolean);
+    let cancelled = false;
+
+    const poll = async () => {
+      try {
+        const updates = await Promise.all(
+          ids.map(async (clientId) => {
+            const data = await authedFetch(token, `/clients/${clientId}`);
+            return (data?.client ?? null) as ClientRecord | null;
+          })
+        );
+        if (cancelled) {
+          return;
+        }
+
+        const nextById = new Map(
+          updates
+            .filter((client): client is ClientRecord => client !== null)
+            .map((client) => [client.id, client])
+        );
+
+        setClients((current) => current.map((client) => nextById.get(client.id) ?? client));
+      } catch (error) {
+        if (!cancelled) {
+          setStatus(error instanceof Error ? error.message : "Failed to refresh client archive status");
+        }
+      }
+    };
+
+    void poll();
+    const intervalId = window.setInterval(() => {
+      void poll();
+    }, CLIENT_ARCHIVE_POLL_INTERVAL_MS);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(intervalId);
+    };
+  }, [pollingIds, token]);
+
   async function saveProfile() {
     if (!token) return;
     setSavingProfile(true);
@@ -432,19 +543,47 @@ function SettingsPageContent({ initial }: { initial: SettingsBootstrap }) {
             <ul className="settingsClientList">
               {clients.map((client) => (
                 <li key={client.id} className="settingsClientRow">
-                  <div className="settingsClientRowMain">
-                    <strong>{client.code}</strong>
-                    <span>{client.name}</span>
+                  <div className="settingsClientRowBody">
+                    <div className="settingsClientRowMain">
+                      <strong>{client.code}</strong>
+                      <span>{client.name}</span>
+                    </div>
+                    <div className="settingsClientMeta">
+                      <span className={`settingsClientStatus settingsClientStatus-${getClientArchiveStatus(client)}`}>
+                        {getClientArchiveSummary(client)}
+                      </span>
+                      {isClientArchiveRunning(client) ? (
+                        <div className="settingsClientProgress" aria-live="polite">
+                          <span className="settingsClientProgressBar" aria-hidden="true" />
+                          <span>Large Dropbox moves can take a few minutes. Status updates every 2 seconds.</span>
+                        </div>
+                      ) : null}
+                      {client.archive_error ? (
+                        <p className="status settingsDialogError" role="alert">
+                          {client.archive_error}
+                        </p>
+                      ) : null}
+                    </div>
                   </div>
-                  <OneShotButton
-                    type="button"
-                    className="secondary"
-                    onClick={() => openEditClientDialog(client)}
-                    disabled={!token}
-                    aria-label={`Edit ${client.name}`}
-                  >
-                    Edit
-                  </OneShotButton>
+                  <div className="settingsClientActions">
+                    <OneShotButton
+                      type="button"
+                      className="secondary"
+                      onClick={() => openEditClientDialog(client)}
+                      disabled={!token || isClientArchiveRunning(client)}
+                      aria-label={`Edit ${client.name}`}
+                    >
+                      Edit
+                    </OneShotButton>
+                    <OneShotButton
+                      type="button"
+                      className="secondary"
+                      onClick={() => submitClientArchiveAction(client).catch((error) => setStatus(error.message))}
+                      disabled={!token || isClientArchiveRunning(client)}
+                    >
+                      {getClientArchiveButtonLabel(client)}
+                    </OneShotButton>
+                  </div>
                 </li>
               ))}
             </ul>

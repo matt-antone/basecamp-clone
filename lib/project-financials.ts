@@ -49,14 +49,9 @@ export function calculateExpenseSubtotalUsd(entries: Array<{ amount: number | st
   return roundUsdHalfUp(entries.reduce((sum, entry) => sum + toFiniteNumber(entry.amount), 0));
 }
 
-export function calculateProjectGrandTotalUsd(
-  hoursEntries: Array<{ hours: number | string | null | undefined }>,
-  expenseEntries: Array<{ amount: number | string | null | undefined }>,
-  hourlyRateUsd: number | string | null | undefined
-) {
-  return roundUsdHalfUp(
-    calculateHoursSubtotalUsd(hoursEntries, hourlyRateUsd) + calculateExpenseSubtotalUsd(expenseEntries)
-  );
+/** Project page bottom-line total: expenses only (hours-derived USD is excluded). */
+export function calculateProjectExpensesTotalUsd(expenseEntries: Array<{ amount: number | string | null | undefined }>) {
+  return calculateExpenseSubtotalUsd(expenseEntries);
 }
 
 export function formatUsdMoney(value: number | string | null | undefined) {

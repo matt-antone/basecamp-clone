@@ -82,10 +82,18 @@ export async function importBc2FileFromAttachment(
         [bcKey]
       );
       if (existing.rows[0]) {
-        return {
-          status: "skipped_existing",
-          localFileId: existing.rows[0].local_file_id
-        };
+        const localFileId = existing.rows[0].local_file_id;
+        if (args.threadId != null || args.commentId != null) {
+          await args.query(
+            `update project_files
+                set thread_id  = coalesce(thread_id,  $2::uuid),
+                    comment_id = coalesce(comment_id, $3::uuid)
+              where id = $1::uuid
+                and (thread_id is null or comment_id is null)`,
+            [localFileId, args.threadId ?? null, args.commentId ?? null]
+          );
+        }
+        return { status: "skipped_existing", localFileId };
       }
 
       const existingByBc = await args.query<{ id: string }>(
@@ -98,6 +106,16 @@ export async function importBc2FileFromAttachment(
           "insert into import_map_files (basecamp_file_id, local_file_id) values ($1, $2) on conflict (basecamp_file_id) do nothing",
           [bcKey, localFileId]
         );
+        if (args.threadId != null || args.commentId != null) {
+          await args.query(
+            `update project_files
+                set thread_id  = coalesce(thread_id,  $2::uuid),
+                    comment_id = coalesce(comment_id, $3::uuid)
+              where id = $1::uuid
+                and (thread_id is null or comment_id is null)`,
+            [localFileId, args.threadId ?? null, args.commentId ?? null]
+          );
+        }
         return {
           status: "skipped_existing",
           localFileId
@@ -163,9 +181,20 @@ export async function importBc2FileFromAttachment(
             [String(attachment.id)]
           );
           if (raced.rows[0]) {
+            const localFileId = raced.rows[0].local_file_id;
+            if (args.threadId != null || args.commentId != null) {
+              await args.query(
+                `update project_files
+                    set thread_id  = coalesce(thread_id,  $2::uuid),
+                        comment_id = coalesce(comment_id, $3::uuid)
+                  where id = $1::uuid
+                    and (thread_id is null or comment_id is null)`,
+                [localFileId, args.threadId ?? null, args.commentId ?? null]
+              );
+            }
             return {
               status: "skipped_existing",
-              localFileId: raced.rows[0].local_file_id
+              localFileId
             };
           }
         }

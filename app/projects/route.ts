@@ -1,9 +1,11 @@
 import { requireUser } from "@/lib/auth";
-import { badRequest, serverError, unauthorized, ok } from "@/lib/http";
-import { createProject, deleteProjectById, listProjects, setProjectStorageDir } from "@/lib/repositories";
+import { badRequest, conflict, serverError, unauthorized, ok } from "@/lib/http";
+import { assertClientNotArchivedForMutation, createProject, deleteProjectById, listProjects, setProjectStorageDir } from "@/lib/repositories";
 import { buildDropboxProjectFolderBaseName, clientCodeFromProjectCode } from "@/lib/project-storage";
 import { DropboxStorageAdapter, getDropboxErrorSummary, isTeamSelectUserRequiredError } from "@/lib/storage/dropbox-adapter";
 import { z } from "zod";
+
+const CLIENT_MUTATION_BLOCK_PATTERN = /client is archived|client archive is in progress/i;
 
 const createProjectSchema = z.object({
   name: z.string().min(1),
@@ -67,6 +69,10 @@ export async function POST(request: Request) {
   try {
     const user = await requireUser(request);
     const payload = createProjectSchema.parse(await request.json());
+    await assertClientNotArchivedForMutation(payload.clientId, {
+      archived: "Client is archived. Restore it before creating new work.",
+      inProgress: "Client archive is in progress. New project creation is temporarily disabled."
+    });
     const createdProject = await createProject({
       name: payload.name,
       description: payload.description,
@@ -116,6 +122,9 @@ export async function POST(request: Request) {
   } catch (error) {
     if (error instanceof Error && /auth|token|workspace/i.test(error.message)) {
       return unauthorized(error.message);
+    }
+    if (error instanceof Error && CLIENT_MUTATION_BLOCK_PATTERN.test(error.message)) {
+      return conflict(error.message);
     }
     if (error instanceof Error && /client|project name/i.test(error.message)) {
       return badRequest(error.message);

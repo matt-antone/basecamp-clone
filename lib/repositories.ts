@@ -23,6 +23,20 @@ export type SiteSettings = {
   defaultHourlyRateUsd: number | string | null;
 };
 
+/** Row from `clients` (JSON uses PostgreSQL column names). Archive fields optional for older API consumers. */
+export type ClientRecord = {
+  id: string;
+  name: string;
+  code: string;
+  created_at: string;
+  archived_at?: string | null;
+  dropbox_archive_status?: string;
+  archive_started_at?: string | null;
+  archive_error?: string | null;
+};
+
+export type ClientArchiveStatus = "idle" | "pending" | "in_progress" | "completed" | "failed";
+
 export type ProjectUserHours = {
   userId: string;
   firstName: string | null;
@@ -130,12 +144,12 @@ export async function listNotificationRecipients(excludeUserId: string): Promise
   }));
 }
 
-export async function listClients() {
+export async function listClients(): Promise<ClientRecord[]> {
   const result = await query("select * from clients order by name asc");
-  return result.rows;
+  return result.rows as ClientRecord[];
 }
 
-export async function createClient(args: { name: string; code: string }) {
+export async function createClient(args: { name: string; code: string }): Promise<ClientRecord | undefined> {
   const code = args.code.trim().toUpperCase();
   const result = await query(
     `insert into clients (name, code)
@@ -143,20 +157,107 @@ export async function createClient(args: { name: string; code: string }) {
      returning *`,
     [args.name.trim(), code]
   );
-  return result.rows[0];
+  return result.rows[0] as ClientRecord | undefined;
 }
 
-export async function getClientById(id: string) {
+export async function getClientById(id: string): Promise<ClientRecord | null> {
   const result = await query("select * from clients where id = $1", [id]);
-  return result.rows[0] ?? null;
+  return (result.rows[0] as ClientRecord | undefined) ?? null;
 }
 
-export async function updateClientName(id: string, name: string) {
+export async function updateClientArchiveState(
+  id: string,
+  args: {
+    status: ClientArchiveStatus;
+    archiveError?: string | null;
+    archivedAt?: string | null;
+  }
+) {
+  const shouldOverwriteArchivedAt = Object.prototype.hasOwnProperty.call(args, "archivedAt");
+  const result = await query(
+    `update clients
+     set dropbox_archive_status = $2,
+         archive_error = $3,
+         archived_at = case
+           when $5::boolean then $4::timestamptz
+           else archived_at
+         end,
+         archive_started_at = case
+           when $2 = 'pending' then now()
+           when $2 = 'idle' then null
+           else coalesce(archive_started_at, now())
+         end
+     where id = $1::uuid
+     returning *`,
+    [id, args.status, args.archiveError ?? null, args.archivedAt ?? null, shouldOverwriteArchivedAt]
+  );
+  return (result.rows[0] as ClientRecord | undefined) ?? null;
+}
+
+export async function rewriteClientDropboxPaths(args: { clientId: string; fromRoot: string; toRoot: string }) {
+  const fromRoot = args.fromRoot.trim().replace(/\/+$/, "");
+  const toRoot = args.toRoot.trim().replace(/\/+$/, "");
+  if (!fromRoot || !toRoot || !fromRoot.startsWith("/") || !toRoot.startsWith("/")) {
+    throw new Error("Client Dropbox root rewrite paths must be absolute");
+  }
+
+  await query(
+    `update projects
+     set storage_project_dir = case
+           when storage_project_dir = $2 then $3
+           else $3 || substring(storage_project_dir from char_length($2) + 1)
+         end,
+         updated_at = now()
+     where client_id = $1::uuid
+       and storage_project_dir is not null
+       and (storage_project_dir = $2 or storage_project_dir like $2 || '/%')`,
+    [args.clientId, fromRoot, toRoot]
+  );
+
+  await query(
+    `update project_files pf
+     set dropbox_path = case
+           when pf.dropbox_path = $2 then $3
+           else $3 || substring(pf.dropbox_path from char_length($2) + 1)
+         end
+     from projects p
+     where p.id = pf.project_id
+       and p.client_id = $1::uuid
+       and pf.dropbox_path is not null
+       and (pf.dropbox_path = $2 or pf.dropbox_path like $2 || '/%')`,
+    [args.clientId, fromRoot, toRoot]
+  );
+}
+
+export async function assertClientNotArchivedForMutation(
+  clientId: string | null | undefined,
+  messages: { archived: string; inProgress: string }
+) {
+  if (!clientId) {
+    return;
+  }
+
+  const client = await getClientById(clientId);
+  if (!client) {
+    return;
+  }
+
+  if (client.archived_at) {
+    throw new Error(messages.archived);
+  }
+
+  const status = (client.dropbox_archive_status ?? "idle").toLowerCase();
+  if (status === "pending" || status === "in_progress") {
+    throw new Error(messages.inProgress);
+  }
+}
+
+export async function updateClientName(id: string, name: string): Promise<ClientRecord | null> {
   const result = await query(
     `update clients set name = $1 where id = $2::uuid returning *`,
     [name.trim(), id]
   );
-  return result.rows[0] ?? null;
+  return (result.rows[0] as ClientRecord | undefined) ?? null;
 }
 
 /** Same CASE as `display_name` — use for ORDER BY title / tie-breaks. */
@@ -317,6 +418,38 @@ export async function listProjects(includeArchived = true, options?: ListProject
        order by ${orderBy}`;
   const result = await query(sql, [clientId]);
   return result.rows;
+}
+
+/**
+ * Count of non-archived projects in `billing` status. Matches
+ * `listProjects(includeArchived=false, { billingOnly: true, clientId, search }).length`
+ * and GET `/projects?billingOnly=true&includeArchived=false` with the same `clientId` / `search`.
+ */
+export async function countBillingStageProjects(options?: ListProjectsOptions) {
+  const clientId = options?.clientId?.trim() ? options.clientId : null;
+  const search = (options?.search ?? "").trim();
+
+  if (search.length > 0) {
+    const sql = `select count(*)::int as c
+       from projects p
+       left join clients c on c.id = p.client_id
+       cross join lateral (select plainto_tsquery('english', $1) as tsq) q
+       where ($2::uuid is null or p.client_id = $2::uuid)
+         and p.archived = false and p.status = 'billing'
+         and ${projectFtsPredicate("q")}`;
+    const result = await query<{ c: string }>(sql, [search, clientId]);
+    const raw = result.rows[0]?.c;
+    return typeof raw === "number" ? raw : Number(raw ?? 0);
+  }
+
+  const sql = `select count(*)::int as c
+     from projects p
+     where p.archived = false
+       and p.status = 'billing'
+       and ($1::uuid is null or p.client_id = $1::uuid)`;
+  const result = await query<{ c: string }>(sql, [clientId]);
+  const raw = result.rows[0]?.c;
+  return typeof raw === "number" ? raw : Number(raw ?? 0);
 }
 
 export async function listArchivedProjectsPaginated(options: {
@@ -1211,16 +1344,18 @@ export async function getThread(projectId: string, threadId: string) {
   const attachmentsResult = await query(
     `select id, project_id, thread_id, comment_id, filename, mime_type, size_bytes, thumbnail_url, created_at
      from project_files
-     where project_id = $1 and thread_id = $2 and comment_id is not null
+     where project_id = $1 and thread_id = $2
      order by created_at asc`,
     [projectId, threadId]
   );
 
   const filesByComment = new Map<string, typeof attachmentsResult.rows>();
+  const threadAttachments: typeof attachmentsResult.rows = [];
   for (const attachment of attachmentsResult.rows) {
     const normalizedAttachment = normalizeProjectFileSizeRow(attachment);
     const commentId = String(attachment.comment_id ?? "");
     if (!commentId) {
+      threadAttachments.push(normalizedAttachment);
       continue;
     }
     const current = filesByComment.get(commentId) ?? [];
@@ -1230,6 +1365,7 @@ export async function getThread(projectId: string, threadId: string) {
 
   return {
     ...thread,
+    threadAttachments,
     comments: commentsResult.rows.map((comment) => ({
       ...comment,
       attachments: filesByComment.get(String(comment.id)) ?? []

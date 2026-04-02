@@ -111,10 +111,10 @@ export function DiscussionComposer(props: DiscussionComposerProps) {
             </ul>
           )}
         </div>
-        <OneShotButton onClick={onSubmit} disabled={!canSubmit}>
-          {submitLabel}
-        </OneShotButton>
       </div>
+      <OneShotButton onClick={onSubmit} disabled={!canSubmit}>
+        {submitLabel}
+      </OneShotButton>
     </section>
   );
 }

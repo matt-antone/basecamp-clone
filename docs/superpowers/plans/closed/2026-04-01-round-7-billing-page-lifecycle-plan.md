@@ -1,7 +1,7 @@
 # Round 7 — Billing page and lifecycle — implementation plan
 
 **Status:** Complete (closed 2026-04-01)  
-**Spec:** [2026-04-01-round-7-billing-page-lifecycle-design.md](../specs/2026-04-01-round-7-billing-page-lifecycle-design.md)
+**Spec:** [2026-04-01-round-7-billing-page-lifecycle-design.md](../../specs/2026-04-01-round-7-billing-page-lifecycle-design.md)
 
 **Shipped:** Migration `0021_project_status_billing.sql`, `lib/project-status.ts`, `GET /projects?billingOnly=true`, `POST /projects/[id]/status` with transition rules, `/billing` page + nav, board Complete → **Send to billing** / **Archive now**, tests. Optional backfill (A3) not run — confirm with product if needed.
 

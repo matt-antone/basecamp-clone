@@ -1,8 +1,8 @@
 import { createHash, randomUUID } from "node:crypto";
 import { requireUser } from "@/lib/auth";
 import { enqueueThumbnailJobAndNotifyBestEffort } from "@/lib/thumbnail-enqueue-after-save";
-import { badRequest, notFound, ok, serverError, unauthorized } from "@/lib/http";
-import { createFileMetadata, getComment, getProject, getThread } from "@/lib/repositories";
+import { badRequest, conflict, notFound, ok, serverError, unauthorized } from "@/lib/http";
+import { assertClientNotArchivedForMutation, createFileMetadata, getComment, getProject, getThread } from "@/lib/repositories";
 import {
   DropboxStorageAdapter,
   getDropboxErrorSummary,
@@ -48,6 +48,7 @@ const uploadCompleteFormFieldsSchema = z.object({
 
 const DROPBOX_AUTH_ERROR_PATTERN =
   /auth|token|workspace|invalid_access_token|expired_access_token|invalid_grant|not_authed|missing_scope/i;
+const CLIENT_MUTATION_BLOCK_PATTERN = /client is archived|client archive is in progress/i;
 
 async function parseUploadCompleteRequest(request: Request) {
   const contentType = request.headers.get("content-type") ?? "";
@@ -99,6 +100,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     if (!project) {
       return notFound("Project not found");
     }
+    await assertClientNotArchivedForMutation(project.client_id, {
+      archived: "Client is archived. Restore it before uploading files.",
+      inProgress: "Client archive is in progress. File uploads are temporarily disabled."
+    });
 
     const payload = await parseUploadCompleteRequest(request);
     if (payload.threadId) {
@@ -171,6 +176,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const errorSummary = getDropboxErrorSummary(error);
     if (DROPBOX_AUTH_ERROR_PATTERN.test(errorSummary)) {
       return unauthorized(errorSummary);
+    }
+    if (error instanceof Error && CLIENT_MUTATION_BLOCK_PATTERN.test(error.message)) {
+      return conflict(error.message);
     }
     console.error("upload_complete_failed", { errorSummary, error });
     return serverError(errorSummary || (error instanceof Error ? error.message : "Upload failed"));

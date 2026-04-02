@@ -28,6 +28,15 @@ describe("resolveBc2LinkageFromAttachable", () => {
     );
   });
 
+  it("returns null thread for Message attachable when map is missing", async () => {
+    const query = vi.fn().mockResolvedValue({ rows: [] });
+    const r = await resolveBc2LinkageFromAttachable(query as never, {
+      id: 56,
+      type: "Message"
+    });
+    expect(r).toEqual({ threadId: null, commentId: null });
+  });
+
   it("maps Comment attachable via import_map_comments + discussion_comments", async () => {
     const query = vi.fn().mockResolvedValue({
       rows: [{ thread_id: "t-1", comment_id: "c-1" }]
@@ -37,6 +46,16 @@ describe("resolveBc2LinkageFromAttachable", () => {
       type: "Comment"
     });
     expect(r).toEqual({ threadId: "t-1", commentId: "c-1" });
+  });
+
+  it("returns nulls for unsupported attachable types", async () => {
+    const query = vi.fn();
+    const r = await resolveBc2LinkageFromAttachable(query as never, {
+      id: 123,
+      type: "Upload"
+    });
+    expect(r).toEqual({ threadId: null, commentId: null });
+    expect(query).not.toHaveBeenCalled();
   });
 });
 

@@ -5,6 +5,7 @@ const getProjectMock = vi.fn();
 const getThreadMock = vi.fn();
 const getCommentMock = vi.fn();
 const createFileMetadataMock = vi.fn();
+const assertClientNotArchivedForMutationMock = vi.fn();
 const uploadCompleteMock = vi.fn();
 const enqueueThumbnailJobAndNotifyBestEffortMock = vi.fn();
 
@@ -17,6 +18,7 @@ vi.mock("@/lib/auth", () => ({
 }));
 
 vi.mock("@/lib/repositories", () => ({
+  assertClientNotArchivedForMutation: assertClientNotArchivedForMutationMock,
   getProject: getProjectMock,
   getThread: getThreadMock,
   getComment: getCommentMock,
@@ -68,23 +70,22 @@ describe("POST /projects/[id]/files/upload-complete", () => {
     getThreadMock.mockReset();
     getCommentMock.mockReset();
     createFileMetadataMock.mockReset();
+    assertClientNotArchivedForMutationMock.mockReset();
     uploadCompleteMock.mockReset();
     enqueueThumbnailJobAndNotifyBestEffortMock.mockReset();
     enqueueThumbnailJobAndNotifyBestEffortMock.mockResolvedValue(undefined);
   });
 
-  it("does not enqueue thumbnails when project is archived", async () => {
+  it("returns 409 when the client is archived", async () => {
     requireUserMock.mockResolvedValue({ id: "user-1", email: "person@example.com" });
     getProjectMock.mockResolvedValue({
       id: "project-1",
-      archived: true,
+      client_id: "11111111-1111-1111-1111-111111111111",
       storage_project_dir: "/Projects/BRGS/BRGS-0001-Site Refresh"
     });
-    uploadCompleteMock.mockResolvedValue({
-      fileId: "id:abc123",
-      path: "/Projects/BRGS/BRGS-0001-Site Refresh/uploads/report.pdf"
-    });
-    createFileMetadataMock.mockResolvedValue({ id: "file-1" });
+    assertClientNotArchivedForMutationMock.mockRejectedValue(
+      new Error("Client archive is in progress. File uploads are temporarily disabled.")
+    );
 
     const { POST } = await import("@/app/projects/[id]/files/upload-complete/route");
     const response = await POST(
@@ -107,7 +108,18 @@ describe("POST /projects/[id]/files/upload-complete", () => {
       { params: Promise.resolve({ id: "project-1" }) }
     );
 
-    expect(response.status).toBe(201);
+    expect(response.status).toBe(409);
+    await expect(response.json()).resolves.toMatchObject({
+      error: "Client archive is in progress. File uploads are temporarily disabled."
+    });
+    expect(assertClientNotArchivedForMutationMock).toHaveBeenCalledWith(
+      "11111111-1111-1111-1111-111111111111",
+      expect.objectContaining({
+        inProgress: "Client archive is in progress. File uploads are temporarily disabled."
+      })
+    );
+    expect(uploadCompleteMock).not.toHaveBeenCalled();
+    expect(createFileMetadataMock).not.toHaveBeenCalled();
     expect(enqueueThumbnailJobAndNotifyBestEffortMock).not.toHaveBeenCalled();
   });
 

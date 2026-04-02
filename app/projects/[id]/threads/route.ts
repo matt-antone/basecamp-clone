@@ -1,8 +1,17 @@
 import { requireUser } from "@/lib/auth";
 import { sendThreadCreatedEmail } from "@/lib/mailer";
-import { badRequest, notFound, ok, serverError, unauthorized } from "@/lib/http";
-import { createThread, getProject, getUserProfileById, listNotificationRecipients, listThreads } from "@/lib/repositories";
+import { badRequest, conflict, notFound, ok, serverError, unauthorized } from "@/lib/http";
+import {
+  assertClientNotArchivedForMutation,
+  createThread,
+  getProject,
+  getUserProfileById,
+  listNotificationRecipients,
+  listThreads
+} from "@/lib/repositories";
 import { z } from "zod";
+
+const CLIENT_MUTATION_BLOCK_PATTERN = /client is archived|client archive is in progress/i;
 
 const createThreadSchema = z.object({
   title: z.string().min(1),
@@ -48,6 +57,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     if (!project) {
       return notFound("Project not found");
     }
+    await assertClientNotArchivedForMutation(project.client_id, {
+      archived: "Client is archived. Restore it before starting new discussions.",
+      inProgress: "Client archive is in progress. New discussions are temporarily disabled."
+    });
 
     const payload = createThreadSchema.parse(await request.json());
     const thread = await createThread({
@@ -102,6 +115,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   } catch (error) {
     if (error instanceof Error && /auth|token|workspace/i.test(error.message)) {
       return unauthorized(error.message);
+    }
+    if (error instanceof Error && CLIENT_MUTATION_BLOCK_PATTERN.test(error.message)) {
+      return conflict(error.message);
     }
     if (error instanceof z.ZodError) {
       return badRequest(error.message);

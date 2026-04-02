@@ -1,7 +1,7 @@
 # Round 7 — BC2 file discussion/comment linkage — implementation plan
 
 **Status:** Complete (handoff 2026-04-01)  
-**Spec:** [2026-04-01-round-7-bc2-file-discussion-linkage-design.md](../specs/2026-04-01-round-7-bc2-file-discussion-linkage-design.md)
+**Spec:** [2026-04-01-round-7-bc2-file-discussion-linkage-design.md](../../specs/2026-04-01-round-7-bc2-file-discussion-linkage-design.md)
 
 ---
 

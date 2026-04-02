@@ -5,6 +5,7 @@ const createProjectMock = vi.fn();
 const listProjectsMock = vi.fn();
 const deleteProjectByIdMock = vi.fn();
 const setProjectStorageDirMock = vi.fn();
+const assertClientNotArchivedForMutationMock = vi.fn();
 const ensureProjectFoldersMock = vi.fn();
 
 vi.mock("@/lib/auth", () => ({
@@ -12,6 +13,7 @@ vi.mock("@/lib/auth", () => ({
 }));
 
 vi.mock("@/lib/repositories", () => ({
+  assertClientNotArchivedForMutation: assertClientNotArchivedForMutationMock,
   createProject: createProjectMock,
   listProjects: listProjectsMock,
   deleteProjectById: deleteProjectByIdMock,
@@ -33,6 +35,7 @@ describe("POST /projects", () => {
     listProjectsMock.mockReset();
     deleteProjectByIdMock.mockReset();
     setProjectStorageDirMock.mockReset();
+    assertClientNotArchivedForMutationMock.mockReset();
     ensureProjectFoldersMock.mockReset();
   });
 
@@ -118,6 +121,40 @@ describe("POST /projects", () => {
         requestor: "Jane Producer"
       })
     );
+  });
+
+  it("returns 409 when the selected client is archived", async () => {
+    requireUserMock.mockResolvedValue({ id: "user-1", email: "person@example.com" });
+    assertClientNotArchivedForMutationMock.mockRejectedValue(
+      new Error("Client is archived. Restore it before creating new work.")
+    );
+
+    const { POST } = await import("@/app/projects/route");
+    const response = await POST(
+      new Request("http://localhost/projects", {
+        method: "POST",
+        headers: {
+          authorization: "Bearer token",
+          "content-type": "application/json"
+        },
+        body: JSON.stringify({
+          name: "Website Refresh",
+          clientId: "11111111-1111-1111-1111-111111111111"
+        })
+      })
+    );
+
+    expect(response.status).toBe(409);
+    await expect(response.json()).resolves.toMatchObject({
+      error: "Client is archived. Restore it before creating new work."
+    });
+    expect(assertClientNotArchivedForMutationMock).toHaveBeenCalledWith(
+      "11111111-1111-1111-1111-111111111111",
+      expect.objectContaining({
+        archived: "Client is archived. Restore it before creating new work."
+      })
+    );
+    expect(createProjectMock).not.toHaveBeenCalled();
   });
 });
 

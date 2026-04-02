@@ -22,7 +22,8 @@ describe("PATCH /clients/[id]", () => {
     updateClientNameMock.mockResolvedValue({
       id: "client-uuid",
       name: "Acme Updated",
-      code: "ACME"
+      code: "ACME",
+      created_at: "2024-01-01T00:00:00.000Z"
     });
 
     const { PATCH } = await import("@/app/clients/[id]/route");

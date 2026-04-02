@@ -1,7 +1,7 @@
 # Round 7 — BC2 migration skip existing files — implementation plan
 
-**Status:** Pending  
-**Spec:** [2026-04-01-round-7-bc2-migration-skip-existing-files-design.md](../specs/2026-04-01-round-7-bc2-migration-skip-existing-files-design.md)
+**Status:** Complete (closed 2026-04-02)  
+**Spec:** [2026-04-01-round-7-bc2-migration-skip-existing-files-design.md](../../specs/2026-04-01-round-7-bc2-migration-skip-existing-files-design.md)
 
 **Resolved:** Add **BC source id column** + **partial unique index** `(project_id, bc_id)` — see spec § Resolved.
 

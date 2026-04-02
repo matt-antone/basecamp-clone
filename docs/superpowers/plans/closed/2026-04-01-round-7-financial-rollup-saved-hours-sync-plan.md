@@ -1,7 +1,7 @@
 # Round 7 — Financial Rollup saved hours sync — implementation plan
 
 **Status:** Complete (closed 2026-04-01)  
-**Spec:** [2026-04-01-round-7-financial-rollup-saved-hours-sync-design.md](../specs/2026-04-01-round-7-financial-rollup-saved-hours-sync-design.md)
+**Spec:** [2026-04-01-round-7-financial-rollup-saved-hours-sync-design.md](../../specs/2026-04-01-round-7-financial-rollup-saved-hours-sync-design.md)
 
 **Resolved:** **Refetch** project bootstrap after successful save (extra GET acceptable).
 

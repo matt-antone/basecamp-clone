@@ -41,6 +41,16 @@ describe("repository file size normalization", () => {
             mime_type: "application/pdf",
             size_bytes: "4096",
             created_at: "2026-03-27T00:00:00.000Z"
+          },
+          {
+            id: "file-2",
+            project_id: "project-1",
+            thread_id: "thread-1",
+            comment_id: null,
+            filename: "summary.docx",
+            mime_type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            size_bytes: "8192",
+            created_at: "2026-03-27T00:01:00.000Z"
           }
         ]
       });
@@ -49,6 +59,8 @@ describe("repository file size normalization", () => {
     const thread = await getThread("project-1", "thread-1");
 
     expect(thread?.comments?.[0]?.attachments?.[0]?.size_bytes).toBe(4096);
+    expect(thread?.threadAttachments?.[0]?.size_bytes).toBe(8192);
+    expect(thread?.threadAttachments?.[0]?.id).toBe("file-2");
   });
 
   it("normalizes getFileById size_bytes values", async () => {

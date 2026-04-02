@@ -161,9 +161,10 @@ h3 {
   right: 0;
   left: 0;
   z-index: 100;
-  display: grid;
-  grid-template-columns: 1fr auto 1fr;
+  display: flex;
   align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
   padding: 9px 16px;
   background: color-mix(in srgb, var(--panel-bg) 88%, transparent);
   backdrop-filter: blur(14px);
@@ -174,7 +175,7 @@ h3 {
 .themeTopBarActions {
   display: inline-flex;
   align-items: center;
-  justify-self: end;
+  flex-shrink: 0;
   gap: 0.55rem;
 }
 
@@ -207,16 +208,30 @@ h3 {
   background: color-mix(in srgb, var(--panel-bg) 40%, var(--projects-accent, var(--text-primary)) 12%);
 }
 
+.themeTopBarProjectsBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.15em;
+  margin-left: 0.35rem;
+  padding: 0.1em 0.4em;
+  font-size: 0.72em;
+  font-weight: 700;
+  line-height: 1.2;
+  vertical-align: 0.08em;
+  color: var(--panel-bg, #fff);
+  background: color-mix(in oklch, var(--projects-accent, oklch(0.45 0.06 238)) 88%, var(--text-primary));
+  border-radius: 999px;
+}
+
 .brandHomeLink {
   display: inline-flex;
   align-items: center;
-  justify-self: start;
 }
 
 .brandLink {
   display: inline-flex;
   align-items: center;
-  justify-self: center;
   text-decoration: none;
   color: var(--text-primary);
   font-weight: var(--weight-semibold);
@@ -226,9 +241,10 @@ h3 {
 }
 
 .brandCluster {
-  display: grid;
-  justify-self: center;
+  display: flex;
+  align-items: center;
   gap: 0.28rem;
+  min-width: 0;
 }
 
 .brandStats {
@@ -331,6 +347,39 @@ textarea {
   font-size: var(--text-sm);
   line-height: var(--leading-normal);
   max-width: 62ch;
+}
+
+.discussionPageHeaderTitles {
+  display: grid;
+  gap: 0.28rem;
+  min-width: 0;
+}
+
+.discussionProjectTitle {
+  margin: 0;
+  font-size: 0.82rem;
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: 0.01em;
+  color: var(--text-muted);
+}
+
+.discussionProjectTitle a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.discussionProjectTitle a:hover {
+  color: var(--text);
+  text-decoration: underline;
+}
+
+.discussionThreadTitle {
+  margin: 0;
+  font-size: clamp(1.2rem, 1.05rem + 0.55vw, 1.65rem);
+  font-weight: 650;
+  line-height: 1.22;
+  letter-spacing: -0.02em;
 }
 
 .headerActions {
@@ -439,6 +488,10 @@ textarea {
   --projects-new: oklch(0.82 0.13 102);
   display: grid;
   gap: clamp(1.25rem, 2vw, 2rem);
+}
+
+.projectsExperienceNoHero {
+  padding-top: clamp(0.35rem, 1vw, 0.75rem);
 }
 
 .projectsExperience .tone-new {
@@ -1609,13 +1662,20 @@ textarea {
 
 .settingsClientRow {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
   flex-wrap: wrap;
   padding: 10px 12px;
   border: 1px solid color-mix(in srgb, var(--panel-border) 78%, transparent);
   background: var(--panel-bg, transparent);
+}
+
+.settingsClientRowBody {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  flex: 1 1 320px;
 }
 
 .settingsClientRowMain {
@@ -1630,9 +1690,83 @@ textarea {
   color: var(--text-primary);
 }
 
+.settingsClientMeta {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.settingsClientStatus {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  padding: 2px 8px;
+  border: 1px solid color-mix(in srgb, var(--panel-border) 70%, transparent);
+  color: var(--text-muted);
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  background: color-mix(in srgb, var(--panel-bg, #fff) 82%, transparent);
+}
+
+.settingsClientStatus-pending,
+.settingsClientStatus-in_progress {
+  color: color-mix(in srgb, var(--link) 70%, var(--text-primary));
+}
+
+.settingsClientStatus-failed {
+  color: var(--destructive, #b42318);
+}
+
+.settingsClientStatus-completed {
+  color: color-mix(in srgb, #155eef 58%, var(--text-primary));
+}
+
+.settingsClientProgress {
+  display: grid;
+  gap: 6px;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+.settingsClientProgressBar {
+  position: relative;
+  display: block;
+  width: min(240px, 100%);
+  height: 6px;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--panel-border) 75%, transparent);
+}
+
+.settingsClientProgressBar::after {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 -40%;
+  width: 40%;
+  background: color-mix(in srgb, var(--link) 68%, transparent);
+  animation: settingsClientProgressSlide 1.2s linear infinite;
+}
+
+.settingsClientActions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
 .settingsDialogError {
   margin: 0;
   color: var(--destructive, #b42318);
+}
+
+@keyframes settingsClientProgressSlide {
+  from {
+    transform: translateX(0);
+  }
+
+  to {
+    transform: translateX(350%);
+  }
 }
 
 .profileTitle {
@@ -2450,6 +2584,10 @@ li.active {
   border-bottom: 1px solid color-mix(in srgb, var(--panel-border) 70%, transparent);
 }
 
+.projectFinancialRowHoursOnly {
+  grid-template-columns: minmax(0, 1.3fr) auto;
+}
+
 .projectFinancialPerson {
   display: inline-flex;
   align-items: center;
@@ -2989,6 +3127,33 @@ li.active {
   gap: 10px;
 }
 
+.form.editorWrap {
+  display: flex;
+  align-items: stretch;
+}
+
+.form.editorWrap .commentUploadArea {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: stretch;
+  width: 100%;
+  height: 100%;
+}
+
+.form.editorWrap label {
+  width: 100%;
+  height: 1rem;
+}
+
+.form.editorWrap .commentDropZone {
+  width: 100%;
+  justify-self: stretch;
+  align-self: stretch;
+  aspect-ratio: 1 / 1;
+  max-width: 300px;
+}
+
 .commentMdxEditor {
   border: 1px solid var(--md-editor-border);
   border-radius: 0;
@@ -3175,18 +3340,15 @@ textarea:focus-visible,
 
 @media (max-width: 760px) {
   .themeTopBar {
-    grid-template-columns: auto 1fr auto;
     gap: 0.6rem;
   }
 
   .brandCluster {
-    justify-self: start;
     gap: 0.2rem;
   }
 
   .brandLink {
     font-size: 0.82rem;
-    justify-self: start;
   }
 
   .brandStats {

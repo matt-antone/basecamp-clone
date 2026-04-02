@@ -12,12 +12,14 @@ import {
 } from "@/lib/project-utils";
 import { authedJsonFetch, fetchAuthSession } from "@/lib/browser-auth";
 import type { FeaturedFeedPost } from "@/lib/featured-feed";
+import type { ClientRecord } from "@/lib/repositories";
 import {
   type Dispatch,
   type ReactNode,
   type RefObject,
   type SetStateAction,
   createContext,
+  startTransition,
   useCallback,
   useContext,
   useEffect,
@@ -26,7 +28,7 @@ import {
   useState
 } from "react";
 
-export type ClientRecord = { id: string; name: string; code: string };
+export type { ClientRecord };
 export type Project = {
   id: string;
   name: string;
@@ -175,8 +177,9 @@ function ProjectsWorkspaceInner({ initial, children }: { initial: ProjectsBootst
   const [status, setStatus] = useState(initial.status);
   const domainAllowed = initial.domainAllowed;
   const clients = initial.clients;
+  const createProjectClients = clients.filter((client) => !client.archived_at);
   const [projects, setProjects] = useState<Project[]>(initial.projects);
-  const latestFeaturedPosts = initial.latestFeaturedPosts;
+  const [latestFeaturedPosts, setLatestFeaturedPosts] = useState<FeaturedFeedPost[]>(initial.latestFeaturedPosts);
   const [filterClientId, setFilterClientId] = useState<string | null>(null);
   const [activeSearch, setActiveSearch] = useState("");
   const [projectSort, setProjectSort] = useState<ProjectSort>("title");
@@ -206,6 +209,25 @@ function ProjectsWorkspaceInner({ initial, children }: { initial: ProjectsBootst
   useEffect(() => {
     return () => {
       refreshAbortControllerRef.current?.abort();
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/feeds/latest", { cache: "force-cache" })
+      .then((response) => (response.ok ? response.json() : null))
+      .then((feedData: { posts?: FeaturedFeedPost[] } | null) => {
+        if (cancelled || !feedData) return;
+        const posts = feedData.posts?.slice(0, 2) ?? [];
+        startTransition(() => {
+          setLatestFeaturedPosts(posts);
+        });
+      })
+      .catch(() => {
+        /* Hero keeps default copy if the feed cannot be reached. */
+      });
+    return () => {
+      cancelled = true;
     };
   }, []);
 
@@ -272,18 +294,18 @@ function ProjectsWorkspaceInner({ initial, children }: { initial: ProjectsBootst
       if (!projectId) {
         throw new Error("Project created without an id");
       }
-      setProjectForm(createProjectDialogValues(clients[0]?.id ?? ""));
+      setProjectForm(createProjectDialogValues(createProjectClients[0]?.id ?? ""));
       createDialogRef.current?.close();
       router.push(`/${projectId}`);
     } finally {
       setIsCreatingProject(false);
     }
-  }, [authedFetch, clients, projectForm, router]);
+  }, [authedFetch, createProjectClients, projectForm, router]);
 
   const openCreateDialog = useCallback(() => {
-    setProjectForm(createProjectDialogValues(clients[0]?.id ?? ""));
+    setProjectForm(createProjectDialogValues(createProjectClients[0]?.id ?? ""));
     createDialogRef.current?.showModal();
-  }, [clients]);
+  }, [createProjectClients]);
 
   const toggleArchive = useCallback(
     async (project: Project) => {
@@ -429,17 +451,8 @@ function getProjectsPageAuthErrorStatus() {
 }
 
 async function loadProjectsBootstrap(): Promise<ProjectsBootstrap> {
-  let latestFeaturedPosts: FeaturedFeedPost[] = [];
-
-  try {
-    const feedResponse = await fetch("/feeds/latest", { cache: "force-cache" });
-    if (feedResponse.ok) {
-      const feedData = (await feedResponse.json()) as { posts?: FeaturedFeedPost[] };
-      latestFeaturedPosts = feedData.posts?.slice(0, 2) ?? [];
-    }
-  } catch {
-    /* Keep the default hero copy if the feed cannot be reached. */
-  }
+  /** Feed loads in `ProjectsWorkspaceInner` so session/clients/projects are not blocked on `/feeds/latest`. */
+  const latestFeaturedPosts: FeaturedFeedPost[] = [];
 
   try {
     const session = await fetchAuthSession();

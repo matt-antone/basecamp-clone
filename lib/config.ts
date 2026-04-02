@@ -128,6 +128,13 @@ export const config = {
     getOptionalEnv("DROPBOX_PROJECTS_ROOT_FOLDER") ??
     getOptionalEnv("DROPBOX_ROOT_FOLDER") ??
     "/Projects",
+  dropboxArchivedClientsRoot: () => {
+    const value = getOptionalEnv("DROPBOX_ARCHIVED_CLIENTS_ROOT");
+    if (!value) {
+      throw new Error("DROPBOX_ARCHIVED_CLIENTS_ROOT is required to archive clients.");
+    }
+    return value;
+  },
   thumbnailWorkerUrl: () => normalizeThumbnailWorkerUrl(getOptionalEnv("THUMBNAIL_WORKER_URL")),
   thumbnailWorkerToken: () => getOptionalEnv("THUMBNAIL_WORKER_TOKEN"),
   thumbnailWorkerTimeoutMs: () => getNumberEnv("THUMBNAIL_WORKER_TIMEOUT_MS", 15000),

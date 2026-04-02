@@ -135,5 +135,5 @@ export function ProjectsBilling() {
     </div>
   ) : null;
 
-  return <ProjectsWorkspaceShell viewport={viewport} />;
+  return <ProjectsWorkspaceShell showHero={false} viewport={viewport} />;
 }

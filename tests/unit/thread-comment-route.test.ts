@@ -6,6 +6,7 @@ const getThreadMock = vi.fn();
 const createCommentMock = vi.fn();
 const getUserProfileByIdMock = vi.fn();
 const listNotificationRecipientsMock = vi.fn();
+const assertClientNotArchivedForMutationMock = vi.fn();
 const sendCommentCreatedEmailMock = vi.fn();
 
 vi.mock("@/lib/auth", () => ({
@@ -13,6 +14,7 @@ vi.mock("@/lib/auth", () => ({
 }));
 
 vi.mock("@/lib/repositories", () => ({
+  assertClientNotArchivedForMutation: assertClientNotArchivedForMutationMock,
   getProject: getProjectMock,
   getThread: getThreadMock,
   createComment: createCommentMock,
@@ -37,6 +39,7 @@ describe("POST /projects/[id]/threads/[threadId]/comments", () => {
     createCommentMock.mockReset();
     getUserProfileByIdMock.mockReset();
     listNotificationRecipientsMock.mockReset();
+    assertClientNotArchivedForMutationMock.mockReset();
     sendCommentCreatedEmailMock.mockReset();
   });
 
@@ -173,5 +176,48 @@ describe("POST /projects/[id]/threads/[threadId]/comments", () => {
 
     expect(response.status).toBe(201);
     expect(sendCommentCreatedEmailMock).not.toHaveBeenCalled();
+  });
+
+  it("returns 409 when the client is archived", async () => {
+    requireUserMock.mockResolvedValue({ id: "user-1", email: "author@example.com" });
+    getProjectMock.mockResolvedValue({
+      id: "project-1",
+      name: "Blue Sky",
+      client_id: "11111111-1111-1111-1111-111111111111"
+    });
+    getThreadMock.mockResolvedValue({
+      id: "thread-1",
+      title: "Kickoff notes"
+    });
+    assertClientNotArchivedForMutationMock.mockRejectedValue(
+      new Error("Client is archived. Restore it before posting comments.")
+    );
+
+    const { POST } = await import("@/app/projects/[id]/threads/[threadId]/comments/route");
+    const response = await POST(
+      new Request("http://localhost/projects/project-1/threads/thread-1/comments", {
+        method: "POST",
+        headers: {
+          authorization: "Bearer token",
+          "content-type": "application/json"
+        },
+        body: JSON.stringify({
+          bodyMarkdown: "This is a thoughtful follow-up comment."
+        })
+      }),
+      { params: Promise.resolve({ id: "project-1", threadId: "thread-1" }) }
+    );
+
+    expect(response.status).toBe(409);
+    await expect(response.json()).resolves.toMatchObject({
+      error: "Client is archived. Restore it before posting comments."
+    });
+    expect(assertClientNotArchivedForMutationMock).toHaveBeenCalledWith(
+      "11111111-1111-1111-1111-111111111111",
+      expect.objectContaining({
+        archived: "Client is archived. Restore it before posting comments."
+      })
+    );
+    expect(createCommentMock).not.toHaveBeenCalled();
   });
 });

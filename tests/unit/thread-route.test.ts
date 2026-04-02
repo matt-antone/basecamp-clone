@@ -6,6 +6,7 @@ const createThreadMock = vi.fn();
 const listThreadsMock = vi.fn();
 const getUserProfileByIdMock = vi.fn();
 const listNotificationRecipientsMock = vi.fn();
+const assertClientNotArchivedForMutationMock = vi.fn();
 const sendThreadCreatedEmailMock = vi.fn();
 
 vi.mock("@/lib/auth", () => ({
@@ -13,6 +14,7 @@ vi.mock("@/lib/auth", () => ({
 }));
 
 vi.mock("@/lib/repositories", () => ({
+  assertClientNotArchivedForMutation: assertClientNotArchivedForMutationMock,
   getProject: getProjectMock,
   createThread: createThreadMock,
   listThreads: listThreadsMock,
@@ -33,6 +35,7 @@ describe("POST /projects/[id]/threads", () => {
     listThreadsMock.mockReset();
     getUserProfileByIdMock.mockReset();
     listNotificationRecipientsMock.mockReset();
+    assertClientNotArchivedForMutationMock.mockReset();
     sendThreadCreatedEmailMock.mockReset();
   });
 
@@ -156,5 +159,45 @@ describe("POST /projects/[id]/threads", () => {
 
     expect(response.status).toBe(201);
     expect(sendThreadCreatedEmailMock).not.toHaveBeenCalled();
+  });
+
+  it("returns 409 when the client is archived", async () => {
+    requireUserMock.mockResolvedValue({ id: "user-1", email: "author@example.com" });
+    getProjectMock.mockResolvedValue({
+      id: "project-1",
+      name: "Blue Sky",
+      client_id: "11111111-1111-1111-1111-111111111111"
+    });
+    assertClientNotArchivedForMutationMock.mockRejectedValue(
+      new Error("Client archive is in progress. New discussions are temporarily disabled.")
+    );
+
+    const { POST } = await import("@/app/projects/[id]/threads/route");
+    const response = await POST(
+      new Request("http://localhost/projects/project-1/threads", {
+        method: "POST",
+        headers: {
+          authorization: "Bearer token",
+          "content-type": "application/json"
+        },
+        body: JSON.stringify({
+          title: "Kickoff notes",
+          bodyMarkdown: "Opening post"
+        })
+      }),
+      { params: Promise.resolve({ id: "project-1" }) }
+    );
+
+    expect(response.status).toBe(409);
+    await expect(response.json()).resolves.toMatchObject({
+      error: "Client archive is in progress. New discussions are temporarily disabled."
+    });
+    expect(assertClientNotArchivedForMutationMock).toHaveBeenCalledWith(
+      "11111111-1111-1111-1111-111111111111",
+      expect.objectContaining({
+        inProgress: "Client archive is in progress. New discussions are temporarily disabled."
+      })
+    );
+    expect(createThreadMock).not.toHaveBeenCalled();
   });
 });
