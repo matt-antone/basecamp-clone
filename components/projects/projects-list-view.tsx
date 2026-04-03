@@ -72,6 +72,12 @@ export function ProjectsListView(props: ProjectsListViewProps) {
 
   const groups = groupProjectsByClient(items, getProjectClientLabel);
 
+  const [now, setNow] = React.useState<Date | null>(null);
+
+  useEffect(() => {
+    setNow(new Date());
+  }, []);
+
   if (groups.length === 0) {
     return (
       <section className="projectsEmptyState">
@@ -90,12 +96,6 @@ export function ProjectsListView(props: ProjectsListViewProps) {
       </section>
     );
   }
-
-  const [now, setNow] = React.useState<Date | null>(null);
-
-  useEffect(() => {
-    setNow(new Date())
-  }, []);
   const WARNING_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
   const COMPARISON_WINDOW_MS = 30 * 24 * 60 * 60 * 1000;
 
