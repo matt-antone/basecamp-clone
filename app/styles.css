@@ -1132,9 +1132,9 @@ textarea {
 }
 
 .projectLedgerItem {
-  display: grid;
-  grid-template-columns: minmax(5.8rem, auto) minmax(0, 1fr) auto auto;
-  align-items: start;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   gap: 1rem;
   padding: 1rem 0;
   border-top: 1px solid color-mix(in oklch, var(--projects-border) 80%, transparent);
@@ -1142,6 +1142,11 @@ textarea {
 
 .projectLedgerItem:first-child {
   border-top: 0;
+  flex-basis: 1;
+}
+
+.projectLedgerItem :last-child > * {
+  width: 175px;
 }
 
 .projectLedgerItemActive {
@@ -1151,6 +1156,7 @@ textarea {
 .projectLedgerRail {
   display: grid;
   align-content: start;
+  gap: 0.5rem;
 }
 
 .projectLedgerStatus {
@@ -1214,6 +1220,9 @@ textarea {
   color: var(--projects-muted);
   line-clamp: 3;
   -webkit-line-clamp: 3;
+  font-size: var(--text-xs);
+  font-style: italic;
+  line-height: var(--leading-relaxed);
 }
 
 .projectTagList {
@@ -1527,7 +1536,6 @@ textarea {
 .projectMetaRow,
 .projectMetaRow > * {
   display: flex;
-  flex-wrap: wrap;
   gap: 0.5rem;
   align-items: center;
   justify-content: space-between;
@@ -1535,7 +1543,8 @@ textarea {
   line-height: 1;
 }
 
-.projectCreatedYikes {
+.projectCreatedYikes,
+.projectDeadlineYikes {
   font-size: 0.375rem;
 }
 

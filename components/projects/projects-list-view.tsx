@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 import Link from "next/link";
 import { type CSSProperties, type FocusEvent, type ReactNode } from "react";
 import { OneShotButton } from "@/components/one-shot-button";
@@ -91,6 +91,14 @@ export function ProjectsListView(props: ProjectsListViewProps) {
     );
   }
 
+  const [now, setNow] = React.useState<Date | null>(null);
+
+  useEffect(() => {
+    setNow(new Date())
+  }, []);
+  const WARNING_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
+  const COMPARISON_WINDOW_MS = 30 * 24 * 60 * 60 * 1000;
+
   return (
     <div className="projectClientAtlas">
       <div className="projectsHeader">
@@ -125,54 +133,74 @@ export function ProjectsListView(props: ProjectsListViewProps) {
               const createdRaw = project.created_at?.trim();
               const deadlineLabel = formatProjectDeadlineLocal(project.deadline);
               const deadlineRaw = project.deadline?.trim();
+              const createdTime = createdRaw ? new Date(createdRaw).getTime() : NaN;
+              const deadlineTime = deadlineRaw ? new Date(deadlineRaw).getTime() : NaN;
+              const showDeadlineClose =
+                now != null &&
+                Number.isFinite(deadlineTime) &&
+                now.getTime() - deadlineTime < WARNING_WINDOW_MS;
+
+              const showDeadlineYikes =
+                now != null &&
+                Number.isFinite(deadlineTime) &&
+                now.getTime() - deadlineTime > 1;
+
+              const showCreatedYikes =
+                now != null &&
+                Number.isFinite(createdTime) &&
+                now.getTime() - createdTime > COMPARISON_WINDOW_MS;
               return (
-              <li
-                key={project.id}
-                className={`projectLedgerItem tone-${normalizeProjectColumn(project)} ${highlightedProjectId === project.id ? "projectLedgerItemActive" : ""}`}
-                data-project-id={project.id}
-                style={{ viewTransitionName: `project-${project.id}` } as CSSProperties}
-                onFocusCapture={() => onHighlightProject(project.id)}
-                onBlurCapture={(event) => onProjectBlur(event, project.id)}
-              >
-                <div className="projectLedgerRail">
-                  <span className="projectLedgerStatus">{getProjectStatusLabel(project)}</span>
-                </div>
-                <div className="projectMain projectLedgerBody">
-                  <div className="projectTitleRow">
-                    <Link
-                      href={`/${project.id}`}
-                      className={`projectLink projectTitle projectLedgerTitle tone-${normalizeProjectColumn(project)}`}
-                    >
-                      {renderProjectTitle(project.display_name ?? project.name)}
-                    </Link>
-                    {createdLabel && createdRaw ? (
-                      <time className="projectCreatedMeta" dateTime={createdRaw}>
-                        · {createdLabel}
-                      </time>
+                <li
+                  key={project.id}
+                  className={`projectLedgerItem tone-${normalizeProjectColumn(project)} ${highlightedProjectId === project.id ? "projectLedgerItemActive" : ""}`}
+                  data-project-id={project.id}
+                  style={{ viewTransitionName: `project-${project.id}` } as CSSProperties}
+                  onFocusCapture={() => onHighlightProject(project.id)}
+                  onBlurCapture={(event) => onProjectBlur(event, project.id)}
+                >
+                  <div className="projectMain projectLedgerBody">
+                    <div className="projectTitleRow">
+                      <Link
+                        href={`/${project.id}`}
+                        className={`projectLink projectTitle projectLedgerTitle tone-${normalizeProjectColumn(project)}`}
+                      >
+                        {renderProjectTitle(project.display_name ?? project.name)}
+                      </Link>
+                    </div>
+                    <p className="projectDescription">{project.description?.trim() || "No description provided."}</p>
+                    {project.pm_note?.trim() ? (
+                      <p className="projectPmNote" title={project.pm_note.trim()}>
+                        {project.pm_note.trim()}
+                      </p>
                     ) : null}
-                    {deadlineLabel && deadlineRaw ? (
-                      <time className="projectDeadlineMeta" dateTime={deadlineRaw}>
-                        · Due {deadlineLabel}
-                      </time>
-                    ) : null}
-                  </div>
-                  {project.pm_note?.trim() ? (
-                    <p className="projectPmNote" title={project.pm_note.trim()}>
-                      {project.pm_note.trim()}
+                    <ProjectTagList tags={project.tags} className="projectTagListCompact" />
+                    <p className="projectLedgerCounts">
+                      {project.discussion_count ?? 0} discussions · {project.file_count ?? 0} files
                     </p>
-                  ) : null}
-                  <p className="projectDescription">{project.description?.trim() || "No description provided."}</p>
-                  <ProjectTagList tags={project.tags} className="projectTagListCompact" />
-                  <p className="projectLedgerCounts">
-                    {project.discussion_count ?? 0} discussions · {project.file_count ?? 0} files
-                  </p>
-                </div>
-                <div className="projectLedgerActions">
-                  <Link href={`/${project.id}`} className="projectActionLink">
-                    Open
-                  </Link>
-                </div>
-              </li>
+                  </div>
+                  {/* <div className="projectLedgerActions">
+                    <Link href={`/${project.id}`} className="projectActionLink">
+                      Open
+                    </Link>
+                  </div> */}
+                  <div className="projectLedgerRail">
+                    <span className="projectLedgerStatus">{getProjectStatusLabel(project)}</span>
+                    <div className="projectMetaRow">
+                      {createdLabel && createdRaw ? (
+                        <time className="projectCreatedMeta" dateTime={createdRaw}>
+                          Created: {createdLabel} <span className="projectCreatedYikes">{showCreatedYikes ? `🔴` : `🟢`}</span>
+                        </time>
+                      ) : null}
+                    </div>
+                    <div className="projectMetaRow">
+                      {deadlineLabel && deadlineRaw ? (
+                        <time className="projectDeadlineMeta" dateTime={deadlineRaw}>
+                          Due: {deadlineLabel} <span className="projectDeadlineYikes">{showDeadlineYikes ? `🔴` : showDeadlineClose ? `🟡` : `🟢`}</span>
+                        </time>
+                      ) : null}
+                    </div>
+                  </div>
+                </li>
               );
             })}
           </ul>
