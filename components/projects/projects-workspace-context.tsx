@@ -89,6 +89,7 @@ export type ProjectsWorkspaceContextValue = {
   projects: Project[];
   setProjects: Dispatch<SetStateAction<Project[]>>;
   latestFeaturedPosts: FeaturedFeedPost[];
+  featuredFeedStatus: "loading" | "ready";
   projectColumns: typeof PROJECT_COLUMNS;
   activeProjects: Project[];
   filterClientId: string | null;
@@ -180,6 +181,7 @@ function ProjectsWorkspaceInner({ initial, children }: { initial: ProjectsBootst
   const createProjectClients = clients.filter((client) => !client.archived_at);
   const [projects, setProjects] = useState<Project[]>(initial.projects);
   const [latestFeaturedPosts, setLatestFeaturedPosts] = useState<FeaturedFeedPost[]>(initial.latestFeaturedPosts);
+  const [featuredFeedStatus, setFeaturedFeedStatus] = useState<"loading" | "ready">("loading");
   const [filterClientId, setFilterClientId] = useState<string | null>(null);
   const [activeSearch, setActiveSearch] = useState("");
   const [projectSort, setProjectSort] = useState<ProjectSort>("title");
@@ -225,6 +227,12 @@ function ProjectsWorkspaceInner({ initial, children }: { initial: ProjectsBootst
       })
       .catch(() => {
         /* Hero keeps default copy if the feed cannot be reached. */
+      })
+      .finally(() => {
+        if (cancelled) return;
+        startTransition(() => {
+          setFeaturedFeedStatus("ready");
+        });
       });
     return () => {
       cancelled = true;
@@ -403,6 +411,7 @@ function ProjectsWorkspaceInner({ initial, children }: { initial: ProjectsBootst
     projects,
     setProjects,
     latestFeaturedPosts,
+    featuredFeedStatus,
     projectColumns: PROJECT_COLUMNS,
     activeProjects,
     filterClientId,
