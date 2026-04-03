@@ -33,7 +33,7 @@
   },
   "devDependencies": {
     "@types/bcryptjs": "^3.0.0",
-    "@types/node": "^22.10.2",
+    "@types/node": "22.19.17",
     "@types/pg": "^8.11.10",
     "@types/react": "19.2.14",
     "@types/react-dom": "^19.2.3",
@@ -41,7 +41,7 @@
     "bcryptjs": "^3.0.3",
     "eslint": "^9.39.4",
     "eslint-config-next": "^15.2.4",
-    "typescript": "^5.8.2",
+    "typescript": "5.9.3",
     "vitest": "^2.1.9"
   }
 }

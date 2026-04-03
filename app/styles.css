@@ -274,15 +274,31 @@ h3 {
 }
 
 .themeToggleButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   border: 1px solid var(--input-border);
   border-radius: 0;
   background: var(--button-secondary-bg);
   color: var(--button-secondary-text);
-  justify-self: end;
-  padding: 6px 11px;
-  font-size: 12px;
+  padding: 6px;
+  min-width: 32px;
   min-height: 32px;
+  font-size: 12px;
   transition: background-color 140ms ease, border-color 140ms ease, color 140ms ease;
+}
+
+.themeHeaderIconButton {
+  width: 32px;
+  min-width: 32px;
+  padding: 0;
+}
+
+.themeHeaderIconButton svg,
+.themeToggleButton svg {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
 }
 
 .themeHeaderButton {
