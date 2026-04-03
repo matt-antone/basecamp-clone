@@ -2,7 +2,7 @@
 
 import { ProjectDialogForm } from "@/components/project-dialog-form";
 import { useProjectsWorkspace } from "@/components/projects/projects-workspace-context";
-import type { ReactNode } from "react";
+import React, { type ReactNode } from "react";
 
 const HERO_FALLBACK_KICKER = "Projects index";
 const HERO_FALLBACK_TITLE = "A calmer way to see what the studio is carrying.";
