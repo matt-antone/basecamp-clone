@@ -134,9 +134,12 @@ export function registerTools(
     "Create a new project. business_client_id is the UUID of a row in the clients table.",
     {
       name: z.string().min(1),
-      description: z.string().optional(),
-      deadline: z.string().date().optional(),
-      business_client_id: z.string().uuid().optional(),
+      description: z.string().nullish(),
+      deadline: z.string().date().nullish(),
+      business_client_id: z.string().uuid().nullish(),
+      tags: z.array(z.string()).nullish(),
+      requestor: z.string().nullish(),
+      pm_note: z.string().nullish(),
     },
     async (params) => {
       try {
@@ -152,11 +155,14 @@ export function registerTools(
     "Update mutable project fields. Only provided fields are changed. status must be one of: new, in_progress, blocked, complete, billing.",
     {
       project_id: z.string().uuid(),
-      name: z.string().min(1).optional(),
-      description: z.string().optional(),
-      deadline: z.string().date().optional(),
-      status: z.enum(PROJECT_STATUSES_ZOD).optional(),
-      archived: z.boolean().optional(),
+      name: z.string().min(1).nullish(),
+      description: z.string().nullish(),
+      deadline: z.string().date().nullish(),
+      status: z.enum(PROJECT_STATUSES_ZOD).nullish(),
+      archived: z.boolean().nullish(),
+      tags: z.array(z.string()).nullish(),
+      requestor: z.string().nullish(),
+      pm_note: z.string().nullish(),
     },
     async ({ project_id, ...params }) => {
       try {

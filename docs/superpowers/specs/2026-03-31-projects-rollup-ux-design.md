@@ -24,7 +24,7 @@ The **Client** `<select>` currently lists **all workspace clients** from bootstr
 
 | Situation | Dropdown contains |
 |-----------|-------------------|
-| **No search**, status **All** | Unique `client_id` values from **active projects** returned by `GET /projects` (same params as today: `includeArchived`, optional `clientId`, optional `search`). |
+| **No search**, status **All** | Unique `client_id` values from **active projects** returned by `GET /projects` (workspace uses **`includeArchived=false`**; optional `clientId`, optional `search`). See [2026-04-06-projects-workspace-include-archived-policy.md](./2026-04-06-projects-workspace-include-archived-policy.md). |
 | **Search active** (≥2 chars, server FTS) | Unique clients among **search result projects** only. |
 | **List — status chip** (New / In Progress / …) | Unique clients among projects that match **that status** *and* current server result (search + `clientId`). **Status** continues to narrow **client-side** on the list only; **client scope** for the query stays server-backed per existing spec. |
 | **Board** | Same as above **except** there is **no** status chip — options come from **`activeProjects`** after **search** + server **`clientId`** filter. |

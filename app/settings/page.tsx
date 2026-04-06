@@ -117,7 +117,7 @@ async function loadSettingsBootstrap(): Promise<SettingsBootstrap> {
     const session = await fetchAuthSession();
     const accessToken = session.accessToken;
     const googleAvatarUrl = session.googleAvatarUrl;
-    const siteSettings = await loadSiteSettings();
+    const siteSettings = await loadSiteSettings(accessToken);
 
     if (!accessToken) {
       return {
@@ -159,11 +159,20 @@ async function loadSettingsBootstrap(): Promise<SettingsBootstrap> {
   }
 }
 
-async function loadSiteSettings(): Promise<SiteSettingsForm> {
+async function loadSiteSettings(accessToken: string | null): Promise<SiteSettingsForm> {
+  if (!accessToken) {
+    return {
+      siteTitle: DEFAULT_SITE_TITLE,
+      logoUrl: DEFAULT_SITE_LOGO_URL,
+      defaultHourlyRateUsd: formatUsdInput(DEFAULT_HOURLY_RATE_USD)
+    };
+  }
+
   try {
     const response = await fetch("/site-settings", {
       cache: "no-store",
-      credentials: "same-origin"
+      credentials: "same-origin",
+      headers: { Authorization: `Bearer ${accessToken}` }
     });
     if (!response.ok) {
       return {

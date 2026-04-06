@@ -115,8 +115,9 @@ export type ProjectsWorkspaceContextValue = {
 
 const ProjectsWorkspaceContext = createContext<ProjectsWorkspaceContextValue | null>(null);
 
+/** Workspace list/board: always `includeArchived=false` — policy docs/superpowers/specs/2026-04-06-projects-workspace-include-archived-policy.md */
 function buildProjectsUrl(options?: { clientId?: string | null; search?: string; sort?: ProjectSort }) {
-  const params = new URLSearchParams({ includeArchived: "true" });
+  const params = new URLSearchParams({ includeArchived: "false" });
   const clientId = options?.clientId ?? null;
   const search = options?.search?.trim() ?? "";
   const sort = options?.sort ?? "title";

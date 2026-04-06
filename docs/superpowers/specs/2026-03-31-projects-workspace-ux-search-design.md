@@ -4,6 +4,8 @@
 **Status:** Awaiting review  
 **Scope:** Post-create navigation, global header rename and simplification, project list metrics, board sorting and card density, performant full-text search across projects and related content, **optional client filter** on all **`GET /projects`** list/search queries (SQL-backed only)
 
+**Workspace `includeArchived` (mandatory):** List/board bootstrap and refresh use **`GET /projects?includeArchived=false`**. See [2026-04-06-projects-workspace-include-archived-policy.md](./2026-04-06-projects-workspace-include-archived-policy.md).
+
 ---
 
 ## Overview
@@ -24,7 +26,7 @@ This change set improves wayfinding after creating a project, surfaces **discuss
 | **Search (non-empty)** | **Server-only**: debounced requests, **FTS**-backed matching, results ordered by **relevance** (`ts_rank` / `ts_rank_cd` family), then a stable tie-break (e.g. `created_at desc`). Cap result count (recommended **100** max). **Minimum query length** before calling the API (recommended **2** characters) to avoid noisy scans. **Abort** in-flight search when the query changes (and when the client filter changes). |
 | **Client filter (UI)** | A **single-select** control (native `<select>` or accessible combinator matching app patterns), labeled clearly (e.g. **Client**). First option = **All clients** (no filter). Remaining options = workspace **`clients`** sorted by display name (e.g. `name`), value = client **`id`**. Placed **adjacent to the search field** on the projects list/board toolbar. |
 | **Client filter (behavior)** | The client filter is applied **only in the database / API query** (`WHERE p.client_id = …` when a client is selected), **not** by filtering results in the browser. Changing the selection triggers a **refetch** of **`GET /projects`** (with the same `includeArchived`, **`search`**, and **`clientId`** params as appropriate). The UI must **not** narrow `projects` client-side by `client_id`. |
-| **Search (empty) + client** | Initial bootstrap and any “no search text” refresh use **`GET /projects?includeArchived=true`** and, when a client is selected, **`&clientId=<uuid>`**. List and board render the **server-returned** list; **status** chips may still narrow **client-side** only (unchanged), but **client** scope is always query-backed. |
+| **Search (empty) + client** | Initial bootstrap and any “no search text” refresh use **`GET /projects?includeArchived=false`** and, when a client is selected, **`&clientId=<uuid>`**. List and board render the **server-returned** list; **status** chips may still narrow **client-side** only (unchanged), but **client** scope is always query-backed. **Archived** rows are not loaded here — use **`GET /projects/archived`** on the archive screen. |
 
 ---
 
@@ -53,7 +55,7 @@ For a non-empty query, a project matches if **any** of the following match FTS (
 
 ### Existing: `GET /projects`
 
-- Today returns all projects when `includeArchived` is honored by the handler.
+- Handler honors **`includeArchived`**: omit or **`true`** → include archived rows; **`false`** → only **`p.archived = false`**. The **shared workspace client** always passes **`includeArchived=false`** for list/board (see policy doc above). Other callers (e.g. billing, one-off tools) choose explicitly.
 - **Extension — `clientId` (always query-scoped):** Optional **`clientId`** query parameter on **every** successful list response path. If present and a **valid UUID**, the repository adds **`and p.client_id = $clientId::uuid`**. If **malformed**, respond **`400`**. If valid UUID but no rows match, return **`{ projects: [] }`** (or normal empty list). **Do not** implement client narrowing only in React.
 - **Extension — `search`:** When present and non-empty after trim:
   - Return only **matching** projects in the same JSON shape as today (`{ projects: [...] }`).
@@ -114,11 +116,11 @@ Document index choices in migration comments for future operators.
 
 ### Search input and client filter
 
-- **`components/projects/projects-workspace-context.tsx`** (recommended): Bootstrap **`loadProjectsBootstrap`** and **`refreshProjects`** call **`GET /projects?includeArchived=true`** with **`&clientId=`** when the user has selected a client (omit when “All clients”). **Mutations** (create, archive, move status) should **refresh** using the **current** `clientId` (and search params if any) so the list stays consistent.
+- **`components/projects/projects-workspace-context.tsx`**: Bootstrap **`loadProjectsBootstrap`** and **`refreshProjects`** call **`GET /projects?includeArchived=false`** with **`&clientId=`** when the user has selected a client (omit when “All clients”). **Mutations** (create, archive, move status) should **refresh** using the **current** `clientId` (and search params if any) so the list stays consistent.
 - **`components/projects/projects-list.tsx`** (toolbar):
   - **Client `<select>`:** bound to **`selectedClientId`** (context or lifted state). On change: update context and **refetch projects** from the API (**no** `projects.filter(p => p.client_id === …)`).
-  - **Search:** When **`searchTerm` is non-empty** (and passes min length), debounced **`GET /projects?includeArchived=true&search=...`** plus **`&clientId=...`** when applicable; **`AbortController`**; refetch when **search** or **client** changes.
-  - When **`searchTerm` is empty**, refetch uses **`GET /projects?includeArchived=true`** plus optional **`clientId`** only (full list path, server-filtered by client).
+  - **Search:** When **`searchTerm` is non-empty** (and passes min length), debounced **`GET /projects?includeArchived=false&search=...`** plus **`&clientId=...`** when applicable; **`AbortController`**; refetch when **search** or **client** changes.
+  - When **`searchTerm` is empty**, refetch uses **`GET /projects?includeArchived=false`** plus optional **`clientId`** only (full list path, server-filtered by client).
 - If **`archive-tab`** gains FTS later, add the same **`clientId`** parameter to archived search for parity; until then, archived tab can keep existing filters or document follow-up.
 - **State placement:** **`selectedClientId`** and **FTS override list** (if separate from `projects`) live in **`projects-workspace-context.tsx`** so list and board share one server-backed dataset.
 
@@ -164,6 +166,7 @@ Document index choices in migration comments for future operators.
 - [x] Performance constraints (indexes, limit, debounce, abort) explicit  
 - [x] Board search behavior called out (recommend shared filtered set)  
 - [x] Client filter: query-only (SQL/API), refetch on change, never client-side result filtering  
+- [x] Workspace **`GET /projects`** uses **`includeArchived=false`**; policy in [2026-04-06-projects-workspace-include-archived-policy.md](./2026-04-06-projects-workspace-include-archived-policy.md)
 
 ---
 

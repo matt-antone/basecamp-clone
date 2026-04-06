@@ -78,13 +78,18 @@ export default function SiteHeader() {
   }, []);
 
   useEffect(() => {
+    if (!isAuthReady || !accessToken) {
+      return;
+    }
+
     let cancelled = false;
 
-    async function loadSiteSettings() {
+    async function loadSiteSettingsFromApi() {
       try {
         const response = await fetch("/site-settings", {
           cache: "no-store",
-          credentials: "same-origin"
+          credentials: "same-origin",
+          headers: { Authorization: `Bearer ${accessToken}` }
         });
         if (!response.ok) {
           return;
@@ -116,14 +121,12 @@ export default function SiteHeader() {
       }
     }
 
-    loadSiteSettings().catch(() => {
-      /* Keep fallback branding if settings cannot be loaded. */
-    });
+    void loadSiteSettingsFromApi();
 
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [isAuthReady, accessToken]);
 
   useEffect(() => {
     let cancelled = false;
@@ -217,10 +220,10 @@ export default function SiteHeader() {
   return (
     <div className="themeTopBar">
       <div className="brandCluster">
-        <Link href="/" className="brandHomeLink" aria-label="Go to home">
+        <Link href="/" prefetch={false} className="brandHomeLink" aria-label="Go to home">
           <img src={siteSettings.logoUrl || DEFAULT_SITE_LOGO_URL} alt={`${siteSettings.siteTitle} logo`} className="brandLogo" />
         </Link>
-        <Link href="/" className="brandLink" aria-label={`${siteSettings.siteTitle} home`}>
+        <Link href="/" prefetch={false} className="brandLink" aria-label={`${siteSettings.siteTitle} home`}>
           {siteSettings.siteTitle}
         </Link>
       </div>
@@ -229,6 +232,7 @@ export default function SiteHeader() {
           <nav className="themeTopBarProjectsNav" aria-label="Projects views">
             <Link
               href="/"
+              prefetch={false}
               className={`themeTopBarProjectsLink ${projectsNavActive === "list" ? "themeTopBarProjectsLinkActive" : ""}`}
               scroll={false}
             >
@@ -236,6 +240,7 @@ export default function SiteHeader() {
             </Link>
             <Link
               href="/flow"
+              prefetch={false}
               className={`themeTopBarProjectsLink ${projectsNavActive === "board" ? "themeTopBarProjectsLinkActive" : ""}`}
               scroll={false}
             >
@@ -243,6 +248,7 @@ export default function SiteHeader() {
             </Link>
             <Link
               href="/billing"
+              prefetch={false}
               className={`themeTopBarProjectsLink ${projectsNavActive === "billing" ? "themeTopBarProjectsLinkActive" : ""}`}
               scroll={false}
             >
@@ -255,6 +261,7 @@ export default function SiteHeader() {
             </Link>
             <Link
               href="/archive"
+              prefetch={false}
               className={`themeTopBarProjectsLink ${projectsNavActive === "archived" ? "themeTopBarProjectsLinkActive" : ""}`}
               scroll={false}
             >
@@ -265,6 +272,7 @@ export default function SiteHeader() {
         {user && (
           <Link
             href="/settings"
+            prefetch={false}
             className="themeHeaderButton themeHeaderButtonSecondary themeHeaderIconButton"
             aria-label="Settings"
             title="Settings"

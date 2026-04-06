@@ -15,3 +15,6 @@ orchestration/*
 # Root-only: do not use bare `thumbnail-*` — it ignores lib/thumbnail-*.ts and breaks builds.
 /thumbnail-*
 certificates
+
+# Cursor debug session logs (do not commit)
+.cursor/debug*.log

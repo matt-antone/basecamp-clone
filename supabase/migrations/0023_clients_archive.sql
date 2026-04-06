@@ -9,17 +9,20 @@ alter table clients
   add column if not exists archive_started_at timestamptz null,
   add column if not exists archive_error text null;
 
-alter table clients
-  add constraint clients_dropbox_archive_status_check
-  check (
-    dropbox_archive_status in (
-      'idle',
-      'pending',
-      'in_progress',
-      'completed',
-      'failed'
-    )
-  );
+do $$ begin
+  alter table clients
+    add constraint clients_dropbox_archive_status_check
+    check (
+      dropbox_archive_status in (
+        'idle',
+        'pending',
+        'in_progress',
+        'completed',
+        'failed'
+      )
+    );
+exception when duplicate_object then null;
+end $$;
 
 comment on column clients.archived_at is 'When set, the client is treated as archived in-app.';
 comment on column clients.dropbox_archive_status is 'Dropbox folder move job: idle | pending | in_progress | completed | failed.';

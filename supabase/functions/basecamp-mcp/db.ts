@@ -6,7 +6,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 export async function listProjects(supabase: SupabaseClient) {
   const { data, error } = await supabase
     .from("projects")
-    .select("id, name, slug, description, deadline, status, created_at, clients(name)")
+    .select("id, name, slug, description, deadline, status, tags, requestor, pm_note, created_at, clients(name)")
     .eq("archived", false)
     .neq("status", "billing")
     .order("created_at", { ascending: false });
@@ -17,7 +17,7 @@ export async function listProjects(supabase: SupabaseClient) {
 export async function getProject(supabase: SupabaseClient, projectId: string) {
   const { data: project, error } = await supabase
     .from("projects")
-    .select("id, name, slug, description, deadline, status, archived, created_at, clients(id, name)")
+    .select("id, name, slug, description, deadline, status, archived, tags, requestor, pm_note, created_at, clients(id, name)")
     .eq("id", projectId)
     .single();
   if (error || !project) return null;
@@ -130,7 +130,7 @@ export async function searchContent(
 
 export async function createProject(
   supabase: SupabaseClient,
-  params: { name: string; description?: string; deadline?: string; business_client_id?: string },
+  params: { name: string; description?: string | null; deadline?: string | null; business_client_id?: string | null; tags?: string[] | null; requestor?: string | null; pm_note?: string | null },
   agentId: string
 ) {
   const { data, error } = await supabase
@@ -141,6 +141,9 @@ export async function createProject(
       description: params.description ?? null,
       deadline: params.deadline ?? null,
       client_id: params.business_client_id ?? null,
+      tags: params.tags ?? null,
+      requestor: params.requestor ?? null,
+      pm_note: params.pm_note ?? null,
       created_by: agentId,
     })
     .select()
@@ -152,7 +155,7 @@ export async function createProject(
 export async function updateProject(
   supabase: SupabaseClient,
   projectId: string,
-  params: { name?: string; description?: string; deadline?: string; status?: string; archived?: boolean }
+  params: { name?: string | null; description?: string | null; deadline?: string | null; status?: string | null; archived?: boolean | null; tags?: string[] | null; requestor?: string | null; pm_note?: string | null }
 ) {
   const patch: Record<string, unknown> = { updated_at: new Date().toISOString() };
   if (params.name !== undefined) patch.name = params.name;
@@ -160,6 +163,9 @@ export async function updateProject(
   if (params.deadline !== undefined) patch.deadline = params.deadline;
   if (params.status !== undefined) patch.status = params.status;
   if (params.archived !== undefined) patch.archived = params.archived;
+  if (params.tags !== undefined) patch.tags = params.tags;
+  if (params.requestor !== undefined) patch.requestor = params.requestor;
+  if (params.pm_note !== undefined) patch.pm_note = params.pm_note;
 
   const { data, error } = await supabase
     .from("projects")

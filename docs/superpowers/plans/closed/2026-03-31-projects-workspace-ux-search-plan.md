@@ -4,6 +4,8 @@
 
 **Spec (source of truth):** [docs/superpowers/specs/2026-03-31-projects-workspace-ux-search-design.md](../specs/2026-03-31-projects-workspace-ux-search-design.md)
 
+**Errata (2026-04-06):** Workspace **`refreshProjects` / `loadProjectsBootstrap`** use **`includeArchived=false`**, not `true`. Canonical policy: [2026-04-06-projects-workspace-include-archived-policy.md](../specs/2026-04-06-projects-workspace-include-archived-policy.md). Task 6 Step 3 below originally said `true`; follow the policy doc.
+
 **Goal:** Ship post-create redirect to the new project, SQL-backed **`clientId`** filter and FTS **`search`** on **`GET /projects`**, discussion/file counts on the home list, compact sorted board cards, rename global **`theme-toggle`** to **`header`** without project stats, and shared list/board data when search or client filter is active.
 
 **Architecture:** Add a Supabase migration with GIN/expression indexes for FTS; extend **`lib/repositories.ts`** with parameterized **`clientId`**, optional **`searchProjects`** (or unified **`listProjects`** options), and count subqueries on list rows; extend **`app/projects/route.ts`** (and archived route) query parsing; lift **`selectedClientId`** and search-driven refetch into **`projects-workspace-context.tsx`** so **`activeProjects`** reflects server-backed scope for both list and board; UI debouncing + **`AbortController`** for search.
@@ -137,7 +139,7 @@
 
 - [ ] **Step 2:** State: **`selectedClientId: string | null`** (null = all). Persist optional: **`sessionStorage`** key only if product asks—in spec default is refetch on change only.
 
-- [ ] **Step 3:** **`refreshProjects`**: build URL ` /projects?includeArchived=true` + `&clientId=` + `&search=`; use **`authedJsonFetch`**; **`setProjects`**.
+- [ ] **Step 3:** **`refreshProjects`**: build URL **`/projects?includeArchived=false`** + `&clientId=` + `&search=`; use **`authedJsonFetch`**; **`setProjects`**. (Errata: was `true` in original plan; see policy doc.)
 
 - [ ] **Step 4:** **`loadProjectsBootstrap`**: same URL building—**initial load** uses null client + empty search OR read from state (if lifting initial client from URL later, YAGNI unless needed).
 

@@ -61,6 +61,10 @@ function inferPropertySchema(field: z.ZodTypeAny): Record<string, unknown> {
       const enumArr = Array.isArray(vals) ? vals : Object.values(vals ?? {});
       return { type: "string", enum: enumArr };
     }
+    case "ZodArray": {
+      const itemSchema = inferPropertySchema(def.type);
+      return { type: "array", items: Object.keys(itemSchema).length ? itemSchema : {} };
+    }
     case "ZodRecord":
       return { type: "object" };
     default:
@@ -181,6 +185,24 @@ Deno.serve(async (req: Request): Promise<Response> => {
     const registry = buildRegistry(supabase, agent);
 
     switch (method) {
+      case "initialize": {
+        return Response.json(
+          {
+            jsonrpc: "2.0",
+            id,
+            result: {
+              protocolVersion: params?.protocolVersion ?? "2024-11-05",
+              capabilities: { tools: {} },
+              serverInfo: { name: "basecamp-mcp", version: "1.0.0" },
+            },
+          },
+          { headers: SECURITY_HEADERS }
+        );
+      }
+
+      case "notifications/initialized":
+        return new Response(null, { status: 204, headers: SECURITY_HEADERS });
+
       case "tools/list": {
         const tools = [...registry.values()].map((t) => ({
           name: t.name,
