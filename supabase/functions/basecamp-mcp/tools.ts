@@ -42,10 +42,27 @@ export function registerTools(
   server.tool(
     "list_projects",
     "List all non-archived projects with name, slug, description, deadline, status, and client name.",
-    {},
+    z.object({}),
     async () => {
       try {
         return ok(await db.listProjects(supabase));
+      } catch (e) {
+        return dbError(e);
+      }
+    }
+  );
+
+  server.tool(
+    "list_archived_projects",
+    "Paged list of archived projects (excludes billing), newest first. Default limit 20 — use offset 0, 20, 40, … for batches. Set untagged_only to narrow to empty tags. Response includes total_matching for loop planning; then get_project + get_thread per id for context, update_project for tags.",
+    {
+      untagged_only: z.boolean().optional(),
+      limit: z.number().int().min(1).max(100).optional(),
+      offset: z.number().int().min(0).max(500_000).optional(),
+    },
+    async (opts) => {
+      try {
+        return ok(await db.listArchivedProjects(supabase, opts));
       } catch (e) {
         return dbError(e);
       }
@@ -289,7 +306,7 @@ export function registerTools(
   server.tool(
     "get_my_profile",
     "Get the calling agent's profile: name, bio, avatar_url, preferences.",
-    {},
+    z.object({}),
     async () => {
       try {
         const result = await db.getProfile(supabase, agent.client_id);

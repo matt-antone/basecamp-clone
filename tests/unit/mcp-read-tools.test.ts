@@ -1,5 +1,6 @@
 // tests/unit/mcp-read-tools.test.ts
 import { describe, it, expect, vi } from "vitest";
+import { z } from "zod";
 import * as db from "../../supabase/functions/basecamp-mcp/db.ts";
 import { registerTools } from "../../supabase/functions/basecamp-mcp/tools.ts";
 
@@ -14,6 +15,20 @@ function mockServer() {
 }
 
 const agent = { client_id: "mcp-test-client", role: "agent" };
+
+describe("tool schemas", () => {
+  it("uses Zod object schemas for zero-argument tools", () => {
+    const server = mockServer();
+    registerTools(server as any, {} as any, agent);
+
+    const listProjectsCall = server.tool.mock.calls.find(([name]) => name === "list_projects");
+    const profileCall = server.tool.mock.calls.find(([name]) => name === "get_my_profile");
+
+    expect(listProjectsCall?.[2]).toEqual(expect.objectContaining({ _zod: expect.anything() }));
+    expect(profileCall?.[2]).toEqual(expect.objectContaining({ _zod: expect.anything() }));
+    expect(z.object({})._zod).toBeDefined();
+  });
+});
 
 describe("list_projects", () => {
   it("returns projects as JSON text content", async () => {

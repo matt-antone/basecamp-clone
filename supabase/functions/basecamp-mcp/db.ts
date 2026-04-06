@@ -14,6 +14,57 @@ export async function listProjects(supabase: SupabaseClient) {
   return data.map((p: any) => ({ ...p, client_name: p.clients?.name ?? null, clients: undefined }));
 }
 
+export type ListArchivedProjectsPage = {
+  projects: Array<Record<string, unknown>>;
+  limit: number;
+  offset: number;
+  /** Total rows matching filters (before limit/offset). Null if count unavailable. */
+  total_matching: number | null;
+};
+
+/**
+ * Paged archived projects for manual review/tagging loops. Excludes billing status.
+ * Order: created_at descending (newest archived first).
+ */
+export async function listArchivedProjects(
+  supabase: SupabaseClient,
+  options?: { untagged_only?: boolean; limit?: number; offset?: number }
+): Promise<ListArchivedProjectsPage> {
+  const limit = Math.min(Math.max(options?.limit ?? 20, 1), 100);
+  const offset = Math.max(options?.offset ?? 0, 0);
+
+  let q = supabase
+    .from("projects")
+    .select("id, name, slug, description, deadline, status, tags, requestor, pm_note, created_at, archived, clients(name)", {
+      count: "exact",
+    })
+    .eq("archived", true)
+    .neq("status", "billing")
+    .order("created_at", { ascending: false });
+
+  if (options?.untagged_only) {
+    // Empty text[] in Postgres; PostgREST encodes as JSON [].
+    q = q.eq("tags", [] as string[]);
+  }
+
+  const end = offset + limit - 1;
+  const { data, error, count } = await q.range(offset, end);
+  if (error) throw error;
+
+  const projects = (data ?? []).map((p: any) => ({
+    ...p,
+    client_name: p.clients?.name ?? null,
+    clients: undefined,
+  }));
+
+  return {
+    projects,
+    limit,
+    offset,
+    total_matching: count ?? null,
+  };
+}
+
 export async function getProject(supabase: SupabaseClient, projectId: string) {
   const { data: project, error } = await supabase
     .from("projects")

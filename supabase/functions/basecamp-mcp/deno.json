@@ -2,6 +2,9 @@
   "imports": {
     "bcryptjs": "npm:bcryptjs",
     "@supabase/supabase-js": "npm:@supabase/supabase-js",
+    "@modelcontextprotocol/sdk/server/mcp.js": "npm:@modelcontextprotocol/sdk/server/mcp.js",
+    "@modelcontextprotocol/sdk/server/streamableHttp.js": "npm:@modelcontextprotocol/sdk/server/streamableHttp.js",
+    "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js": "npm:@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js",
     "marked": "npm:marked",
     "zod": "npm:zod@^4"
   }
