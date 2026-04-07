@@ -154,7 +154,12 @@ function DiscussionPageContent(props: {
   }
 
   async function addComment() {
-    if (!token || !projectId || !discussionId) return;
+    if (!token) {
+      throw new Error("Your session expired. Refresh and sign in again.");
+    }
+    if (!projectId || !discussionId) {
+      throw new Error("Missing discussion context. Reload the page and try again.");
+    }
     const attachmentsToUpload = pendingAttachments.filter((attachment) => attachment.stage !== "done");
     let failedUploads = 0;
     const created = await authedFetch(token, `/projects/${projectId}/threads/${discussionId}/comments`, {
@@ -214,7 +219,12 @@ function DiscussionPageContent(props: {
   }
 
   async function saveEditedComment() {
-    if (!token || !projectId || !discussionId || !editingCommentId || !editingBody.trim()) return;
+    if (!token) {
+      throw new Error("Your session expired. Refresh and sign in again.");
+    }
+    if (!projectId || !discussionId || !editingCommentId || !editingBody.trim()) {
+      throw new Error("Unable to save comment edits. Reload and try again.");
+    }
     await authedFetch(token, `/projects/${projectId}/threads/${discussionId}/comments/${editingCommentId}`, {
       method: "PATCH",
       body: JSON.stringify({ bodyMarkdown: editingBody })

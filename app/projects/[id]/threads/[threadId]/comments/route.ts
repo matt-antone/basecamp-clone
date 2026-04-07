@@ -35,8 +35,14 @@ export async function POST(
   { params }: { params: Promise<{ id: string; threadId: string }> }
 ) {
   try {
-    const user = await requireUser(request);
     const { id, threadId } = await params;
+    console.error("comment_route_post_received", {
+      projectId: id,
+      threadId,
+      hasAuthorization: typeof request.headers.get("authorization") === "string"
+    });
+
+    const user = await requireUser(request);
     const [project, threadResult] = await Promise.all([getProject(id), getThread(id, threadId)]);
     const thread = threadResult as { id: string; title: string } | null;
     if (!project) {
