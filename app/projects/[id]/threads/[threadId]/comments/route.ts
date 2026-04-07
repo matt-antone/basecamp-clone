@@ -59,6 +59,10 @@ export async function POST(
     });
 
     let recipientCount = 0;
+    let emailBranch: "not_attempted" | "attempted" | "skipped_no_recipients" | "failed" = "not_attempted";
+    let mailResult: Awaited<ReturnType<typeof sendCommentCreatedEmail>> | null = null;
+    let emailError: string | null = null;
+
     try {
       const [actorProfile, recipients] = await Promise.all([
         getUserProfileById(user.id),
@@ -67,6 +71,7 @@ export async function POST(
       recipientCount = recipients.length;
 
       if (recipients.length === 0) {
+        emailBranch = "skipped_no_recipients";
         console.warn("transactional_email_skipped", {
           eventType: "comment_created",
           actorId: user.id,
@@ -76,6 +81,7 @@ export async function POST(
         });
       } else {
         const threadUrl = new URL(`/${id}/${threadId}`, request.url).toString();
+        emailBranch = "attempted";
         console.info("transactional_email_attempt", {
           eventType: "comment_created",
           actorId: user.id,
@@ -84,7 +90,7 @@ export async function POST(
           recipientCount
         });
 
-        const mailResult = await sendCommentCreatedEmail({
+        mailResult = await sendCommentCreatedEmail({
           recipients: recipients.map((recipient) => ({
             email: recipient.email,
             name: getDisplayName(recipient)
@@ -118,15 +124,28 @@ export async function POST(
         });
       }
     } catch (error) {
+      emailBranch = "failed";
+      emailError = error instanceof Error ? error.message : String(error);
       console.error("transactional_email_failed", {
         eventType: "comment_created",
         actorId: user.id,
         projectId: id,
         threadId,
         recipientCount,
-        error: error instanceof Error ? error.message : String(error)
+        error: emailError
       });
     }
+
+    console.error("transactional_email_audit", {
+      eventType: "comment_created",
+      actorId: user.id,
+      projectId: id,
+      threadId,
+      recipientCount,
+      emailBranch,
+      mailResult,
+      emailError
+    });
 
     return ok({ comment }, 201);
   } catch (error) {

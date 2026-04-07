@@ -1477,7 +1477,7 @@ Append inside `registerTools`, after the write tools section:
       name: z.string().optional(),
       avatar_url: z.string().url().optional(),
       bio: z.string().optional(),
-      preferences: z.record(z.unknown()).optional(),
+      preferences: z.record(z.string(), z.unknown()).optional(),
     },
     async (params) => {
       try {
