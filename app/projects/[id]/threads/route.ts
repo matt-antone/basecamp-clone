@@ -107,7 +107,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
           },
           project: {
             id: project.id,
-            name: project.name
+            name: project.name,
+            client_code: project.client_code ?? null,
+            project_code: project.project_code ?? null
           },
           thread: {
             id: thread.id,

@@ -82,7 +82,7 @@ describe("POST /projects/[id]/threads/[threadId]/comments", () => {
     expect(sendCommentCreatedEmailMock).toHaveBeenCalledWith(
       expect.objectContaining({
         actor: { name: "Alex Author", email: "author@example.com" },
-        project: { id: "project-1", name: "Blue Sky" },
+        project: expect.objectContaining({ id: "project-1", name: "Blue Sky" }),
         thread: { id: "thread-1", title: "Kickoff notes" },
         recipients: [{ email: "jamie@example.com", name: "Jamie Teammate" }],
         comment: {

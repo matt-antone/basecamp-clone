@@ -5,6 +5,11 @@ export type MailRecipient = {
   name?: string | null;
 };
 
+function buildProjectLabel(project: { name: string; client_code?: string | null; project_code?: string | null }): string {
+  const parts = [project.client_code, project.project_code, project.name].filter(Boolean);
+  return parts.join("-");
+}
+
 type ThreadEmailArgs = {
   recipients: MailRecipient[];
   actor: {
@@ -14,6 +19,8 @@ type ThreadEmailArgs = {
   project: {
     id: string;
     name: string;
+    client_code?: string | null;
+    project_code?: string | null;
   };
   thread: {
     id: string;
@@ -129,7 +136,8 @@ export async function sendMail(args: {
 }
 
 export async function sendThreadCreatedEmail(args: ThreadEmailArgs) {
-  const subject = `[${args.project.name}] New discussion: ${args.thread.title}`;
+  const projectLabel = buildProjectLabel(args.project);
+  const subject = `[${projectLabel}] New discussion: ${args.thread.title}`;
   const escapedActorName = escapeHtml(args.actor.name);
   const escapedProjectName = escapeHtml(args.project.name);
   const escapedThreadTitle = escapeHtml(args.thread.title);
@@ -155,7 +163,8 @@ export async function sendThreadCreatedEmail(args: ThreadEmailArgs) {
 }
 
 export async function sendCommentCreatedEmail(args: CommentEmailArgs) {
-  const subject = `[${args.project.name}] New comment on: ${args.thread.title}`;
+  const projectLabel = buildProjectLabel(args.project);
+  const subject = `[${projectLabel}] New comment on: ${args.thread.title}`;
   const escapedActorName = escapeHtml(args.actor.name);
   const escapedProjectName = escapeHtml(args.project.name);
   const escapedThreadTitle = escapeHtml(args.thread.title);
