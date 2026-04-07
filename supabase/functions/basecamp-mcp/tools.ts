@@ -11,7 +11,7 @@ interface ToolServer {
     name: string,
     description: string,
     shape: S,
-    handler: (args: z.objectOutputType<S, z.ZodTypeAny>) => Promise<unknown>
+    handler: (args: z.output<z.ZodObject<S>>) => Promise<unknown>
   ): void;
 }
 
