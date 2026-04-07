@@ -140,15 +140,25 @@ export const config = {
   thumbnailWorkerTimeoutMs: () => getNumberEnv("THUMBNAIL_WORKER_TIMEOUT_MS", 15000),
   emailEnabled: () => getBooleanEnv("EMAIL_ENABLED", true),
   emailFrom: () => {
-    const value = getOptionalEnv("EMAIL_FROM");
+    const value = getOptionalEnv("EMAIL_FROM") ?? getOptionalEnv("MAILGUN_EMAIL");
     if (!value) {
-      throw new Error("Missing required env var: EMAIL_FROM");
+      throw new Error("Missing required env var: EMAIL_FROM or MAILGUN_EMAIL");
     }
     return value;
   },
-  smtpHost: () => getOptionalEnv("SMTP_HOST") ?? undefined,
-  smtpPort: () => getNumberEnv("SMTP_PORT", 587),
-  smtpSecure: () => getBooleanEnv("SMTP_SECURE", false),
-  smtpUsername: () => getOptionalEnv("SMTP_USERNAME"),
-  smtpPassword: () => getOptionalEnv("SMTP_PASSWORD")
+  mailgunApiKey: () => {
+    const value = getOptionalEnv("MAILGUN_API_KEY");
+    if (!value) {
+      throw new Error("Missing required env var: MAILGUN_API_KEY");
+    }
+    return value;
+  },
+  mailgunDomain: () => {
+    const value = getOptionalEnv("MAILGUN_DOMAIN");
+    if (!value) {
+      throw new Error("Missing required env var: MAILGUN_DOMAIN");
+    }
+    return value;
+  },
+  mailgunBaseUrl: () => getOptionalEnv("MAILGUN_BASE_URL") ?? "https://api.mailgun.net"
 };

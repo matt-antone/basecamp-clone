@@ -4,6 +4,7 @@ import { query } from "./db";
 import { renderMarkdown } from "./markdown";
 import { DEFAULT_HOURLY_RATE_USD, MAX_EXPENSE_LINE_AMOUNT_USD, MAX_SITE_HOURLY_RATE_USD } from "./project-financials";
 import type { ProjectStatus } from "./project-status";
+import type { ClientRecord } from "./types/client-record";
 
 export type UserProfile = {
   id: string;
@@ -23,17 +24,7 @@ export type SiteSettings = {
   defaultHourlyRateUsd: number | string | null;
 };
 
-/** Row from `clients` (JSON uses PostgreSQL column names). Archive fields optional for older API consumers. */
-export type ClientRecord = {
-  id: string;
-  name: string;
-  code: string;
-  created_at: string;
-  archived_at?: string | null;
-  dropbox_archive_status?: string;
-  archive_started_at?: string | null;
-  archive_error?: string | null;
-};
+export type { ClientRecord } from "./types/client-record";
 
 export type ClientArchiveStatus = "idle" | "pending" | "in_progress" | "completed" | "failed";
 
@@ -124,16 +115,24 @@ export async function updateUserProfile(args: {
 }
 
 export async function listNotificationRecipients(excludeUserId: string): Promise<NotificationRecipient[]> {
+  void excludeUserId;
+
   const result = await query(
-    `select id,
-            email,
-            first_name as "firstName",
-            last_name as "lastName"
-     from user_profiles
-     where id <> $1
-       and lower(split_part(email, '@', 2)) = $2
-     order by coalesce(first_name, ''), coalesce(last_name, ''), email`,
-    [excludeUserId, config.workspaceDomain()]
+    `with deduped as (
+       select distinct on (lower(email))
+              id,
+              email,
+              first_name as "firstName",
+              last_name as "lastName"
+       from user_profiles
+       where active = true
+         and lower(split_part(email, '@', 2)) = $1
+       order by lower(email), coalesce(first_name, ''), coalesce(last_name, ''), email, id
+     )
+     select *
+     from deduped
+     order by coalesce("firstName", ''), coalesce("lastName", ''), email`,
+    [config.workspaceDomain()]
   );
 
   return result.rows.map((row) => ({
@@ -149,13 +148,18 @@ export async function listClients(): Promise<ClientRecord[]> {
   return result.rows as ClientRecord[];
 }
 
-export async function createClient(args: { name: string; code: string }): Promise<ClientRecord | undefined> {
+export async function createClient(args: {
+  name: string;
+  code: string;
+  githubRepos?: string[];
+  domains?: string[];
+}): Promise<ClientRecord | undefined> {
   const code = args.code.trim().toUpperCase();
   const result = await query(
-    `insert into clients (name, code)
-     values ($1, $2)
+    `insert into clients (name, code, github_repos, domains)
+     values ($1, $2, $3::text[], $4::text[])
      returning *`,
-    [args.name.trim(), code]
+    [args.name.trim(), code, args.githubRepos ?? [], args.domains ?? []]
   );
   return result.rows[0] as ClientRecord | undefined;
 }
@@ -252,10 +256,28 @@ export async function assertClientNotArchivedForMutation(
   }
 }
 
-export async function updateClientName(id: string, name: string): Promise<ClientRecord | null> {
+export async function updateClient(
+  id: string,
+  args: { name: string; githubRepos?: string[]; domains?: string[] }
+): Promise<ClientRecord | null> {
+  const current = await getClientById(id);
+  if (!current) {
+    return null;
+  }
+
   const result = await query(
-    `update clients set name = $1 where id = $2::uuid returning *`,
-    [name.trim(), id]
+    `update clients
+     set name = $1,
+         github_repos = $2::text[],
+         domains = $3::text[]
+     where id = $4::uuid
+     returning *`,
+    [
+      args.name.trim(),
+      args.githubRepos ?? current.github_repos ?? [],
+      args.domains ?? current.domains ?? [],
+      id
+    ]
   );
   return (result.rows[0] as ClientRecord | undefined) ?? null;
 }

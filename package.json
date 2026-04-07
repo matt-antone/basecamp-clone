@@ -14,20 +14,20 @@
     "seed:dummy-projects": "node --env-file=.env.local scripts/seed-dummy-projects.mjs",
     "migrate:active": "npx tsx scripts/migrate-bc2.ts --mode=full --projects=active --files",
     "backfill:bc2-file-linkage": "npx tsx scripts/backfill-bc2-file-linkage.ts",
-    "db:reset-bc2-data": "npx tsx scripts/reset-bc2-import-data.ts --yes"
+    "db:reset-bc2-data": "npx tsx scripts/reset-bc2-import-data.ts --yes",
+    "mcp:mint-jwt": "node scripts/mint-mcp-jwt.mjs"
   },
   "dependencies": {
     "@mdxeditor/editor": "^3.52.5",
     "@supabase/supabase-js": "^2.54.0",
-    "@types/nodemailer": "^7.0.11",
     "dropbox": "^10.34.0",
     "marked": "^13.0.2",
     "next": "^15.2.4",
-    "nodemailer": "^8.0.3",
     "pg": "^8.13.1",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "sanitize-html": "^2.13.0",
+    "server-only": "^0.0.1",
     "slugify": "^1.6.6",
     "zod": "^4.3.6"
   },

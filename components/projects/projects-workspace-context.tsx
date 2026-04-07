@@ -12,7 +12,7 @@ import {
 } from "@/lib/project-utils";
 import { authedJsonFetch, fetchAuthSession } from "@/lib/browser-auth";
 import type { FeaturedFeedPost } from "@/lib/featured-feed";
-import type { ClientRecord } from "@/lib/repositories";
+import type { ClientRecord } from "@/lib/types/client-record";
 import {
   type Dispatch,
   type ReactNode,

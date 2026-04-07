@@ -1,6 +1,5 @@
 // tests/unit/mcp-read-tools.test.ts
 import { describe, it, expect, vi } from "vitest";
-import { z } from "zod";
 import * as db from "../../supabase/functions/basecamp-mcp/db.ts";
 import { registerTools } from "../../supabase/functions/basecamp-mcp/tools.ts";
 
@@ -17,16 +16,31 @@ function mockServer() {
 const agent = { client_id: "mcp-test-client", role: "agent" };
 
 describe("tool schemas", () => {
-  it("uses Zod object schemas for zero-argument tools", () => {
+  it("uses empty raw-shape schemas for zero-argument tools", () => {
     const server = mockServer();
     registerTools(server as any, {} as any, agent);
 
     const listProjectsCall = server.tool.mock.calls.find(([name]) => name === "list_projects");
     const profileCall = server.tool.mock.calls.find(([name]) => name === "get_my_profile");
 
-    expect(listProjectsCall?.[2]).toEqual(expect.objectContaining({ _zod: expect.anything() }));
-    expect(profileCall?.[2]).toEqual(expect.objectContaining({ _zod: expect.anything() }));
-    expect(z.object({})._zod).toBeDefined();
+    expect(listProjectsCall?.[2]).toEqual({});
+    expect(profileCall?.[2]).toEqual({});
+  });
+
+  it("regression: does not pass Zod object instances for zero-arg tools", () => {
+    const server = mockServer();
+    registerTools(server as any, {} as any, agent);
+
+    const zeroArgTools = ["list_projects", "get_my_profile"] as const;
+    for (const toolName of zeroArgTools) {
+      const toolCall = server.tool.mock.calls.find(([name]) => name === toolName);
+      const schema = toolCall?.[2] as Record<string, unknown> | undefined;
+
+      expect(schema).toBeDefined();
+      expect(schema).toEqual({});
+      expect(schema && "_zod" in schema).toBe(false);
+      expect(schema && "_def" in schema).toBe(false);
+    }
   });
 });
 

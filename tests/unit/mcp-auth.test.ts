@@ -1,18 +1,27 @@
-// tests/unit/mcp-auth.test.ts
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import bcrypt from "bcryptjs";
+import { describe, it, expect, vi } from "vitest";
 import {
   AuthError,
+  authenticateAgent,
   createRateLimiter,
-  resolveAgent,
   ensureProfile,
+  mintAgentJwt,
+  parseBearerToken,
+  verifyJwt,
 } from "../../supabase/functions/basecamp-mcp/auth.ts";
+
+const JWT_CONFIG = {
+  secret: "unit-test-secret",
+  issuer: "basecamp-mcp",
+  audience: "basecamp-mcp",
+  clockToleranceSeconds: 30,
+} as const;
 
 function mockSupabase(row: object | null, error: object | null = null) {
   const single = vi.fn().mockResolvedValue({ data: row, error });
   const eq = vi.fn().mockReturnValue({ single });
   const select = vi.fn().mockReturnValue({ eq });
-  const from = vi.fn().mockReturnValue({ select, upsert: vi.fn().mockResolvedValue({ error: null }) });
+  const upsert = vi.fn().mockResolvedValue({ error: null });
+  const from = vi.fn().mockReturnValue({ select, upsert });
   return { from } as any;
 }
 
@@ -39,41 +48,73 @@ describe("createRateLimiter", () => {
   });
 });
 
-describe("resolveAgent", () => {
-  it("throws AuthError when clientId is null", async () => {
-    await expect(resolveAgent({} as any, null, "secret"))
-      .rejects.toThrow(AuthError);
+describe("parseBearerToken", () => {
+  it("extracts a bearer token", () => {
+    expect(parseBearerToken("Bearer abc.def.ghi")).toBe("abc.def.ghi");
   });
 
-  it("throws AuthError when secret is null", async () => {
-    await expect(resolveAgent({} as any, "mcp-test-client", null))
-      .rejects.toThrow(AuthError);
+  it("returns null for non-bearer headers", () => {
+    expect(parseBearerToken("Basic abc")).toBe(null);
+    expect(parseBearerToken(null)).toBe(null);
+  });
+});
+
+describe("verifyJwt", () => {
+  it("accepts a valid token", async () => {
+    const token = await mintAgentJwt({ client_id: "mcp-test-client" }, JWT_CONFIG);
+    const claims = await verifyJwt(token, JWT_CONFIG);
+    expect(claims.sub).toBe("mcp-test-client");
+    expect(claims.iss).toBe(JWT_CONFIG.issuer);
+    expect(claims.aud).toBe(JWT_CONFIG.audience);
+  });
+
+  it("rejects malformed tokens", async () => {
+    await expect(verifyJwt("not-a-jwt", JWT_CONFIG)).rejects.toBeInstanceOf(AuthError);
+  });
+
+  it("rejects invalid signatures", async () => {
+    const token = await mintAgentJwt({ client_id: "mcp-test-client" }, JWT_CONFIG);
+    const tampered = token.slice(0, -1) + (token.endsWith("a") ? "b" : "a");
+    await expect(verifyJwt(tampered, JWT_CONFIG)).rejects.toBeInstanceOf(AuthError);
+  });
+
+  it("rejects expired tokens", async () => {
+    const token = await mintAgentJwt({ client_id: "mcp-test-client", expiresInSeconds: -60 }, JWT_CONFIG);
+    await expect(verifyJwt(token, JWT_CONFIG)).rejects.toBeInstanceOf(AuthError);
+  });
+
+  it("rejects wrong issuer", async () => {
+    const token = await mintAgentJwt({ client_id: "mcp-test-client" }, { ...JWT_CONFIG, issuer: "other" });
+    await expect(verifyJwt(token, JWT_CONFIG)).rejects.toBeInstanceOf(AuthError);
+  });
+
+  it("rejects wrong audience", async () => {
+    const token = await mintAgentJwt({ client_id: "mcp-test-client" }, { ...JWT_CONFIG, audience: "other" });
+    await expect(verifyJwt(token, JWT_CONFIG)).rejects.toBeInstanceOf(AuthError);
+  });
+});
+
+describe("authenticateAgent", () => {
+  it("throws AuthError when token is missing", async () => {
+    await expect(authenticateAgent({} as any, null, JWT_CONFIG)).rejects.toBeInstanceOf(AuthError);
   });
 
   it("throws AuthError when agent not found in DB", async () => {
+    const token = await mintAgentJwt({ client_id: "mcp-test-client" }, JWT_CONFIG);
     const supabase = mockSupabase(null, { message: "not found" });
-    await expect(resolveAgent(supabase, "mcp-test-client", "secret"))
-      .rejects.toThrow(AuthError);
+    await expect(authenticateAgent(supabase, token, JWT_CONFIG)).rejects.toBeInstanceOf(AuthError);
   });
 
   it("throws AuthError when agent is disabled", async () => {
-    const hash = await bcrypt.hash("secret", 10);
-    const supabase = mockSupabase({ client_id: "mcp-test-client", secret_hash: hash, role: "agent", disabled: true });
-    await expect(resolveAgent(supabase, "mcp-test-client", "secret"))
-      .rejects.toThrow(AuthError);
+    const token = await mintAgentJwt({ client_id: "mcp-test-client" }, JWT_CONFIG);
+    const supabase = mockSupabase({ client_id: "mcp-test-client", role: "agent", disabled: true });
+    await expect(authenticateAgent(supabase, token, JWT_CONFIG)).rejects.toBeInstanceOf(AuthError);
   });
 
-  it("throws AuthError when secret is wrong", async () => {
-    const hash = await bcrypt.hash("correct", 10);
-    const supabase = mockSupabase({ client_id: "mcp-test-client", secret_hash: hash, role: "agent", disabled: false });
-    await expect(resolveAgent(supabase, "mcp-test-client", "wrong"))
-      .rejects.toThrow(AuthError);
-  });
-
-  it("returns identity when credentials are valid", async () => {
-    const hash = await bcrypt.hash("secret", 10);
-    const supabase = mockSupabase({ client_id: "mcp-test-client", secret_hash: hash, role: "agent", disabled: false });
-    const identity = await resolveAgent(supabase, "mcp-test-client", "secret");
+  it("returns identity when token and DB row are valid", async () => {
+    const token = await mintAgentJwt({ client_id: "mcp-test-client" }, JWT_CONFIG);
+    const supabase = mockSupabase({ client_id: "mcp-test-client", role: "agent", disabled: false });
+    const identity = await authenticateAgent(supabase, token, JWT_CONFIG);
     expect(identity).toEqual({ client_id: "mcp-test-client", role: "agent" });
   });
 });

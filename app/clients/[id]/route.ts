@@ -1,18 +1,42 @@
 import { requireUser } from "@/lib/auth";
 import { badRequest, notFound, ok, serverError, unauthorized } from "@/lib/http";
-import { getClientById, updateClientName } from "@/lib/repositories";
+import { getClientById, updateClient } from "@/lib/repositories";
 import { z } from "zod";
 
+const clientStringListSchema = z.array(z.string().trim().min(1));
+
 const patchClientSchema = z.object({
-  name: z.string().min(1)
+  name: z.string().min(1),
+  github_repos: clientStringListSchema.optional(),
+  domains: clientStringListSchema.optional()
 });
 
+function pickErrorField(error: unknown, key: string) {
+  if (typeof error !== "object" || error === null) {
+    return undefined;
+  }
+  const value = (error as Record<string, unknown>)[key];
+  return typeof value === "string" ? value : undefined;
+}
+
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const requestId = request.headers.get("x-request-id") ?? crypto.randomUUID();
+  let clientId = "unknown";
+  let actorUserId: string | null = null;
+
   try {
-    await requireUser(request);
+    const user = await requireUser(request);
+    actorUserId = user.id;
+
     const { id } = await params;
+    clientId = id;
+
     const payload = patchClientSchema.parse(await request.json());
-    const client = await updateClientName(id, payload.name);
+    const client = await updateClient(id, {
+      name: payload.name,
+      githubRepos: payload.github_repos,
+      domains: payload.domains
+    });
     if (!client) {
       return notFound("Client not found");
     }
@@ -24,7 +48,28 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     if (error instanceof z.ZodError) {
       return badRequest(error.message);
     }
-    return serverError();
+    if (error instanceof SyntaxError) {
+      return badRequest("Invalid JSON body");
+    }
+
+    console.error("client_patch_failed", {
+      requestId,
+      route: "PATCH /clients/:id",
+      clientId,
+      actorUserId,
+      errorName: error instanceof Error ? error.name : "UnknownError",
+      errorMessage: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+      pgCode: pickErrorField(error, "code"),
+      pgDetail: pickErrorField(error, "detail"),
+      pgHint: pickErrorField(error, "hint"),
+      pgWhere: pickErrorField(error, "where"),
+      pgTable: pickErrorField(error, "table"),
+      pgColumn: pickErrorField(error, "column"),
+      pgConstraint: pickErrorField(error, "constraint")
+    });
+
+    return serverError(`Internal server error (ref: ${requestId})`);
   }
 }
 

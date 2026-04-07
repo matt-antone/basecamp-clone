@@ -78,9 +78,25 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       ]);
       recipientCount = recipients.length;
 
-      if (recipients.length > 0) {
+      if (recipients.length === 0) {
+        console.warn("transactional_email_skipped", {
+          eventType: "thread_created",
+          actorId: user.id,
+          projectId: id,
+          threadId: thread.id,
+          reason: "no_recipients"
+        });
+      } else {
         const threadUrl = new URL(`/${id}/${thread.id}`, request.url).toString();
-        await sendThreadCreatedEmail({
+        console.info("transactional_email_attempt", {
+          eventType: "thread_created",
+          actorId: user.id,
+          projectId: id,
+          threadId: thread.id,
+          recipientCount
+        });
+
+        const mailResult = await sendThreadCreatedEmail({
           recipients: recipients.map((recipient) => ({
             email: recipient.email,
             name: getDisplayName(recipient)
@@ -98,6 +114,15 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
             title: thread.title
           },
           threadUrl
+        });
+
+        console.info("transactional_email_result", {
+          eventType: "thread_created",
+          actorId: user.id,
+          projectId: id,
+          threadId: thread.id,
+          recipientCount,
+          mailResult
         });
       }
     } catch (error) {

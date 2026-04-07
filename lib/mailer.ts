@@ -1,6 +1,3 @@
-import nodemailer from "nodemailer";
-import type SMTPTransport from "nodemailer/lib/smtp-transport";
-import type { SentMessageInfo, Transporter } from "nodemailer";
 import { config } from "./config";
 
 export type MailRecipient = {
@@ -36,8 +33,6 @@ export type SendMailResult =
   | { skipped: true; reason: "disabled" | "no_recipients" }
   | { skipped: false; recipientCount: number; messageId?: string };
 
-let cachedTransporter: Transporter<SentMessageInfo> | null = null;
-
 function escapeHtml(value: string) {
   return value
     .replaceAll("&", "&amp;")
@@ -47,10 +42,25 @@ function escapeHtml(value: string) {
     .replaceAll("'", "&#39;");
 }
 
-function toTransportRecipients(recipients: MailRecipient[]): string[] {
+function toMailRecipients(recipients: MailRecipient[]): string[] {
   return recipients.map((recipient) =>
     recipient.name ? `"${recipient.name.replaceAll('"', '\\"')}" <${recipient.email}>` : recipient.email
   );
+}
+
+function buildMailgunMessagesUrl() {
+  const baseUrl = config.mailgunBaseUrl().replace(/\/+$/, "");
+  const domain = config.mailgunDomain();
+  return `${baseUrl}/v3/${domain}/messages`;
+}
+
+function buildMailgunAuthorization() {
+  const apiKey = config.mailgunApiKey();
+  return `Basic ${Buffer.from(`api:${apiKey}`).toString("base64")}`;
+}
+
+export function resetMailerForTests() {
+  // No-op retained for compatibility with existing tests/importers.
 }
 
 export function createCommentExcerpt(bodyMarkdown: string, maxLength = 180) {
@@ -65,41 +75,6 @@ export function createCommentExcerpt(bodyMarkdown: string, maxLength = 180) {
   }
 
   return `${normalized.slice(0, maxLength - 1).trimEnd()}...`;
-}
-
-export function buildSmtpTransportOptions(): SMTPTransport.Options {
-  const username = config.smtpUsername();
-  const password = config.smtpPassword();
-
-  if ((username && !password) || (!username && password)) {
-    throw new Error("SMTP_USERNAME and SMTP_PASSWORD must both be set when using SMTP auth");
-  }
-
-  return {
-    host: config.smtpHost(),
-    port: config.smtpPort(),
-    secure: config.smtpSecure(),
-    ...(username && password
-      ? {
-          auth: {
-            user: username,
-            pass: password
-          }
-        }
-      : {})
-  };
-}
-
-function getTransporter() {
-  if (!cachedTransporter) {
-    cachedTransporter = nodemailer.createTransport(buildSmtpTransportOptions());
-  }
-
-  return cachedTransporter;
-}
-
-export function resetMailerForTests() {
-  cachedTransporter = null;
 }
 
 export async function sendMail(args: {
@@ -117,19 +92,39 @@ export async function sendMail(args: {
     return { skipped: true, reason: "no_recipients" };
   }
 
-  const result = (await getTransporter().sendMail({
-    from: config.emailFrom(),
-    to: toTransportRecipients(args.recipients),
-    subject: args.subject,
-    text: args.text,
-    html: args.html,
-    ...(args.replyTo ? { replyTo: args.replyTo } : {})
-  })) as SentMessageInfo;
+  const form = new URLSearchParams();
+  form.set("from", config.emailFrom());
+  for (const recipient of toMailRecipients(args.recipients)) {
+    form.append("to", recipient);
+  }
+  form.set("subject", args.subject);
+  form.set("text", args.text);
+  form.set("html", args.html);
+
+  if (args.replyTo) {
+    form.set("h:Reply-To", args.replyTo);
+  }
+
+  const response = await fetch(buildMailgunMessagesUrl(), {
+    method: "POST",
+    headers: {
+      Authorization: buildMailgunAuthorization(),
+      "Content-Type": "application/x-www-form-urlencoded"
+    },
+    body: form.toString()
+  });
+
+  if (!response.ok) {
+    const body = await response.text();
+    throw new Error(`Mailgun API request failed (${response.status}): ${body || response.statusText}`);
+  }
+
+  const payload = (await response.json()) as { id?: string };
 
   return {
     skipped: false,
     recipientCount: args.recipients.length,
-    messageId: result.messageId
+    messageId: payload.id
   };
 }
 
@@ -153,7 +148,7 @@ export async function sendThreadCreatedEmail(args: ThreadEmailArgs) {
       "<div style=\"font-family: Arial, sans-serif; color: #1f2937; line-height: 1.5;\">",
       `<p><strong>${escapedActorName}</strong> started a new discussion in <strong>${escapedProjectName}</strong>.</p>`,
       `<p><strong>Thread:</strong> ${escapedThreadTitle}</p>`,
-      `<p><a href="${escapedThreadUrl}">Open discussion</a></p>`,
+      `<p><a href=\"${escapedThreadUrl}\">Open discussion</a></p>`,
       "</div>"
     ].join("")
   });
@@ -181,8 +176,8 @@ export async function sendCommentCreatedEmail(args: CommentEmailArgs) {
       "<div style=\"font-family: Arial, sans-serif; color: #1f2937; line-height: 1.5;\">",
       `<p><strong>${escapedActorName}</strong> commented on a discussion in <strong>${escapedProjectName}</strong>.</p>`,
       `<p><strong>Thread:</strong> ${escapedThreadTitle}</p>`,
-      `<p style="padding: 12px; border-left: 3px solid #d1d5db; background: #f9fafb;">${escapedExcerpt}</p>`,
-      `<p><a href="${escapedThreadUrl}">Open discussion</a></p>`,
+      `<p style=\"padding: 12px; border-left: 3px solid #d1d5db; background: #f9fafb;\">${escapedExcerpt}</p>`,
+      `<p><a href=\"${escapedThreadUrl}\">Open discussion</a></p>`,
       "</div>"
     ].join("")
   });

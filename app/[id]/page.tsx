@@ -13,7 +13,7 @@ import { authedFormDataFetch, authedJsonFetch, fetchAuthSession } from "@/lib/br
 import { createClientResource } from "@/lib/client-resource";
 import { calculateProjectExpensesTotalUsd, formatUsdInput, formatUsdMoney } from "@/lib/project-financials";
 import { createProjectDialogValues, normalizeProjectColumn, parseProjectTags } from "@/lib/project-utils";
-import type { ClientRecord } from "@/lib/repositories";
+import type { ClientRecord } from "@/lib/types/client-record";
 import { useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 

@@ -13,7 +13,7 @@ import {
   normalizeSiteLogoUrl,
   normalizeSiteTitle
 } from "@/lib/site-branding";
-import type { ClientRecord } from "@/lib/repositories";
+import type { ClientRecord } from "@/lib/types/client-record";
 import { useEffect, useRef, useState } from "react";
 
 type UserProfileRecord = {
@@ -252,6 +252,26 @@ function getClientArchiveSummary(client: ClientRecord) {
   return "Active";
 }
 
+function normalizeClientList(values: string[] | null | undefined) {
+  if (!Array.isArray(values)) {
+    return [];
+  }
+
+  return values.map((value) => value.trim()).filter((value) => value.length > 0);
+}
+
+function parseClientListInput(raw: string) {
+  return normalizeClientList(raw.split(/\r?\n|,/g));
+}
+
+function formatClientListInput(values: string[] | null | undefined) {
+  return normalizeClientList(values).join("\n");
+}
+
+function areClientListsEqual(a: string[], b: string[]) {
+  return a.length === b.length && a.every((value, index) => value === b[index]);
+}
+
 function SettingsPageContent({ initial }: { initial: SettingsBootstrap }) {
   const [token, setToken] = useState(initial.token);
   const [googleAvatarUrl] = useState(initial.googleAvatarUrl);
@@ -263,6 +283,8 @@ function SettingsPageContent({ initial }: { initial: SettingsBootstrap }) {
   const [clientEditingId, setClientEditingId] = useState<string | null>(null);
   const [clientDialogName, setClientDialogName] = useState("");
   const [clientDialogCode, setClientDialogCode] = useState("");
+  const [clientDialogGithubRepos, setClientDialogGithubRepos] = useState("");
+  const [clientDialogDomains, setClientDialogDomains] = useState("");
   const [clientDialogSaving, setClientDialogSaving] = useState(false);
   const [clientDialogError, setClientDialogError] = useState<string | undefined>();
 
@@ -273,14 +295,23 @@ function SettingsPageContent({ initial }: { initial: SettingsBootstrap }) {
   const displayedAvatarUrl = googleAvatarUrl || profile.avatarUrl;
   const trimmedClientName = clientDialogName.trim();
   const trimmedClientCode = clientDialogCode.trim().toUpperCase();
+  const parsedClientGithubRepos = parseClientListInput(clientDialogGithubRepos);
+  const parsedClientDomains = parseClientListInput(clientDialogDomains);
   const isClientEdit = clientEditingId !== null;
   const clientBeingEdited = isClientEdit ? clients.find((client) => client.id === clientEditingId) ?? null : null;
   const hasClientNameChanged = clientBeingEdited ? clientBeingEdited.name !== trimmedClientName : true;
+  const hasClientGithubReposChanged = clientBeingEdited
+    ? !areClientListsEqual(normalizeClientList(clientBeingEdited.github_repos), parsedClientGithubRepos)
+    : true;
+  const hasClientDomainsChanged = clientBeingEdited
+    ? !areClientListsEqual(normalizeClientList(clientBeingEdited.domains), parsedClientDomains)
+    : true;
+  const hasClientDetailsChanged = hasClientNameChanged || hasClientGithubReposChanged || hasClientDomainsChanged;
   const clientDialogSubmitDisabled =
     clientDialogSaving ||
     !trimmedClientName ||
     (!isClientEdit && !trimmedClientCode) ||
-    (isClientEdit && !hasClientNameChanged);
+    (isClientEdit && !hasClientDetailsChanged);
 
   async function authedFetch(accessToken: string, path: string, options: RequestInit = {}) {
     const { accessToken: nextToken, data } = await authedJsonFetch({
@@ -320,6 +351,8 @@ function SettingsPageContent({ initial }: { initial: SettingsBootstrap }) {
     setClientEditingId(null);
     setClientDialogName("");
     setClientDialogCode("");
+    setClientDialogGithubRepos("");
+    setClientDialogDomains("");
     setClientDialogError(undefined);
     clientDialogRef.current?.showModal();
   }
@@ -328,6 +361,8 @@ function SettingsPageContent({ initial }: { initial: SettingsBootstrap }) {
     setClientEditingId(client.id);
     setClientDialogName(client.name);
     setClientDialogCode(client.code);
+    setClientDialogGithubRepos(formatClientListInput(client.github_repos));
+    setClientDialogDomains(formatClientListInput(client.domains));
     setClientDialogError(undefined);
     clientDialogRef.current?.showModal();
   }
@@ -347,7 +382,7 @@ function SettingsPageContent({ initial }: { initial: SettingsBootstrap }) {
       setClientDialogError("Client code is required.");
       return;
     }
-    if (isClientEdit && !hasClientNameChanged) {
+    if (isClientEdit && !hasClientDetailsChanged) {
       closeClientDialog();
       return;
     }
@@ -358,13 +393,22 @@ function SettingsPageContent({ initial }: { initial: SettingsBootstrap }) {
       if (isClientEdit) {
         await authedFetch(token, `/clients/${clientEditingId}`, {
           method: "PATCH",
-          body: JSON.stringify({ name: trimmedClientName })
+          body: JSON.stringify({
+            name: trimmedClientName,
+            github_repos: parsedClientGithubRepos,
+            domains: parsedClientDomains
+          })
         });
         setStatus("Client updated");
       } else {
         await authedFetch(token, "/clients", {
           method: "POST",
-          body: JSON.stringify({ name: trimmedClientName, code: trimmedClientCode })
+          body: JSON.stringify({
+            name: trimmedClientName,
+            code: trimmedClientCode,
+            github_repos: parsedClientGithubRepos,
+            domains: parsedClientDomains
+          })
         });
         setStatus("Client added");
       }
@@ -711,6 +755,26 @@ function SettingsPageContent({ initial }: { initial: SettingsBootstrap }) {
                 autoCapitalize="characters"
                 spellCheck={false}
               />
+            </label>
+            <label className="dialogField">
+              <span>GitHub repositories</span>
+              <textarea
+                value={clientDialogGithubRepos}
+                onChange={(e) => setClientDialogGithubRepos(e.target.value)}
+                placeholder="owner/repo"
+                disabled={clientDialogSaving}
+              />
+              <span className="dialogFieldHint">One repository per line (comma also supported).</span>
+            </label>
+            <label className="dialogField">
+              <span>Domains</span>
+              <textarea
+                value={clientDialogDomains}
+                onChange={(e) => setClientDialogDomains(e.target.value)}
+                placeholder="example.com"
+                disabled={clientDialogSaving}
+              />
+              <span className="dialogFieldHint">One domain per line (comma also supported).</span>
             </label>
             {clientEditingId ? (
               <p id="client-code-immutable-note" className="dialogFieldHint">

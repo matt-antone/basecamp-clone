@@ -42,7 +42,7 @@ export function registerTools(
   server.tool(
     "list_projects",
     "List all non-archived projects with name, slug, description, deadline, status, and client name.",
-    z.object({}),
+    {},
     async () => {
       try {
         return ok(await db.listProjects(supabase));
@@ -306,7 +306,7 @@ export function registerTools(
   server.tool(
     "get_my_profile",
     "Get the calling agent's profile: name, bio, avatar_url, preferences.",
-    z.object({}),
+    {},
     async () => {
       try {
         const result = await db.getProfile(supabase, agent.client_id);
@@ -325,7 +325,7 @@ export function registerTools(
       name: z.string().optional(),
       avatar_url: z.string().url().optional(),
       bio: z.string().optional(),
-      preferences: z.record(z.unknown()).optional(),
+      preferences: z.record(z.string(), z.unknown()).optional(),
     },
     async (params) => {
       try {

@@ -1,15 +1,14 @@
-import { describe, expect, it } from "vitest";
+import { describe, it, expect } from "vitest";
 
-const REQUIRED_SMOKE_ENV = ["MCP_SMOKE_URL", "MCP_SMOKE_CLIENT_ID", "MCP_SMOKE_SECRET"] as const;
+const REQUIRED_SMOKE_ENV = ["MCP_SMOKE_URL", "MCP_SMOKE_JWT"] as const;
 
 function readSmokeConfig(env: NodeJS.ProcessEnv) {
   const missing = REQUIRED_SMOKE_ENV.filter((key) => !env[key]);
   return {
     url: env.MCP_SMOKE_URL,
-    clientId: env.MCP_SMOKE_CLIENT_ID,
-    secret: env.MCP_SMOKE_SECRET,
+    jwt: env.MCP_SMOKE_JWT,
     missing,
-    isConfigured: missing.length === 0
+    isConfigured: missing.length === 0,
   };
 }
 
@@ -20,7 +19,7 @@ function expectMissingConfig() {
 }
 
 async function mcpCall(method: string, params: Record<string, unknown>) {
-  if (!smoke.url || !smoke.clientId || !smoke.secret) {
+  if (!smoke.url || !smoke.jwt) {
     throw new Error("MCP smoke config is not available");
   }
 
@@ -29,22 +28,21 @@ async function mcpCall(method: string, params: Record<string, unknown>) {
     headers: {
       "Content-Type": "application/json",
       Accept: "application/json, text/event-stream",
-      Authorization: `Bearer ${smoke.secret}`,
-      "x-mcp-client-id": smoke.clientId
+      Authorization: `Bearer ${smoke.jwt}`,
     },
     body: JSON.stringify({
       jsonrpc: "2.0",
       id: 1,
       method,
-      params
-    })
+      params,
+    }),
   });
   return res.json();
 }
 
 describe("MCP smoke test configuration", () => {
   it("declares required environment variables for live smoke checks", () => {
-    expect(REQUIRED_SMOKE_ENV).toEqual(["MCP_SMOKE_URL", "MCP_SMOKE_CLIENT_ID", "MCP_SMOKE_SECRET"]);
+    expect(REQUIRED_SMOKE_ENV).toEqual(["MCP_SMOKE_URL", "MCP_SMOKE_JWT"]);
   });
 
   it("reports whether live smoke checks are configured", () => {
@@ -79,7 +77,7 @@ describe("MCP smoke tests (live)", () => {
   });
 
   it("rejects bad credentials with 401 when live smoke config is present", async () => {
-    if (!smoke.isConfigured || !smoke.url || !smoke.clientId) {
+    if (!smoke.isConfigured || !smoke.url) {
       expectMissingConfig();
       return;
     }
@@ -88,10 +86,9 @@ describe("MCP smoke tests (live)", () => {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: "Bearer bad-secret",
-        "x-mcp-client-id": smoke.clientId
+        Authorization: "Bearer not-a-valid-jwt",
       },
-      body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/list", params: {} })
+      body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/list", params: {} }),
     });
     expect(res.status).toBe(401);
   });
@@ -118,7 +115,7 @@ describe("MCP smoke tests (live)", () => {
 
     const response = await mcpCall("tools/call", {
       name: "list_projects",
-      arguments: {}
+      arguments: {},
     });
     const data = JSON.parse(response.result?.content?.[0]?.text ?? "null");
     expect(Array.isArray(data)).toBe(true);

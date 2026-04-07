@@ -49,12 +49,11 @@ Required server env vars:
 
 Email env vars:
 - `EMAIL_ENABLED` (optional, defaults to `true`)
-- `EMAIL_FROM` (required when email is enabled)
-- `SMTP_HOST` (optional, set to your SMTP relay host)
-- `SMTP_PORT` (optional, defaults to `587`)
-- `SMTP_SECURE` (optional, defaults to `false`)
-- `SMTP_USERNAME` (optional, but must be paired with `SMTP_PASSWORD` when used)
-- `SMTP_PASSWORD` (optional, but must be paired with `SMTP_USERNAME` when used)
+- `EMAIL_FROM` (canonical sender; if unset, falls back to `MAILGUN_EMAIL`)
+- `MAILGUN_EMAIL` (legacy fallback alias for `EMAIL_FROM`)
+- `MAILGUN_API_KEY` (required when email is enabled)
+- `MAILGUN_DOMAIN` (required when email is enabled)
+- `MAILGUN_BASE_URL` (optional, defaults to `https://api.mailgun.net`)
 
 Dropbox env vars:
 - `DROPBOX_APP_KEY`
@@ -69,10 +68,10 @@ Thumbnail worker env vars (recommended for Office/PDF conversion in hosted deplo
 - `THUMBNAIL_WORKER_TOKEN` (required when `THUMBNAIL_WORKER_URL` is set; use the raw secret or `Bearer <secret>`)
 - `THUMBNAIL_WORKER_TIMEOUT_MS` (optional, defaults to `15000`)
 
-## Google Workspace SMTP Relay
-- Configure Google Workspace SMTP relay to allow your app host or SMTP-authenticated sends.
-- Set `EMAIL_FROM` to your shared sender, for example `notifications@yourcompany.com`.
-- Leave `SMTP_USERNAME` and `SMTP_PASSWORD` blank if your relay is IP-allowlisted; otherwise provide both.
+## Mailgun Transactional Email
+- Configure a Mailgun sending domain and API key with permission to send messages.
+- Set `EMAIL_FROM` to your shared sender (canonical), for example `notifications@yourcompany.com`. `MAILGUN_EMAIL` is also accepted as a legacy fallback alias.
+- If needed, set `MAILGUN_BASE_URL` for region-specific API hosts; otherwise the default `https://api.mailgun.net` is used.
 - Thread and comment API writes still succeed if email delivery fails. Failures are logged server-side as `transactional_email_failed`.
 
 ## API Paths

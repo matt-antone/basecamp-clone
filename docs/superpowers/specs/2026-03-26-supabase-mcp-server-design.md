@@ -46,25 +46,28 @@ supabase/
 ### Env vars
 
 ```
-MCP_ACCESS_KEY        # admin key (legacy single)
-MCP_ACCESS_KEYS       # comma-separated admin keys
-MCP_RATE_LIMIT_RPM    # requests per minute per agent (default: 120)
+MCP_JWT_SECRET               # HMAC secret for signing/verifying MCP agent JWTs
+MCP_JWT_ISSUER               # JWT issuer (default: basecamp-mcp)
+MCP_JWT_AUDIENCE             # JWT audience (default: basecamp-mcp)
+MCP_JWT_CLOCK_TOLERANCE_SECONDS  # small skew allowance for exp/iat checks (default: 30)
+MCP_RATE_LIMIT_RPM           # requests per minute per agent (default: 120)
 ```
 
 No `MCP_CLIENTS_JSON` — agent credentials are stored in the `agent_clients` DB table instead. This means adding or disabling an agent is a SQL insert/update with no redeploy required.
 
 ### `agent_clients` table (see Section 4)
 
-Agent credentials live in the DB. The edge function loads the calling agent's row at auth time via the service role key.
+Agent credentials live in the DB. The edge function verifies a short-lived JWT, extracts `sub`, and loads the calling agent's row at auth time via the service role key.
 
 ### Request headers
 
 ```
-Authorization: Bearer <secret>
-x-mcp-client-id: mcp-test-client
+Authorization: Bearer <jwt>
 ```
 
-The edge function looks up `client_id` in `agent_clients`, does a timing-safe bcrypt compare against the stored `secret_hash`, and resolves → `{ client_id, role }`. This identity is used for:
+The JWT must include required claims `sub`, `iss`, `aud`, `iat`, `exp`, and `jti`. The edge function verifies the signature first, then resolves `sub` against `agent_clients.client_id`. Optional claims such as `role`, `scope`, `token_version`, and `auth_epoch` can be carried for future use, but the DB row remains the source of truth for enabled/disabled state and canonical role.
+
+This identity is used for:
 - Rate limiting (per `client_id`)
 - Stamping `author_user_id = client_id` on all writes
 - Profile lookup / auto-creation
@@ -76,7 +79,7 @@ The edge function looks up `client_id` in `agent_clients`, does a timing-safe bc
 
 ### Bootstrapping
 
-The admin key (`MCP_ACCESS_KEY`) is used to insert the first agent row directly via SQL or the Supabase dashboard. After that, agents are managed entirely through the DB.
+The operator mints a short-lived JWT using the shared MCP signing secret, with `sub` set to the target `client_id`. After that, agents are managed entirely through the DB.
 
 ### Agent profile auto-creation
 
@@ -242,7 +245,7 @@ Raw Postgres error messages are never returned. DB errors are caught, logged ser
 ### Integration smoke test (`tests/integration/mcp-smoke.test.ts`)
 - Hits the live deployed edge function URL
 - Exercises: auth handshake, `list_projects`, `create_thread`, `get_my_profile`
-- Requires: `MCP_SMOKE_URL`, `MCP_SMOKE_CLIENT_ID`, `MCP_SMOKE_SECRET` env vars
+- Requires: `MCP_SMOKE_URL`, `MCP_SMOKE_JWT` env vars
 - Not run in CI — manual or post-deploy only
 
 ---
@@ -252,19 +255,21 @@ Raw Postgres error messages are never returned. DB errors are caught, logged ser
 All env vars for `.env.example`:
 
 ```bash
-# MCP Server — Admin keys
-MCP_ACCESS_KEY=
-MCP_ACCESS_KEYS=
+# MCP Server — JWT auth
+MCP_JWT_SECRET=
+MCP_JWT_ISSUER=basecamp-mcp
+MCP_JWT_AUDIENCE=basecamp-mcp
+MCP_JWT_CLOCK_TOLERANCE_SECONDS=30
 
 # MCP Server — Rate limiting
 MCP_RATE_LIMIT_RPM=120
 
-# Agent credentials are managed in the agent_clients DB table — no env var needed
+# Agent credentials are managed in the agent_clients DB table.
+# Mint a short-lived JWT whose sub matches the agent client_id.
 
 # Integration smoke test
 MCP_SMOKE_URL=
-MCP_SMOKE_CLIENT_ID=
-MCP_SMOKE_SECRET=
+MCP_SMOKE_JWT=
 ```
 
 ---
@@ -280,8 +285,7 @@ Once deployed, agents connect via HTTP transport:
       "type": "http",
       "url": "https://<project-ref>.supabase.co/functions/v1/basecamp-mcp",
       "headers": {
-        "Authorization": "Bearer <secret>",
-        "x-mcp-client-id": "mcp-test-client"
+        "Authorization": "Bearer <jwt>"
       }
     }
   }

@@ -66,9 +66,25 @@ export async function POST(
       ]);
       recipientCount = recipients.length;
 
-      if (recipients.length > 0) {
+      if (recipients.length === 0) {
+        console.warn("transactional_email_skipped", {
+          eventType: "comment_created",
+          actorId: user.id,
+          projectId: id,
+          threadId,
+          reason: "no_recipients"
+        });
+      } else {
         const threadUrl = new URL(`/${id}/${threadId}`, request.url).toString();
-        await sendCommentCreatedEmail({
+        console.info("transactional_email_attempt", {
+          eventType: "comment_created",
+          actorId: user.id,
+          projectId: id,
+          threadId,
+          recipientCount
+        });
+
+        const mailResult = await sendCommentCreatedEmail({
           recipients: recipients.map((recipient) => ({
             email: recipient.email,
             name: getDisplayName(recipient)
@@ -90,6 +106,15 @@ export async function POST(
             excerpt: createCommentExcerpt(payload.bodyMarkdown)
           },
           threadUrl
+        });
+
+        console.info("transactional_email_result", {
+          eventType: "comment_created",
+          actorId: user.id,
+          projectId: id,
+          threadId,
+          recipientCount,
+          mailResult
         });
       }
     } catch (error) {

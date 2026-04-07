@@ -1,10 +1,20 @@
 import { createClient } from "@supabase/supabase-js";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
-import { resolveAgent, ensureProfile, createRateLimiter, AuthError } from "./auth.ts";
+import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
+import {
+  authenticateAgent,
+  AuthError,
+  createRateLimiter,
+  ensureProfile,
+  parseBearerToken,
+} from "./auth.ts";
 import { registerTools } from "./tools.ts";
 
 const RPM_LIMIT = parseInt(Deno.env.get("MCP_RATE_LIMIT_RPM") ?? "120", 10);
+const JWT_SECRET = Deno.env.get("PM_SERVER_JWT_SECRET");
+const JWT_ISSUER = Deno.env.get("PM_SERVER_JWT_ISSUER") ?? "basecamp-mcp";
+const JWT_AUDIENCE = Deno.env.get("PM_SERVER_JWT_AUDIENCE") ?? "basecamp-mcp";
+const JWT_CLOCK_TOLERANCE_SECONDS = parseInt(Deno.env.get("PM_SERVER_JWT_CLOCK_TOLERANCE_SECONDS") ?? "30", 10);
 
 function getSupabaseClient() {
   const supabaseUrl = Deno.env.get("SUPABASE_URL");
@@ -37,19 +47,26 @@ Deno.serve(async (req: Request): Promise<Response> => {
     });
   }
 
+  if (!JWT_SECRET) {
+    return new Response("Missing PM_SERVER_JWT_SECRET", { status: 503, headers: SECURITY_HEADERS });
+  }
+
   if (url.pathname.endsWith("/readyz")) {
     const { error } = await supabase.from("agent_clients").select("client_id").limit(1);
     if (error) return new Response("unavailable", { status: 503, headers: SECURITY_HEADERS });
     return new Response("ok", { status: 200, headers: SECURITY_HEADERS });
   }
 
-  const authHeader = req.headers.get("authorization") ?? "";
-  const clientId = req.headers.get("x-mcp-client-id");
-  const secret = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : null;
+  const token = parseBearerToken(req.headers.get("authorization"));
 
   let agent;
   try {
-    agent = await resolveAgent(supabase, clientId, secret);
+    agent = await authenticateAgent(supabase, token, {
+      secret: JWT_SECRET,
+      issuer: JWT_ISSUER,
+      audience: JWT_AUDIENCE,
+      clockToleranceSeconds: JWT_CLOCK_TOLERANCE_SECONDS,
+    });
   } catch (e) {
     if (e instanceof AuthError) {
       return new Response(e.message, { status: e.status, headers: SECURITY_HEADERS });
@@ -64,14 +81,24 @@ Deno.serve(async (req: Request): Promise<Response> => {
     });
   }
 
-  await ensureProfile(supabase, agent.client_id);
+  try {
+    await ensureProfile(supabase, agent.client_id);
 
-  const server = new McpServer({ name: "basecamp-mcp", version: "1.0.0" });
-  registerTools(server, supabase, agent);
+    const server = new McpServer({ name: "basecamp-mcp", version: "2.0.0" });
+    registerTools(server, supabase, agent);
 
-  const transport = new StreamableHTTPServerTransport({
-    sessionIdGenerator: undefined,
-  });
-  await server.connect(transport);
-  return transport.handleRequest(req);
+    const transport = new WebStandardStreamableHTTPServerTransport({
+      sessionIdGenerator: undefined,
+    });
+    await server.connect(transport);
+    return await transport.handleRequest(req);
+  } catch (error) {
+    console.error("basecamp-mcp request handling failed", {
+      client_id: agent.client_id,
+      method: req.method,
+      pathname: url.pathname,
+      error,
+    });
+    return new Response("Internal error", { status: 500, headers: SECURITY_HEADERS });
+  }
 });
