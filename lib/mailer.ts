@@ -36,6 +36,13 @@ type CommentEmailArgs = ThreadEmailArgs & {
   };
 };
 
+type ProjectEmailArgs = {
+  recipients: MailRecipient[];
+  actor: { name: string; email: string };
+  project: { id: string; name: string; client_code?: string | null; project_code?: string | null };
+  projectUrl: string;
+};
+
 export type SendMailResult =
   | { skipped: true; reason: "disabled" | "no_recipients" }
   | { skipped: false; recipientCount: number; messageId?: string };
@@ -187,6 +194,111 @@ export async function sendCommentCreatedEmail(args: CommentEmailArgs) {
       `<p><strong>Thread:</strong> ${escapedThreadTitle}</p>`,
       `<p style=\"padding: 12px; border-left: 3px solid #d1d5db; background: #f9fafb;\">${escapedExcerpt}</p>`,
       `<p><a href=\"${escapedThreadUrl}\">Open discussion</a></p>`,
+      "</div>"
+    ].join("")
+  });
+}
+
+export async function sendCommentUpdatedEmail(args: CommentEmailArgs) {
+  const projectLabel = buildProjectLabel(args.project);
+  const subject = `[${projectLabel}] Comment updated on: ${args.thread.title}`;
+  const escapedActorName = escapeHtml(args.actor.name);
+  const escapedProjectName = escapeHtml(args.project.name);
+  const escapedThreadTitle = escapeHtml(args.thread.title);
+  const escapedExcerpt = escapeHtml(args.comment.excerpt);
+  const escapedThreadUrl = escapeHtml(args.threadUrl);
+
+  return sendMail({
+    recipients: args.recipients,
+    subject,
+    text: [
+      `${args.actor.name} updated a comment in ${args.project.name}.`,
+      "",
+      `Thread: ${args.thread.title}`,
+      `Comment: ${args.comment.excerpt}`,
+      `Open: ${args.threadUrl}`
+    ].join("\n"),
+    html: [
+      "<div style=\"font-family: Arial, sans-serif; color: #1f2937; line-height: 1.5;\">",
+      `<p><strong>${escapedActorName}</strong> updated a comment in <strong>${escapedProjectName}</strong>.</p>`,
+      `<p><strong>Thread:</strong> ${escapedThreadTitle}</p>`,
+      `<p style="padding: 12px; border-left: 3px solid #d1d5db; background: #f9fafb;">${escapedExcerpt}</p>`,
+      `<p><a href="${escapedThreadUrl}">Open discussion</a></p>`,
+      "</div>"
+    ].join("")
+  });
+}
+
+export async function sendThreadUpdatedEmail(args: ThreadEmailArgs) {
+  const projectLabel = buildProjectLabel(args.project);
+  const subject = `[${projectLabel}] Discussion updated: ${args.thread.title}`;
+  const escapedActorName = escapeHtml(args.actor.name);
+  const escapedProjectName = escapeHtml(args.project.name);
+  const escapedThreadTitle = escapeHtml(args.thread.title);
+  const escapedThreadUrl = escapeHtml(args.threadUrl);
+
+  return sendMail({
+    recipients: args.recipients,
+    subject,
+    text: [
+      `${args.actor.name} updated a discussion in ${args.project.name}.`,
+      "",
+      `Thread: ${args.thread.title}`,
+      `Open: ${args.threadUrl}`
+    ].join("\n"),
+    html: [
+      "<div style=\"font-family: Arial, sans-serif; color: #1f2937; line-height: 1.5;\">",
+      `<p><strong>${escapedActorName}</strong> updated a discussion in <strong>${escapedProjectName}</strong>.</p>`,
+      `<p><strong>Thread:</strong> ${escapedThreadTitle}</p>`,
+      `<p><a href="${escapedThreadUrl}">Open discussion</a></p>`,
+      "</div>"
+    ].join("")
+  });
+}
+
+export async function sendProjectCreatedEmail(args: ProjectEmailArgs) {
+  const projectLabel = buildProjectLabel(args.project);
+  const subject = `[${projectLabel}] New project created`;
+  const escapedActorName = escapeHtml(args.actor.name);
+  const escapedProjectName = escapeHtml(args.project.name);
+  const escapedProjectUrl = escapeHtml(args.projectUrl);
+
+  return sendMail({
+    recipients: args.recipients,
+    subject,
+    text: [
+      `${args.actor.name} created a new project: ${args.project.name}.`,
+      "",
+      `Open: ${args.projectUrl}`
+    ].join("\n"),
+    html: [
+      "<div style=\"font-family: Arial, sans-serif; color: #1f2937; line-height: 1.5;\">",
+      `<p><strong>${escapedActorName}</strong> created a new project: <strong>${escapedProjectName}</strong>.</p>`,
+      `<p><a href="${escapedProjectUrl}">Open project</a></p>`,
+      "</div>"
+    ].join("")
+  });
+}
+
+export async function sendProjectUpdatedEmail(args: ProjectEmailArgs) {
+  const projectLabel = buildProjectLabel(args.project);
+  const subject = `[${projectLabel}] Project updated: ${args.project.name}`;
+  const escapedActorName = escapeHtml(args.actor.name);
+  const escapedProjectName = escapeHtml(args.project.name);
+  const escapedProjectUrl = escapeHtml(args.projectUrl);
+
+  return sendMail({
+    recipients: args.recipients,
+    subject,
+    text: [
+      `${args.actor.name} updated project: ${args.project.name}.`,
+      "",
+      `Open: ${args.projectUrl}`
+    ].join("\n"),
+    html: [
+      "<div style=\"font-family: Arial, sans-serif; color: #1f2937; line-height: 1.5;\">",
+      `<p><strong>${escapedActorName}</strong> updated project: <strong>${escapedProjectName}</strong>.</p>`,
+      `<p><a href="${escapedProjectUrl}">Open project</a></p>`,
       "</div>"
     ].join("")
   });
