@@ -385,3 +385,52 @@ export async function updateProfile(
   if (error || !data) return null;
   return data;
 }
+
+// ─── Notification helpers ─────────────────────────────────────────────────────
+
+export async function getProjectForNotification(
+  supabase: SupabaseClient,
+  projectId: string
+): Promise<{ id: string; name: string; project_code: string | null; client_code: string | null } | null> {
+  const { data, error } = await supabase
+    .from("projects")
+    .select("id, name, project_code, clients(code)")
+    .eq("id", projectId)
+    .single();
+  if (error || !data) return null;
+  return {
+    id: data.id,
+    name: data.name,
+    project_code: data.project_code ?? null,
+    client_code: (data.clients as any)?.code ?? null,
+  };
+}
+
+export async function listNotificationRecipients(
+  supabase: SupabaseClient,
+  workspaceDomain: string
+): Promise<import("../../../lib/mailer.ts").MailRecipient[]> {
+  const { data, error } = await supabase
+    .from("user_profiles")
+    .select("email, first_name, last_name")
+    .eq("active", true)
+    .ilike("email", `%@${workspaceDomain}`);
+  if (error || !data) return [];
+  return data.map((u: any) => ({
+    email: u.email,
+    name: [u.first_name, u.last_name].filter(Boolean).join(" ") || undefined,
+  }));
+}
+
+export async function getThreadForNotification(
+  supabase: SupabaseClient,
+  threadId: string
+): Promise<{ id: string; title: string; project_id: string } | null> {
+  const { data, error } = await supabase
+    .from("discussion_threads")
+    .select("id, title, project_id")
+    .eq("id", threadId)
+    .single();
+  if (error || !data) return null;
+  return data;
+}
