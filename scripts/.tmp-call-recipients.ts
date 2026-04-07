@@ -1,8 +1,7 @@
 import { listNotificationRecipients } from '../lib/repositories';
 
 async function main(){
-  const actorId='db7c4ff5-767b-42aa-b81b-b5265b7f36b9';
-  const recipients = await listNotificationRecipients(actorId);
+  const recipients = await listNotificationRecipients();
   console.log(JSON.stringify({count: recipients.length, recipients}, null, 2));
 }
 

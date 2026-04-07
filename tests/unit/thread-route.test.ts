@@ -71,7 +71,7 @@ describe("POST /projects/[id]/threads", () => {
     );
 
     expect(response.status).toBe(201);
-    expect(listNotificationRecipientsMock).toHaveBeenCalledWith("user-1");
+    expect(listNotificationRecipientsMock).toHaveBeenCalledWith();
     expect(sendThreadCreatedEmailMock).toHaveBeenCalledWith(
       expect.objectContaining({
         project: { id: "project-1", name: "Blue Sky" },

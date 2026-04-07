@@ -114,9 +114,7 @@ export async function updateUserProfile(args: {
   return result.rows[0] ?? null;
 }
 
-export async function listNotificationRecipients(excludeUserId: string): Promise<NotificationRecipient[]> {
-  void excludeUserId;
-
+export async function listNotificationRecipients(): Promise<NotificationRecipient[]> {
   const result = await query(
     `with deduped as (
        select distinct on (lower(email))

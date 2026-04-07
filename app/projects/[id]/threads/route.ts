@@ -74,7 +74,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     try {
       const [actorProfile, recipients] = await Promise.all([
         getUserProfileById(user.id),
-        listNotificationRecipients(user.id)
+        listNotificationRecipients()
       ]);
       recipientCount = recipients.length;
 

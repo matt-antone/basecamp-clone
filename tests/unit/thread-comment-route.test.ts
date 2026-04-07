@@ -78,7 +78,7 @@ describe("POST /projects/[id]/threads/[threadId]/comments", () => {
     );
 
     expect(response.status).toBe(201);
-    expect(listNotificationRecipientsMock).toHaveBeenCalledWith("user-1");
+    expect(listNotificationRecipientsMock).toHaveBeenCalledWith();
     expect(sendCommentCreatedEmailMock).toHaveBeenCalledWith(
       expect.objectContaining({
         actor: { name: "Alex Author", email: "author@example.com" },
