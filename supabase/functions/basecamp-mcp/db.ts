@@ -411,14 +411,12 @@ export async function getProjectForNotification(
 }
 
 export async function listNotificationRecipients(
-  supabase: SupabaseClient,
-  workspaceDomain: string
+  supabase: SupabaseClient
 ): Promise<MailRecipient[]> {
   const { data, error } = await supabase
     .from("user_profiles")
     .select("email, first_name, last_name")
-    .eq("active", true)
-    .ilike("email", `%@${workspaceDomain}`);
+    .eq("active", true);
   if (error || !data) return [];
   return data.map((u: any) => ({
     email: u.email,

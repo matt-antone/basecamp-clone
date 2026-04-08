@@ -1,4 +1,4 @@
-import { config } from "./config";
+import { config } from "./config-core.ts";
 
 export type MailRecipient = {
   email: string;
@@ -70,7 +70,7 @@ function buildMailgunMessagesUrl() {
 
 function buildMailgunAuthorization() {
   const apiKey = config.mailgunApiKey();
-  return `Basic ${Buffer.from(`api:${apiKey}`).toString("base64")}`;
+  return `Basic ${btoa(`api:${apiKey}`)}`;
 }
 
 export function resetMailerForTests() {

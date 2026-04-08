@@ -27,7 +27,6 @@ export function notifyBestEffort(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const _Deno = typeof globalThis !== "undefined" ? (globalThis as any).Deno : undefined;
   const appUrl = (_Deno ? _Deno.env.get("APP_URL") : process.env.APP_URL) ?? "";
-  const workspaceDomain = (_Deno ? _Deno.env.get("WORKSPACE_DOMAIN") : process.env.WORKSPACE_DOMAIN) ?? "";
 
   (async () => {
     try {
@@ -42,7 +41,7 @@ export function notifyBestEffort(
           ? Promise.resolve(event.projectId)
           : threadP.then((t) => t?.project_id ?? null);
 
-      const recipientsP = db.listNotificationRecipients(supabase, workspaceDomain);
+      const recipientsP = db.listNotificationRecipients(supabase);
       const profileP = db.getProfile(supabase, agent.client_id);
 
       const [resolvedProjectId, recipients, profile] = await Promise.all([
@@ -129,7 +128,7 @@ export function notifyBestEffort(
 
       console.info("mcp_notification_sent", { type: event.type, recipientCount: recipients.length });
     } catch (e) {
-      console.error("mcp_notification_failed", { type: event.type, error: String(e) });
+      console.error("mcp_notification_failed", { type: event.type, error: String(e), stack: e instanceof Error ? e.stack : undefined });
     }
   })();
 }
