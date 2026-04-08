@@ -149,6 +149,36 @@ export function registerTools(
     }
   );
 
+  // ─── Clients ────────────────────────────────────────────────────────────
+
+  server.tool(
+    "list_clients",
+    "List all clients with name, code, domains, and archive status.",
+    {},
+    async () => {
+      try {
+        return ok(await db.listClients(supabase));
+      } catch (e) {
+        return dbError(e);
+      }
+    }
+  );
+
+  server.tool(
+    "get_client",
+    "Get a single client by ID including name, code, domains, github_repos, and archive status.",
+    { client_id: z.string().uuid() },
+    async ({ client_id }) => {
+      try {
+        const result = await db.getClient(supabase, client_id);
+        if (!result) return notFound(client_id);
+        return ok(result);
+      } catch (e) {
+        return dbError(e);
+      }
+    }
+  );
+
   // ─── Write ──────────────────────────────────────────────────────────────
 
   server.tool(

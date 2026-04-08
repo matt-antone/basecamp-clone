@@ -149,3 +149,40 @@ describe("search_content", () => {
     expect(data[0].result_type).toBe("thread");
   });
 });
+
+describe("list_clients", () => {
+  it("returns clients as JSON text content", async () => {
+    vi.spyOn(db, "listClients").mockResolvedValue([
+      { id: "c-1", name: "Acme Corp", code: "ACME", github_repos: [], domains: [], archived_at: null },
+    ] as any);
+    const server = mockServer();
+    registerTools(server as any, {} as any, agent);
+    const result = await server.call("list_clients", {});
+    expect(result.content[0].type).toBe("text");
+    const data = JSON.parse(result.content[0].text);
+    expect(data[0].name).toBe("Acme Corp");
+    expect(data[0].code).toBe("ACME");
+  });
+});
+
+describe("get_client", () => {
+  it("returns client detail", async () => {
+    vi.spyOn(db, "getClient").mockResolvedValue({
+      id: "c-1", name: "Acme Corp", code: "ACME", github_repos: ["org/repo"], domains: ["acme.com"], archived_at: null,
+    } as any);
+    const server = mockServer();
+    registerTools(server as any, {} as any, agent);
+    const result = await server.call("get_client", { client_id: "c-1" });
+    const data = JSON.parse(result.content[0].text);
+    expect(data.name).toBe("Acme Corp");
+    expect(data.domains).toEqual(["acme.com"]);
+  });
+
+  it("returns error when client not found", async () => {
+    vi.spyOn(db, "getClient").mockResolvedValue(null);
+    const server = mockServer();
+    registerTools(server as any, {} as any, agent);
+    const result = await server.call("get_client", { client_id: "bad-id" });
+    expect(result.isError).toBe(true);
+  });
+});
