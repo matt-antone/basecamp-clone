@@ -400,7 +400,8 @@ export async function getProjectForNotification(
     .eq("id", projectId)
     .single();
   if (error || !data) return null;
-  const client_code = (data.clients as { code: string } | null)?.code ?? null;
+  const clients = data.clients as unknown as { code: string } | { code: string }[] | null;
+  const client_code = Array.isArray(clients) ? (clients[0]?.code ?? null) : (clients?.code ?? null);
   return {
     id: data.id as string,
     name: data.name as string,
