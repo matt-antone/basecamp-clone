@@ -5,6 +5,7 @@ import type { AgentIdentity } from "./auth.ts";
 import * as db from "./db.ts";
 import { marked } from "marked";
 import { PROJECT_STATUSES_ZOD } from "../../../lib/project-status.ts";
+import { notifyBestEffort } from "./notify.ts";
 
 interface ToolServer {
   tool<S extends Record<string, z.ZodTypeAny>>(
@@ -36,6 +37,10 @@ export function registerTools(
   supabase: SupabaseClient,
   agent: AgentIdentity
 ): void {
+
+  function safeNotify(event: import("./notify.ts").NotifyEvent) {
+    try { notifyBestEffort(supabase, agent, event); } catch { /* best-effort */ }
+  }
 
   // ─── Read ─────────────────────────────────────────────────────────────────
 
@@ -160,7 +165,9 @@ export function registerTools(
     },
     async (params) => {
       try {
-        return ok(await db.createProject(supabase, params, agent.client_id));
+        const result = await db.createProject(supabase, params, agent.client_id);
+        safeNotify({ type: "project_created", projectId: result.id });
+        return ok(result);
       } catch (e) {
         return dbError(e);
       }
@@ -185,6 +192,7 @@ export function registerTools(
       try {
         const result = await db.updateProject(supabase, project_id, params);
         if (!result) return notFound(project_id);
+        safeNotify({ type: "project_updated", projectId: result.id });
         return ok(result);
       } catch (e) {
         return dbError(e);
@@ -203,7 +211,9 @@ export function registerTools(
     async ({ project_id, title, body_markdown }) => {
       try {
         const body_html = await toHtml(body_markdown);
-        return ok(await db.createThread(supabase, { project_id, title, body_markdown, body_html }, agent.client_id));
+        const result = await db.createThread(supabase, { project_id, title, body_markdown, body_html }, agent.client_id);
+        safeNotify({ type: "thread_created", projectId: result.project_id, threadId: result.id, threadTitle: result.title });
+        return ok(result);
       } catch (e) {
         return dbError(e);
       }
@@ -227,6 +237,7 @@ export function registerTools(
         }
         const result = await db.updateThread(supabase, thread_id, patch);
         if (!result) return notFound(thread_id);
+        safeNotify({ type: "thread_updated", projectId: result.project_id, threadId: result.id, threadTitle: result.title ?? title ?? "" });
         return ok(result);
       } catch (e) {
         return dbError(e);
@@ -246,11 +257,13 @@ export function registerTools(
         const thread = await db.getThread(supabase, thread_id);
         if (!thread) return notFound(thread_id);
         const body_html = await toHtml(body_markdown);
-        return ok(await db.createComment(
+        const result = await db.createComment(
           supabase,
           { thread_id, body_markdown, body_html, project_id: thread.thread.project_id },
           agent.client_id
-        ));
+        );
+        safeNotify({ type: "comment_created", projectId: thread.thread.project_id, threadId: thread_id, threadTitle: thread.thread.title, commentId: result.id, excerpt: body_markdown.slice(0, 200) });
+        return ok(result);
       } catch (e) {
         return dbError(e);
       }
@@ -269,6 +282,7 @@ export function registerTools(
         const body_html = await toHtml(body_markdown);
         const result = await db.updateComment(supabase, comment_id, { body_markdown, body_html });
         if (!result) return notFound(comment_id);
+        safeNotify({ type: "comment_updated", threadId: result.thread_id, commentId: result.id, excerpt: body_markdown.slice(0, 200) });
         return ok(result);
       } catch (e) {
         return dbError(e);
