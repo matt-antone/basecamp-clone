@@ -3,6 +3,7 @@ import { z } from "zod";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { AgentIdentity } from "./auth.ts";
 import * as db from "./db.ts";
+import * as dropbox from "./dropbox.ts";
 import { marked } from "marked";
 import { PROJECT_STATUSES_ZOD } from "../../../lib/project-status.ts";
 import { notifyBestEffort } from "./notify.ts";
@@ -26,6 +27,19 @@ function notFound(id: string) {
 
 function dbError(e: unknown) {
   return { isError: true as const, content: [{ type: "text" as const, text: "Database error" }] };
+}
+
+function dropboxError(e: unknown) {
+  if (e instanceof dropbox.DropboxConfigError) {
+    return { isError: true as const, content: [{ type: "text" as const, text: "File download not configured — Dropbox credentials missing" }] };
+  }
+  if (e instanceof dropbox.DropboxStorageError) {
+    return { isError: true as const, content: [{ type: "text" as const, text: e.message }] };
+  }
+  if (e instanceof dropbox.DropboxAuthError) {
+    return { isError: true as const, content: [{ type: "text" as const, text: "Dropbox authentication failed" }] };
+  }
+  return { isError: true as const, content: [{ type: "text" as const, text: "Storage error" }] };
 }
 
 async function toHtml(markdown: string): Promise<string> {
@@ -341,6 +355,51 @@ export function registerTools(
         return ok(await db.createFile(supabase, params, agent.client_id));
       } catch (e) {
         return dbError(e);
+      }
+    }
+  );
+
+  const FILE_SIZE_INLINE_LIMIT = 1_048_576; // 1MB
+
+  server.tool(
+    "download_file",
+    "Download file content or get a temporary link. Files ≤1MB return base64 content inline. Files >1MB return a temporary download URL valid ~4 hours.",
+    { file_id: z.string().uuid() },
+    async ({ file_id }) => {
+      try {
+        const file = await db.getFile(supabase, file_id);
+        if (!file) return notFound(file_id);
+
+        const target =
+          typeof file.dropbox_file_id === "string" && file.dropbox_file_id.trim().length > 0
+            ? file.dropbox_file_id
+            : file.dropbox_path;
+
+        if (file.size_bytes <= FILE_SIZE_INLINE_LIMIT) {
+          const { bytes } = await dropbox.downloadFile(target);
+          let binary = "";
+          for (let i = 0; i < bytes.length; i++) {
+            binary += String.fromCharCode(bytes[i]);
+          }
+          const content_base64 = btoa(binary);
+          return ok({
+            filename: file.filename,
+            mime_type: file.mime_type,
+            size_bytes: file.size_bytes,
+            content_base64,
+          });
+        } else {
+          const download_url = await dropbox.getTemporaryLink(target);
+          return ok({
+            filename: file.filename,
+            mime_type: file.mime_type,
+            size_bytes: file.size_bytes,
+            download_url,
+            expires_in_seconds: 14400,
+          });
+        }
+      } catch (e) {
+        return dropboxError(e);
       }
     }
   );
