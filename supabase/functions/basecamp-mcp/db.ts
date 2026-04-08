@@ -415,11 +415,14 @@ export async function listNotificationRecipients(
 ): Promise<MailRecipient[]> {
   const { data, error } = await supabase
     .from("user_profiles")
-    .select("email, name")
+    .select("email, first_name, last_name")
     .eq("active", true)
     .ilike("email", `%@${workspaceDomain}`);
   if (error || !data) return [];
-  return data as MailRecipient[];
+  return data.map((u: any) => ({
+    email: u.email,
+    name: [u.first_name, u.last_name].filter(Boolean).join(" ") || undefined,
+  }));
 }
 
 export async function getThreadForNotification(

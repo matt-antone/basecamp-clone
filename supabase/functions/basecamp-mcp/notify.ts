@@ -19,16 +19,6 @@ export type NotifyEvent =
   | { type: "project_created"; projectId: string }
   | { type: "project_updated"; projectId: string };
 
-function resolveProjectId(
-  supabase: SupabaseClient,
-  event: NotifyEvent
-): Promise<string | null> {
-  if ("projectId" in event) return Promise.resolve(event.projectId);
-  return db
-    .getThreadForNotification(supabase, event.threadId)
-    .then((t) => t?.project_id ?? null);
-}
-
 export function notifyBestEffort(
   supabase: SupabaseClient,
   agent: AgentIdentity,
@@ -39,13 +29,19 @@ export function notifyBestEffort(
 
   (async () => {
     try {
-      const projectIdP = resolveProjectId(supabase, event);
-      const recipientsP = db.listNotificationRecipients(supabase, workspaceDomain);
-      const profileP = db.getProfile(supabase, agent.client_id);
+      // For comment_updated, resolve thread (and project_id) once; all others have projectId directly
       const threadP =
         event.type === "comment_updated"
           ? db.getThreadForNotification(supabase, event.threadId)
           : Promise.resolve(null);
+
+      const projectIdP: Promise<string | null> =
+        "projectId" in event
+          ? Promise.resolve(event.projectId)
+          : threadP.then((t) => t?.project_id ?? null);
+
+      const recipientsP = db.listNotificationRecipients(supabase, workspaceDomain);
+      const profileP = db.getProfile(supabase, agent.client_id);
 
       const [resolvedProjectId, recipients, profile] = await Promise.all([
         projectIdP,
