@@ -111,3 +111,67 @@ Thumbnail worker env vars (recommended for Office/PDF conversion in hosted deplo
 - You can omit `--app-key` / `--app-secret` if `DROPBOX_APP_KEY` and `DROPBOX_APP_SECRET` are already set in env.
 - First get the auth code by opening:
   - `https://www.dropbox.com/oauth2/authorize?client_id=<APP_KEY>&token_access_type=offline&response_type=code`
+
+## AI Agent MCP Setup
+
+This project ships its own MCP server as a Supabase Edge Function at `supabase/functions/basecamp-mcp/`. Any AI agent harness (Claude Code, Cursor, Codex, etc.) can connect to it over HTTP using the Streamable HTTP transport.
+
+### Connection details
+
+| Field | Value |
+|---|---|
+| **Transport** | Streamable HTTP (`application/json`) |
+| **URL** | `<SUPABASE_URL>/functions/v1/basecamp-mcp` (e.g. `https://YOUR-PROJECT.supabase.co/functions/v1/basecamp-mcp`) |
+| **Auth** | `Authorization: Bearer <JWT>` — short-lived HS256 JWT (see below) |
+| **Health check** | `GET <URL>/healthz` returns `200 ok` |
+| **Readiness** | `GET <URL>/readyz` returns `200 ok` when DB is reachable |
+
+### JWT authentication
+
+The server validates every request with a signed JWT. To mint one:
+
+```sh
+node scripts/mint-mcp-jwt.mjs \
+  --secret "$PM_CLIENT_JWT_SECRET" \
+  --client-id "$PM_CLIENT_ID" \
+  --issuer basecamp-mcp \
+  --audience basecamp-mcp \
+  --expires-in 900
+```
+
+Required env vars (see `.env.example`):
+- `PM_CLIENT_MCP_URL` — the full function URL
+- `PM_CLIENT_ID` — must match an existing row in the `agent_clients` DB table
+- `PM_CLIENT_JWT_SECRET` — shared HMAC secret (same as `PM_SERVER_JWT_SECRET` on the server side)
+
+### Available tools
+
+The MCP server exposes these tools once connected:
+
+**Read:** `list_projects`, `list_archived_projects`, `get_project`, `get_thread`, `list_files`, `get_file`, `search_content`, `get_my_profile`
+
+**Write:** `create_project`, `update_project`, `create_thread`, `update_thread`, `create_comment`, `update_comment`, `create_file`, `update_my_profile`
+
+### Claude Code quick-start
+
+```sh
+# 1. Mint a JWT (prints to stdout)
+TOKEN=$(node scripts/mint-mcp-jwt.mjs \
+  --secret "$PM_CLIENT_JWT_SECRET" \
+  --client-id "$PM_CLIENT_ID")
+
+# 2. Register the MCP server
+claude mcp add --transport http \
+  --header "Authorization: Bearer $TOKEN" \
+  basecamp "$PM_CLIENT_MCP_URL"
+
+# 3. Verify
+claude mcp get basecamp
+```
+
+### Other agent harnesses
+
+For any MCP-compatible client, configure:
+- **URL:** value of `PM_CLIENT_MCP_URL`
+- **Header:** `Authorization: Bearer <token>` (from `mint-mcp-jwt.mjs`)
+- **Transport:** HTTP (Streamable HTTP, not SSE)
