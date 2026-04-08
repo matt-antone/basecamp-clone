@@ -177,6 +177,27 @@ export async function searchContent(
   return data;
 }
 
+// ─── Clients ─────────────────────────────────────────────────────────────────
+
+export async function listClients(supabase: SupabaseClient) {
+  const { data, error } = await supabase
+    .from("clients")
+    .select("id, name, code, github_repos, domains, archived_at")
+    .order("name", { ascending: true });
+  if (error) throw error;
+  return data;
+}
+
+export async function getClient(supabase: SupabaseClient, clientId: string) {
+  const { data, error } = await supabase
+    .from("clients")
+    .select("id, name, code, github_repos, domains, archived_at")
+    .eq("id", clientId)
+    .single();
+  if (error || !data) return null;
+  return data;
+}
+
 // ─── Write ───────────────────────────────────────────────────────────────────
 
 export async function createProject(

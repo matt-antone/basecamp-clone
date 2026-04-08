@@ -2,6 +2,7 @@
 import { describe, it, expect, vi } from "vitest";
 import * as db from "../../supabase/functions/basecamp-mcp/db.ts";
 import { registerTools } from "../../supabase/functions/basecamp-mcp/tools.ts";
+import * as dropbox from "../../supabase/functions/basecamp-mcp/dropbox.ts";
 
 function mockServer() {
   const handlers = new Map<string, Function>();
@@ -97,5 +98,137 @@ describe("update_my_profile", () => {
     );
     const data = JSON.parse(result.content[0].text);
     expect(data.name).toBe("Claude Agent");
+  });
+});
+
+describe("download_file", () => {
+  const smallFile = {
+    id: "f-1",
+    project_id: "p-1",
+    filename: "readme.txt",
+    mime_type: "text/plain",
+    size_bytes: 500,
+    dropbox_file_id: "id:abc123",
+    dropbox_path: "/projects/ACME/uploads/readme.txt",
+    checksum: "sha256:aaa",
+    thread_id: null,
+    comment_id: null,
+    uploader_user_id: "user-1",
+    created_at: "2026-01-01",
+  };
+
+  const largeFile = {
+    ...smallFile,
+    id: "f-2",
+    filename: "big-video.mp4",
+    mime_type: "video/mp4",
+    size_bytes: 5_000_000,
+    dropbox_file_id: "id:xyz789",
+  };
+
+  it("returns base64 content for files <= 1MB", async () => {
+    vi.spyOn(db, "getFile").mockResolvedValue(smallFile as any);
+    const fileBytes = new TextEncoder().encode("hello world");
+    vi.spyOn(dropbox, "downloadFile").mockResolvedValue({
+      bytes: fileBytes,
+      contentType: "text/plain",
+    });
+    const server = mockServer();
+    registerTools(server as any, {} as any, agent);
+    const result = await server.call("download_file", { file_id: "f-1" });
+    const data = JSON.parse(result.content[0].text);
+    expect(data.filename).toBe("readme.txt");
+    expect(data.mime_type).toBe("text/plain");
+    expect(data.size_bytes).toBe(500);
+    expect(data.content_base64).toBeDefined();
+    expect(data.download_url).toBeUndefined();
+    const decoded = atob(data.content_base64);
+    expect(decoded).toBe("hello world");
+  });
+
+  it("returns download URL for files > 1MB", async () => {
+    vi.spyOn(db, "getFile").mockResolvedValue(largeFile as any);
+    vi.spyOn(dropbox, "getTemporaryLink").mockResolvedValue("https://dl.dropbox.com/temp-link");
+    const server = mockServer();
+    registerTools(server as any, {} as any, agent);
+    const result = await server.call("download_file", { file_id: "f-2" });
+    const data = JSON.parse(result.content[0].text);
+    expect(data.filename).toBe("big-video.mp4");
+    expect(data.download_url).toBe("https://dl.dropbox.com/temp-link");
+    expect(data.expires_in_seconds).toBe(14400);
+    expect(data.content_base64).toBeUndefined();
+  });
+
+  it("prefers dropbox_file_id over dropbox_path", async () => {
+    vi.spyOn(db, "getFile").mockResolvedValue(smallFile as any);
+    const dlSpy = vi.spyOn(dropbox, "downloadFile").mockResolvedValue({
+      bytes: new Uint8Array(0),
+      contentType: "text/plain",
+    });
+    const server = mockServer();
+    registerTools(server as any, {} as any, agent);
+    await server.call("download_file", { file_id: "f-1" });
+    expect(dlSpy).toHaveBeenCalledWith("id:abc123");
+  });
+
+  it("falls back to dropbox_path when dropbox_file_id is empty", async () => {
+    const fileNoId = { ...smallFile, dropbox_file_id: "" };
+    vi.spyOn(db, "getFile").mockResolvedValue(fileNoId as any);
+    const dlSpy = vi.spyOn(dropbox, "downloadFile").mockResolvedValue({
+      bytes: new Uint8Array(0),
+      contentType: "text/plain",
+    });
+    const server = mockServer();
+    registerTools(server as any, {} as any, agent);
+    await server.call("download_file", { file_id: "f-1" });
+    expect(dlSpy).toHaveBeenCalledWith("/projects/ACME/uploads/readme.txt");
+  });
+
+  it("returns error when file not found", async () => {
+    vi.spyOn(db, "getFile").mockResolvedValue(null);
+    const server = mockServer();
+    registerTools(server as any, {} as any, agent);
+    const result = await server.call("download_file", { file_id: "bad-id" });
+    expect(result.isError).toBe(true);
+  });
+
+  it("returns safe error when Dropbox credentials are missing", async () => {
+    vi.spyOn(db, "getFile").mockResolvedValue(smallFile as any);
+    vi.spyOn(dropbox, "downloadFile").mockRejectedValue(
+      new dropbox.DropboxConfigError()
+    );
+    const server = mockServer();
+    registerTools(server as any, {} as any, agent);
+    const result = await server.call("download_file", { file_id: "f-1" });
+    expect(result.isError).toBe(true);
+    expect(result.content[0].text).toBe("File download not configured — Dropbox credentials missing");
+  });
+
+  it("returns safe error on Dropbox storage errors", async () => {
+    vi.spyOn(db, "getFile").mockResolvedValue(smallFile as any);
+    vi.spyOn(dropbox, "downloadFile").mockRejectedValue(
+      new dropbox.DropboxStorageError("File not found in storage")
+    );
+    const server = mockServer();
+    registerTools(server as any, {} as any, agent);
+    const result = await server.call("download_file", { file_id: "f-1" });
+    expect(result.isError).toBe(true);
+    expect(result.content[0].text).toBe("File not found in storage");
+  });
+
+  it("does not expose dropbox_path or dropbox_file_id in response", async () => {
+    vi.spyOn(db, "getFile").mockResolvedValue(smallFile as any);
+    vi.spyOn(dropbox, "downloadFile").mockResolvedValue({
+      bytes: new Uint8Array(0),
+      contentType: "text/plain",
+    });
+    const server = mockServer();
+    registerTools(server as any, {} as any, agent);
+    const result = await server.call("download_file", { file_id: "f-1" });
+    const text = result.content[0].text;
+    expect(text).not.toContain("dropbox_path");
+    expect(text).not.toContain("dropbox_file_id");
+    expect(text).not.toContain("id:abc123");
+    expect(text).not.toContain("/projects/ACME/uploads/readme.txt");
   });
 });
