@@ -24,8 +24,10 @@ export function notifyBestEffort(
   agent: AgentIdentity,
   event: NotifyEvent
 ): void {
-  const appUrl = (typeof Deno !== "undefined" ? Deno.env.get("APP_URL") : process.env.APP_URL) ?? "";
-  const workspaceDomain = (typeof Deno !== "undefined" ? Deno.env.get("WORKSPACE_DOMAIN") : process.env.WORKSPACE_DOMAIN) ?? "";
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const _Deno = typeof globalThis !== "undefined" ? (globalThis as any).Deno : undefined;
+  const appUrl = (_Deno ? _Deno.env.get("APP_URL") : process.env.APP_URL) ?? "";
+  const workspaceDomain = (_Deno ? _Deno.env.get("WORKSPACE_DOMAIN") : process.env.WORKSPACE_DOMAIN) ?? "";
 
   (async () => {
     try {
