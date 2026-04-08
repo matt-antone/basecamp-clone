@@ -28,8 +28,8 @@ export function _resetTokenCache() {
 }
 
 function getConfig() {
-  const clientId = Deno.env.get("DROPBOX_CLIENT_ID");
-  const clientSecret = Deno.env.get("DROPBOX_CLIENT_SECRET");
+  const clientId = Deno.env.get("DROPBOX_APP_KEY");
+  const clientSecret = Deno.env.get("DROPBOX_APP_SECRET");
   const refreshToken = Deno.env.get("DROPBOX_REFRESH_TOKEN");
   if (!clientId || !clientSecret || !refreshToken) {
     throw new DropboxConfigError();

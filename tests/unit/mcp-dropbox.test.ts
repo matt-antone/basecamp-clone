@@ -17,8 +17,8 @@ beforeEach(() => {
 });
 
 function setDropboxEnv() {
-  envMap.set("DROPBOX_CLIENT_ID", "fake-client-id");
-  envMap.set("DROPBOX_CLIENT_SECRET", "fake-secret");
+  envMap.set("DROPBOX_APP_KEY", "fake-client-id");
+  envMap.set("DROPBOX_APP_SECRET", "fake-secret");
   envMap.set("DROPBOX_REFRESH_TOKEN", "fake-refresh-token");
 }
 
