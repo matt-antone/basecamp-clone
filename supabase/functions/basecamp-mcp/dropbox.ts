@@ -1,3 +1,5 @@
+import { Dropbox } from "dropbox";
+
 export class DropboxAuthError extends Error {
   constructor() {
     super("Dropbox authentication failed");
@@ -19,12 +21,10 @@ export class DropboxStorageError extends Error {
   }
 }
 
-let cachedToken: string | null = null;
-let tokenExpiresAt = 0;
+let clientPromise: Promise<Dropbox> | null = null;
 
 export function _resetTokenCache() {
-  cachedToken = null;
-  tokenExpiresAt = 0;
+  clientPromise = null;
 }
 
 function getConfig() {
@@ -43,99 +43,120 @@ function getConfig() {
   };
 }
 
-export async function _refreshAccessToken(): Promise<string> {
-  const config = getConfig();
+async function getClient(): Promise<Dropbox> {
+  if (clientPromise) return clientPromise;
 
-  if (cachedToken && Date.now() < tokenExpiresAt) {
-    return cachedToken;
-  }
+  clientPromise = (async () => {
+    const config = getConfig();
 
-  const body = new URLSearchParams({
-    grant_type: "refresh_token",
-    client_id: config.clientId,
-    client_secret: config.clientSecret,
-    refresh_token: config.refreshToken,
-  });
+    const baseClient = new Dropbox({
+      clientId: config.clientId,
+      clientSecret: config.clientSecret,
+      refreshToken: config.refreshToken,
+      selectUser: config.selectUser,
+      selectAdmin: config.selectAdmin,
+    });
 
-  const res = await fetch("https://api.dropbox.com/oauth2/token", {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: body.toString(),
-  });
+    try {
+      const account = await baseClient.usersGetCurrentAccount();
+      const rootInfo = account.result.root_info;
 
-  if (!res.ok) {
-    throw new DropboxAuthError();
-  }
+      if (rootInfo.root_namespace_id === rootInfo.home_namespace_id) {
+        return baseClient;
+      }
 
-  const data = await res.json();
-  cachedToken = data.access_token;
-  tokenExpiresAt = Date.now() + (data.expires_in - 60) * 1000;
-  return cachedToken!;
-}
+      return new Dropbox({
+        clientId: config.clientId,
+        clientSecret: config.clientSecret,
+        refreshToken: config.refreshToken,
+        selectUser: config.selectUser,
+        selectAdmin: config.selectAdmin,
+        pathRoot: JSON.stringify({
+          ".tag": "root",
+          root: rootInfo.root_namespace_id,
+        }),
+      });
+    } catch {
+      // If account lookup fails, return base client — better than failing entirely
+      return baseClient;
+    }
+  })();
 
-function teamHeaders(config: ReturnType<typeof getConfig>): Record<string, string> {
-  const headers: Record<string, string> = {};
-  if (config.selectUser) headers["Dropbox-API-Select-User"] = config.selectUser;
-  if (config.selectAdmin) headers["Dropbox-API-Select-Admin"] = config.selectAdmin;
-  return headers;
+  return clientPromise;
 }
 
 export async function getTemporaryLink(pathOrId: string): Promise<string> {
-  const config = getConfig();
-  const token = await _refreshAccessToken();
-
-  const res = await fetch("https://api.dropboxapi.com/2/files/get_temporary_link", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${token}`,
-      "Content-Type": "application/json",
-      ...teamHeaders(config),
-    },
-    body: JSON.stringify({ path: pathOrId }),
-  });
-
-  if (!res.ok) {
-    const text = await res.text();
-    if (res.status === 409 && text.includes("not_found")) {
-      throw new DropboxStorageError("File not found in storage");
-    }
-    if (res.status === 429) {
-      throw new DropboxStorageError("Storage rate limited, try again later");
-    }
-    throw new DropboxStorageError("Storage error");
+  try {
+    const client = await getClient();
+    const result = await client.filesGetTemporaryLink({ path: pathOrId });
+    return result.result.link;
+  } catch (e: any) {
+    throw classifyError(e);
   }
-
-  const data = await res.json();
-  return data.link;
 }
 
 export async function downloadFile(
   pathOrId: string
 ): Promise<{ bytes: Uint8Array; contentType: string }> {
-  const config = getConfig();
-  const token = await _refreshAccessToken();
+  try {
+    const client = await getClient();
+    const response = await client.filesDownload({ path: pathOrId });
+    const payload = response.result as unknown as Record<string, unknown>;
+    const binary = payload.fileBinary ?? payload.fileBlob;
 
-  const res = await fetch("https://content.dropboxapi.com/2/files/download", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${token}`,
-      "Dropbox-API-Arg": JSON.stringify({ path: pathOrId }),
-      ...teamHeaders(config),
-    },
-  });
+    if (!binary) {
+      throw new DropboxStorageError("Storage error");
+    }
 
-  if (!res.ok) {
-    const text = await res.text();
-    if (res.status === 409 && text.includes("not_found")) {
-      throw new DropboxStorageError("File not found in storage");
+    let bytes: Uint8Array;
+    if (binary instanceof ArrayBuffer) {
+      bytes = new Uint8Array(binary);
+    } else if (binary instanceof Uint8Array) {
+      bytes = binary;
+    } else if (typeof (binary as any).arrayBuffer === "function") {
+      bytes = new Uint8Array(await (binary as any).arrayBuffer());
+    } else {
+      throw new DropboxStorageError("Storage error");
     }
-    if (res.status === 429) {
-      throw new DropboxStorageError("Storage rate limited, try again later");
-    }
-    throw new DropboxStorageError("Storage error");
+
+    const contentType =
+      (response.result as any).content_type ??
+      "application/octet-stream";
+
+    return { bytes, contentType };
+  } catch (e: any) {
+    throw classifyError(e);
+  }
+}
+
+function sanitize(msg: string): string {
+  const secrets = [
+    Deno.env.get("DROPBOX_APP_KEY"),
+    Deno.env.get("DROPBOX_APP_SECRET"),
+    Deno.env.get("DROPBOX_REFRESH_TOKEN"),
+  ].filter(Boolean) as string[];
+  let out = msg;
+  for (const s of secrets) out = out.replaceAll(s, "***");
+  return out;
+}
+
+function classifyError(e: any): Error {
+  if (e instanceof DropboxConfigError || e instanceof DropboxStorageError || e instanceof DropboxAuthError) {
+    return e;
   }
 
-  const bytes = new Uint8Array(await res.arrayBuffer());
-  const contentType = res.headers.get("Content-Type") ?? "application/octet-stream";
-  return { bytes, contentType };
+  const status = e?.status;
+  const message = String(e?.error?.error_summary ?? e?.message ?? "");
+
+  if (status === 401 || message.includes("invalid_access_token")) {
+    return new DropboxAuthError();
+  }
+  if (status === 409 && message.includes("not_found")) {
+    return new DropboxStorageError(`File not found in storage (${sanitize(message)})`);
+  }
+  if (status === 429) {
+    return new DropboxStorageError("Storage rate limited, try again later");
+  }
+
+  return new DropboxStorageError(`Storage error: status=${status}, summary=${sanitize(message)}`);
 }

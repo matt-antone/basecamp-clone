@@ -8,11 +8,23 @@ vi.stubGlobal("Deno", {
   },
 });
 
+// Mock the Dropbox SDK
+const mockFilesDownload = vi.fn();
+const mockFilesGetTemporaryLink = vi.fn();
+const mockUsersGetCurrentAccount = vi.fn();
+const MockDropbox = vi.fn().mockImplementation(() => ({
+  filesDownload: mockFilesDownload,
+  filesGetTemporaryLink: mockFilesGetTemporaryLink,
+  usersGetCurrentAccount: mockUsersGetCurrentAccount,
+}));
+
+vi.mock("dropbox", () => ({ Dropbox: MockDropbox }));
+
 const dropbox = await import("../../supabase/functions/basecamp-mcp/dropbox.ts");
 
 beforeEach(() => {
   envMap.clear();
-  vi.restoreAllMocks();
+  vi.clearAllMocks();
   dropbox._resetTokenCache();
 });
 
@@ -22,237 +34,260 @@ function setDropboxEnv() {
   envMap.set("DROPBOX_REFRESH_TOKEN", "fake-refresh-token");
 }
 
-describe("refreshAccessToken", () => {
-  it("sends correct OAuth2 body and returns access token", async () => {
-    setDropboxEnv();
-    const mockFetch = vi.fn().mockResolvedValue({
-      ok: true,
-      json: () => Promise.resolve({ access_token: "new-access-token", expires_in: 14400 }),
-    });
-    vi.stubGlobal("fetch", mockFetch);
-
-    const token = await dropbox._refreshAccessToken();
-
-    expect(token).toBe("new-access-token");
-    expect(mockFetch).toHaveBeenCalledTimes(1);
-    const [url, opts] = mockFetch.mock.calls[0];
-    expect(url).toBe("https://api.dropbox.com/oauth2/token");
-    expect(opts.method).toBe("POST");
-    const body = opts.body as string;
-    expect(body).toContain("grant_type=refresh_token");
-    expect(body).toContain("client_id=fake-client-id");
-    expect(body).toContain("client_secret=fake-secret");
-    expect(body).toContain("refresh_token=fake-refresh-token");
+function setupTeamAccount() {
+  mockUsersGetCurrentAccount.mockResolvedValue({
+    result: {
+      root_info: {
+        root_namespace_id: "team-root-456",
+        home_namespace_id: "home-123",
+      },
+    },
   });
+}
 
-  it("caches the token on subsequent calls", async () => {
-    setDropboxEnv();
-    const mockFetch = vi.fn().mockResolvedValue({
-      ok: true,
-      json: () => Promise.resolve({ access_token: "cached-token", expires_in: 14400 }),
-    });
-    vi.stubGlobal("fetch", mockFetch);
-
-    await dropbox._refreshAccessToken();
-    await dropbox._refreshAccessToken();
-
-    expect(mockFetch).toHaveBeenCalledTimes(1);
+function setupPersonalAccount() {
+  mockUsersGetCurrentAccount.mockResolvedValue({
+    result: {
+      root_info: {
+        root_namespace_id: "ns-123",
+        home_namespace_id: "ns-123",
+      },
+    },
   });
-
-  it("throws DropboxAuthError on refresh failure without leaking credentials", async () => {
-    setDropboxEnv();
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
-      ok: false,
-      status: 400,
-      text: () => Promise.resolve('{"error": "invalid_grant"}'),
-    }));
-
-    await expect(dropbox._refreshAccessToken()).rejects.toThrow("Dropbox authentication failed");
-  });
-
-  it("throws DropboxConfigError when credentials are missing", async () => {
-    await expect(dropbox._refreshAccessToken()).rejects.toThrow(
-      "Dropbox credentials missing"
-    );
-  });
-});
+}
 
 describe("getTemporaryLink", () => {
   it("returns temporary link URL", async () => {
     setDropboxEnv();
-    const mockFetch = vi.fn()
-      .mockResolvedValueOnce({
-        ok: true,
-        json: () => Promise.resolve({ access_token: "tok", expires_in: 14400 }),
-      })
-      .mockResolvedValueOnce({
-        ok: true,
-        json: () => Promise.resolve({ link: "https://dl.dropbox.com/temp-link" }),
-      });
-    vi.stubGlobal("fetch", mockFetch);
+    setupPersonalAccount();
+    mockFilesGetTemporaryLink.mockResolvedValue({
+      result: { link: "https://dl.dropbox.com/temp-link" },
+    });
 
     const link = await dropbox.getTemporaryLink("id:abc123");
 
     expect(link).toBe("https://dl.dropbox.com/temp-link");
-    const [url, opts] = mockFetch.mock.calls[1];
-    expect(url).toBe("https://api.dropboxapi.com/2/files/get_temporary_link");
-    expect(JSON.parse(opts.body)).toEqual({ path: "id:abc123" });
+    expect(mockFilesGetTemporaryLink).toHaveBeenCalledWith({ path: "id:abc123" });
   });
 
   it("throws 'File not found in storage' on 409 not_found", async () => {
     setDropboxEnv();
-    const mockFetch = vi.fn()
-      .mockResolvedValueOnce({
-        ok: true,
-        json: () => Promise.resolve({ access_token: "tok", expires_in: 14400 }),
-      })
-      .mockResolvedValueOnce({
-        ok: false,
-        status: 409,
-        text: () => Promise.resolve('{"error_summary": "path/not_found/"}'),
-      });
-    vi.stubGlobal("fetch", mockFetch);
+    setupPersonalAccount();
+    mockFilesGetTemporaryLink.mockRejectedValue({
+      status: 409,
+      error: { error_summary: "path/not_found/" },
+    });
 
     await expect(dropbox.getTemporaryLink("/missing")).rejects.toThrow("File not found in storage");
   });
 
   it("throws 'Storage rate limited' on 429", async () => {
     setDropboxEnv();
-    const mockFetch = vi.fn()
-      .mockResolvedValueOnce({
-        ok: true,
-        json: () => Promise.resolve({ access_token: "tok", expires_in: 14400 }),
-      })
-      .mockResolvedValueOnce({
-        ok: false,
-        status: 429,
-        text: () => Promise.resolve("rate limited"),
-      });
-    vi.stubGlobal("fetch", mockFetch);
+    setupPersonalAccount();
+    mockFilesGetTemporaryLink.mockRejectedValue({
+      status: 429,
+      error: { error_summary: "too_many_requests/" },
+    });
 
     await expect(dropbox.getTemporaryLink("/file")).rejects.toThrow("Storage rate limited");
   });
 });
 
 describe("downloadFile", () => {
-  it("returns bytes and content type", async () => {
+  it("returns bytes and content type from fileBinary", async () => {
     setDropboxEnv();
+    setupPersonalAccount();
     const fileBytes = new TextEncoder().encode("hello world");
-    const mockFetch = vi.fn()
-      .mockResolvedValueOnce({
-        ok: true,
-        json: () => Promise.resolve({ access_token: "tok", expires_in: 14400 }),
-      })
-      .mockResolvedValueOnce({
-        ok: true,
-        arrayBuffer: () => Promise.resolve(fileBytes.buffer),
-        headers: new Headers({ "Content-Type": "text/plain" }),
-      });
-    vi.stubGlobal("fetch", mockFetch);
+    mockFilesDownload.mockResolvedValue({
+      result: {
+        fileBinary: fileBytes.buffer,
+        content_type: "text/plain",
+      },
+    });
 
     const result = await dropbox.downloadFile("id:abc123");
 
     expect(result.contentType).toBe("text/plain");
     expect(new TextDecoder().decode(result.bytes)).toBe("hello world");
-    const [, opts] = mockFetch.mock.calls[1];
-    expect(opts.headers["Dropbox-API-Arg"]).toBe(JSON.stringify({ path: "id:abc123" }));
+    expect(mockFilesDownload).toHaveBeenCalledWith({ path: "id:abc123" });
+  });
+
+  it("returns bytes from fileBlob (Blob-like)", async () => {
+    setDropboxEnv();
+    setupPersonalAccount();
+    const fileBytes = new TextEncoder().encode("blob data");
+    mockFilesDownload.mockResolvedValue({
+      result: {
+        fileBlob: {
+          arrayBuffer: () => Promise.resolve(fileBytes.buffer),
+        },
+        content_type: "image/png",
+      },
+    });
+
+    const result = await dropbox.downloadFile("id:xyz");
+
+    expect(result.contentType).toBe("image/png");
+    expect(new TextDecoder().decode(result.bytes)).toBe("blob data");
   });
 
   it("throws 'File not found in storage' on 409 not_found", async () => {
     setDropboxEnv();
-    const mockFetch = vi.fn()
-      .mockResolvedValueOnce({
-        ok: true,
-        json: () => Promise.resolve({ access_token: "tok", expires_in: 14400 }),
-      })
-      .mockResolvedValueOnce({
-        ok: false,
-        status: 409,
-        text: () => Promise.resolve('{"error_summary": "path/not_found/"}'),
-      });
-    vi.stubGlobal("fetch", mockFetch);
+    setupPersonalAccount();
+    mockFilesDownload.mockRejectedValue({
+      status: 409,
+      error: { error_summary: "path/not_found/" },
+    });
 
     await expect(dropbox.downloadFile("/missing")).rejects.toThrow("File not found in storage");
   });
 
   it("defaults content type to application/octet-stream", async () => {
     setDropboxEnv();
-    const mockFetch = vi.fn()
-      .mockResolvedValueOnce({
-        ok: true,
-        json: () => Promise.resolve({ access_token: "tok", expires_in: 14400 }),
-      })
-      .mockResolvedValueOnce({
-        ok: true,
-        arrayBuffer: () => Promise.resolve(new ArrayBuffer(0)),
-        headers: new Headers(),
-      });
-    vi.stubGlobal("fetch", mockFetch);
+    setupPersonalAccount();
+    mockFilesDownload.mockResolvedValue({
+      result: {
+        fileBinary: new ArrayBuffer(0),
+      },
+    });
 
     const result = await dropbox.downloadFile("id:xyz");
     expect(result.contentType).toBe("application/octet-stream");
   });
+
+  it("throws StorageError when no binary payload", async () => {
+    setDropboxEnv();
+    setupPersonalAccount();
+    mockFilesDownload.mockResolvedValue({ result: {} });
+
+    await expect(dropbox.downloadFile("id:xyz")).rejects.toThrow("Storage error");
+  });
+});
+
+describe("team account path root", () => {
+  it("creates second Dropbox client with pathRoot for team accounts", async () => {
+    setDropboxEnv();
+    setupTeamAccount();
+    mockFilesGetTemporaryLink.mockResolvedValue({
+      result: { link: "https://dl.dropbox.com/link" },
+    });
+
+    await dropbox.getTemporaryLink("/file.png");
+
+    // First call: base client (no pathRoot), Second call: with pathRoot
+    expect(MockDropbox).toHaveBeenCalledTimes(2);
+    const secondCallArgs = MockDropbox.mock.calls[1][0];
+    expect(secondCallArgs.pathRoot).toBe(
+      JSON.stringify({ ".tag": "root", root: "team-root-456" })
+    );
+  });
+
+  it("uses base client for personal accounts (no pathRoot)", async () => {
+    setDropboxEnv();
+    setupPersonalAccount();
+    mockFilesGetTemporaryLink.mockResolvedValue({
+      result: { link: "https://dl.dropbox.com/link" },
+    });
+
+    await dropbox.getTemporaryLink("/file.png");
+
+    // Only one Dropbox client created (no pathRoot needed)
+    expect(MockDropbox).toHaveBeenCalledTimes(1);
+  });
+
+  it("caches client across calls", async () => {
+    setDropboxEnv();
+    setupTeamAccount();
+    mockFilesGetTemporaryLink.mockResolvedValue({
+      result: { link: "https://dl.dropbox.com/link" },
+    });
+
+    await dropbox.getTemporaryLink("/file1.png");
+    await dropbox.getTemporaryLink("/file2.png");
+
+    // Account lookup happens once, not twice
+    expect(mockUsersGetCurrentAccount).toHaveBeenCalledTimes(1);
+  });
+
+  it("falls back to base client when get_current_account fails", async () => {
+    setDropboxEnv();
+    mockUsersGetCurrentAccount.mockRejectedValue(new Error("network error"));
+    mockFilesGetTemporaryLink.mockResolvedValue({
+      result: { link: "https://dl.dropbox.com/link" },
+    });
+
+    const link = await dropbox.getTemporaryLink("/file.png");
+
+    expect(link).toBe("https://dl.dropbox.com/link");
+    // Only base client, no second client created
+    expect(MockDropbox).toHaveBeenCalledTimes(1);
+  });
 });
 
 describe("team headers", () => {
-  it("includes Dropbox-API-Select-User header when env var is set", async () => {
+  it("passes selectUser to Dropbox client", async () => {
     setDropboxEnv();
     envMap.set("DROPBOX_SELECT_USER", "dbmid:user123");
-    const mockFetch = vi.fn()
-      .mockResolvedValueOnce({
-        ok: true,
-        json: () => Promise.resolve({ access_token: "tok", expires_in: 14400 }),
-      })
-      .mockResolvedValueOnce({
-        ok: true,
-        json: () => Promise.resolve({ link: "https://dl.dropbox.com/link" }),
-      });
-    vi.stubGlobal("fetch", mockFetch);
+    setupPersonalAccount();
+    mockFilesGetTemporaryLink.mockResolvedValue({
+      result: { link: "https://dl.dropbox.com/link" },
+    });
 
     await dropbox.getTemporaryLink("/file");
 
-    const headers = mockFetch.mock.calls[1][1].headers;
-    expect(headers["Dropbox-API-Select-User"]).toBe("dbmid:user123");
+    expect(MockDropbox.mock.calls[0][0].selectUser).toBe("dbmid:user123");
   });
 
-  it("includes Dropbox-API-Select-Admin header when env var is set", async () => {
+  it("passes selectAdmin to Dropbox client", async () => {
     setDropboxEnv();
     envMap.set("DROPBOX_SELECT_ADMIN", "dbmid:admin456");
-    const mockFetch = vi.fn()
-      .mockResolvedValueOnce({
-        ok: true,
-        json: () => Promise.resolve({ access_token: "tok", expires_in: 14400 }),
-      })
-      .mockResolvedValueOnce({
-        ok: true,
-        arrayBuffer: () => Promise.resolve(new ArrayBuffer(0)),
-        headers: new Headers({ "Content-Type": "image/png" }),
-      });
-    vi.stubGlobal("fetch", mockFetch);
+    setupPersonalAccount();
+    mockFilesDownload.mockResolvedValue({
+      result: { fileBinary: new ArrayBuffer(0) },
+    });
 
     await dropbox.downloadFile("/file");
 
-    const headers = mockFetch.mock.calls[1][1].headers;
-    expect(headers["Dropbox-API-Select-Admin"]).toBe("dbmid:admin456");
+    expect(MockDropbox.mock.calls[0][0].selectAdmin).toBe("dbmid:admin456");
+  });
+});
+
+describe("config errors", () => {
+  it("throws DropboxConfigError when credentials are missing", async () => {
+    await expect(dropbox.getTemporaryLink("/file")).rejects.toThrow(
+      "Dropbox credentials missing"
+    );
+  });
+
+  it("throws DropboxAuthError on 401", async () => {
+    setDropboxEnv();
+    setupPersonalAccount();
+    mockFilesDownload.mockRejectedValue({
+      status: 401,
+      error: { error_summary: "invalid_access_token/" },
+    });
+
+    await expect(dropbox.downloadFile("/file")).rejects.toThrow("Dropbox authentication failed");
   });
 });
 
 describe("secret safety", () => {
   it("error messages never contain credentials", async () => {
     setDropboxEnv();
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
-      ok: false,
-      status: 400,
-      text: () => Promise.resolve('{"error": "invalid_grant", "client_id": "fake-client-id"}'),
-    }));
+    setupPersonalAccount();
+    mockFilesDownload.mockRejectedValue({
+      status: 500,
+      message: "server error with client_id=fake-client-id",
+    });
 
     try {
-      await dropbox._refreshAccessToken();
+      await dropbox.downloadFile("/file");
     } catch (e: any) {
       expect(e.message).not.toContain("fake-client-id");
       expect(e.message).not.toContain("fake-secret");
       expect(e.message).not.toContain("fake-refresh-token");
-      expect(e.message).toBe("Dropbox authentication failed");
+      expect(e.message).toMatch(/^Storage error:/);
+      expect(e.message).not.toContain("fake-client-id");
     }
   });
 });
