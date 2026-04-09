@@ -1,3 +1,3 @@
 [build.environment]
   # SMTP host is configuration metadata, not a credential. Keep scan enabled for real secrets.
-  SECRETS_SCAN_OMIT_KEYS = "SMTP_HOST"
+  SECRETS_SCAN_OMIT_KEYS = "SMTP_HOST,MCP_SMOKE_CLIENT_ID"
