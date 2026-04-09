@@ -33,10 +33,9 @@
     "lib/**/*.tsx",
     "types/**/*.ts",
     "types/**/*.tsx",
-    "tests/**/*.ts",
     "scripts/**/*.ts",
     "orchestration/**/*.ts",
     ".next/types/**/*.ts"
   ],
-  "exclude": ["node_modules", "supabase"]
+  "exclude": ["node_modules", "supabase", "tests"]
 }

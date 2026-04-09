@@ -1,5 +1,5 @@
 import slugify from "slugify";
-import { config } from "./config";
+import { config } from "./config-core";
 import { query } from "./db";
 import { renderMarkdown } from "./markdown";
 import { DEFAULT_HOURLY_RATE_USD, MAX_EXPENSE_LINE_AMOUNT_USD, MAX_SITE_HOURLY_RATE_USD } from "./project-financials";

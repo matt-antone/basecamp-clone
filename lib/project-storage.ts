@@ -1,5 +1,5 @@
 import slugify from "slugify";
-import { config } from "./config";
+import { config } from "./config-core";
 
 const ARCHIVE_DIR_NAME = "_Archive";
 

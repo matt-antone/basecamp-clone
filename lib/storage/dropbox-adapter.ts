@@ -1,5 +1,5 @@
 import { Dropbox } from "dropbox";
-import { config } from "../config";
+import { config } from "../config-core";
 import type { StorageAdapter } from "./types";
 
 export class DropboxStorageAdapter implements StorageAdapter {

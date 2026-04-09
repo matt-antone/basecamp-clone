@@ -1,5 +1,5 @@
 import { Pool, type QueryResultRow } from "pg";
-import { config } from "./config";
+import { config } from "./config-core";
 
 const globalForPg = globalThis as unknown as { pool?: Pool };
 
