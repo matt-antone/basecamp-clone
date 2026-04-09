@@ -118,6 +118,7 @@ describe("MCP tools", () => {
       getRecentMessages: vi.fn(async () => [
         {
           id: 1,
+          messageId: 100,
           projectId: 10,
           projectName: "Scoped",
           subject: "Hello",
@@ -127,8 +128,8 @@ describe("MCP tools", () => {
           createdAt: "2026-03-03T00:00:00Z",
           lastUpdaterId: 42,
           lastUpdaterName: "Matt",
-          url: "https://example.test/api/messages/1",
-          appUrl: "https://example.test/app/messages/1"
+          url: "https://example.test/api/messages/100",
+          appUrl: "https://example.test/app/messages/100"
         }
       ]),
       getRecentDocuments: vi.fn(async () => [
@@ -188,5 +189,99 @@ describe("MCP tools", () => {
       assigneeId: 42,
       projectId: 10
     });
+  });
+
+  it("validates list_project_members tool and forwards projectId", async () => {
+    const service = {
+      listProjectMembers: vi.fn(async () => [
+        { id: 42, name: "Matt Antone", emailAddress: "matt@example.com" },
+        { id: 99, name: "Steve Zweig", emailAddress: "steve@example.com" }
+      ])
+    } as any;
+
+    const tools = createToolDefinitions(service, createConfig());
+    const tool = tools.find((entry) => entry.name === "list_project_members")!;
+    const args = tool.inputSchema.parse({ projectId: 10 });
+
+    const result = await tool.handler(args);
+
+    expect(service.listProjectMembers).toHaveBeenCalledWith(10);
+    if (result.isError) {
+      throw new Error("Expected success result.");
+    }
+    expect(tool.outputSchema.parse(result.structuredContent)).toMatchObject({
+      count: 2,
+      members: [
+        { id: 42, name: "Matt Antone", emailAddress: "matt@example.com" },
+        { id: 99, name: "Steve Zweig", emailAddress: "steve@example.com" }
+      ]
+    });
+  });
+
+  it("validates post_comment tool and forwards args to service", async () => {
+    const service = {
+      postComment: vi.fn(async () => ({
+        id: 999,
+        content: "Test comment",
+        createdAt: "2026-03-03T12:00:00Z",
+        appUrl: "https://basecamp.com/3440775/projects/10/messages/100#comment_999"
+      }))
+    } as any;
+
+    const tools = createToolDefinitions(service, createConfig());
+    const tool = tools.find((entry) => entry.name === "post_comment")!;
+    const args = tool.inputSchema.parse({
+      projectId: 10,
+      messageId: 100,
+      content: "Hello from AI"
+    });
+
+    const result = await tool.handler(args);
+
+    expect(service.postComment).toHaveBeenCalledWith(10, 100, "Hello from AI", {
+      subscribers: undefined,
+      newSubscriberEmails: undefined,
+      attachmentFilePaths: undefined
+    });
+    if (result.isError) {
+      throw new Error("Expected success result.");
+    }
+    expect(tool.outputSchema.parse(result.structuredContent)).toMatchObject({
+      id: 999,
+      content: "Test comment",
+      createdAt: "2026-03-03T12:00:00Z"
+    });
+  });
+
+  it("forwards attachmentPaths to post_comment service as attachmentFilePaths", async () => {
+    const service = {
+      postComment: vi.fn(async () => ({
+        id: 1000,
+        content: "With file",
+        createdAt: "2026-03-03T12:00:00Z",
+        appUrl: "https://basecamp.com/3440775/projects/10/messages/100#comment_1000"
+      }))
+    } as any;
+
+    const tools = createToolDefinitions(service, createConfig());
+    const tool = tools.find((entry) => entry.name === "post_comment")!;
+    const args = tool.inputSchema.parse({
+      projectId: 10,
+      messageId: 100,
+      content: "See attachment",
+      attachmentPaths: ["/tmp/doc.pdf"]
+    });
+
+    const result = await tool.handler(args);
+
+    expect(service.postComment).toHaveBeenCalledWith(10, 100, "See attachment", {
+      subscribers: undefined,
+      newSubscriberEmails: undefined,
+      attachmentFilePaths: ["/tmp/doc.pdf"]
+    });
+    if (result.isError) {
+      throw new Error("Expected success result.");
+    }
+    expect(tool.outputSchema.parse(result.structuredContent).id).toBe(1000);
   });
 });

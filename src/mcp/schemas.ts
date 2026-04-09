@@ -30,6 +30,7 @@ export const activityRecordSchema = z.object({
 
 export const messageRecordSchema = z.object({
   id: z.number().int().positive(),
+  messageId: z.number().int().positive(),
   projectId: z.number().int().positive(),
   projectName: z.string(),
   subject: z.string(),
@@ -133,4 +134,35 @@ export const getOpenTodosOutputSchema = z.object({
   assigneeId: z.number().int().positive(),
   count: z.number().int().nonnegative(),
   todos: z.array(todoRecordSchema)
+});
+
+export const projectMemberRecordSchema = z.object({
+  id: z.number().int().positive(),
+  name: z.string(),
+  emailAddress: z.string().nullable()
+});
+
+export const listProjectMembersInputSchema = z.object({
+  projectId: projectIdSchema
+});
+
+export const listProjectMembersOutputSchema = z.object({
+  count: z.number().int().nonnegative(),
+  members: z.array(projectMemberRecordSchema)
+});
+
+export const postCommentInputSchema = z.object({
+  projectId: projectIdSchema,
+  messageId: projectIdSchema,
+  content: z.string().min(1),
+  subscribers: z.array(projectIdSchema).optional(),
+  newSubscriberEmails: z.array(z.string().email()).optional(),
+  attachmentPaths: z.array(z.string().min(1)).optional()
+});
+
+export const postCommentOutputSchema = z.object({
+  id: z.number().int().positive(),
+  content: z.string(),
+  createdAt: z.string(),
+  appUrl: z.string()
 });

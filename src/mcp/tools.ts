@@ -12,8 +12,12 @@ import {
   getProjectDocumentsOutputSchema,
   getProjectMessagesInputSchema,
   getProjectMessagesOutputSchema,
+  listProjectMembersInputSchema,
+  listProjectMembersOutputSchema,
   listStarredProjectsInputSchema,
-  listStarredProjectsOutputSchema
+  listStarredProjectsOutputSchema,
+  postCommentInputSchema,
+  postCommentOutputSchema
 } from "./schemas.js";
 
 type ToolSuccess<T> = {
@@ -210,6 +214,50 @@ export function createToolDefinitions(
             count: result.todos.length,
             todos: result.todos
           });
+        } catch (error) {
+          return createErrorResult(error);
+        }
+      }
+    },
+    {
+      name: "list_project_members",
+      title: "List Project Members",
+      description:
+        "List all people with access to a starred project. Use the returned member ids in post_comment's subscribers parameter to choose who gets notified.",
+      inputSchema: listProjectMembersInputSchema,
+      outputSchema: listProjectMembersOutputSchema,
+      handler: async (args: z.output<typeof listProjectMembersInputSchema>) => {
+        try {
+          const members = await service.listProjectMembers(args.projectId);
+          return createTextResult({
+            count: members.length,
+            members
+          });
+        } catch (error) {
+          return createErrorResult(error);
+        }
+      }
+    },
+    {
+      name: "post_comment",
+      title: "Post Comment",
+      description:
+        "Post a comment on a message in a starred project. Use projectId and messageId from get_project_messages (messageId is the id used in the message URL). Optionally pass subscribers (member ids from list_project_members), newSubscriberEmails, or attachmentPaths (array of file paths to attach); paths are resolved by the server process.",
+      inputSchema: postCommentInputSchema,
+      outputSchema: postCommentOutputSchema,
+      handler: async (args: z.output<typeof postCommentInputSchema>) => {
+        try {
+          const result = await service.postComment(
+            args.projectId,
+            args.messageId,
+            args.content,
+            {
+              subscribers: args.subscribers,
+              newSubscriberEmails: args.newSubscriberEmails,
+              attachmentFilePaths: args.attachmentPaths
+            }
+          );
+          return createTextResult(result);
         } catch (error) {
           return createErrorResult(error);
         }

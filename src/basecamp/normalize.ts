@@ -1,5 +1,6 @@
 import type {
   ActivityRecord,
+  BasecampAccess,
   BasecampAssignedTodoList,
   BasecampDocument,
   BasecampEvent,
@@ -8,9 +9,18 @@ import type {
   BasecampTopic,
   DocumentRecord,
   MessageRecord,
+  ProjectMemberRecord,
   ProjectSummary,
   TodoRecord
 } from "./types.js";
+
+export function normalizeProjectMember(access: BasecampAccess): ProjectMemberRecord {
+  return {
+    id: access.id,
+    name: access.name,
+    emailAddress: access.email_address ?? null
+  };
+}
 
 export function normalizeProject(project: BasecampProject): ProjectSummary {
   return {
@@ -53,6 +63,7 @@ export function normalizeMessage(
 ): MessageRecord {
   return {
     id: topic.id,
+    messageId: topic.topicable.id,
     projectId: project.id,
     projectName: project.name,
     subject: topic.title,

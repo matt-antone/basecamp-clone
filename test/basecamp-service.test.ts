@@ -1,3 +1,7 @@
+import { mkdtempSync, writeFileSync } from "fs";
+import { tmpdir } from "os";
+import path from "path";
+
 import { describe, expect, it } from "vitest";
 
 import { TtlCache } from "../src/cache/ttl-cache.js";
@@ -201,5 +205,93 @@ describe("BasecampService", () => {
         appUrl: "https://example.test/app/todos/1"
       }
     ]);
+  });
+
+  it("uploadAttachment reads file, uploads via client, returns token and name", async () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "basecamp-attach-"));
+    const filePath = path.join(dir, "report.pdf");
+    writeFileSync(filePath, Buffer.from("pdf content"));
+
+    const fetchImpl = createRouteFetch({
+      "/999999999/api/v1/stars.json": () =>
+        jsonResponse([{ project_id: 10, created_at: "2026-03-03T00:00:00Z", url: "", app_url: "" }]),
+      "/999999999/api/v1/projects.json": () =>
+        jsonResponse([
+          {
+            id: 10,
+            name: "P",
+            description: null,
+            updated_at: "2026-03-03T00:00:00Z",
+            url: "",
+            app_url: "",
+            template: false,
+            archived: false,
+            starred: true,
+            trashed: false,
+            draft: false,
+            is_client_project: false,
+            color: null
+          }
+        ]),
+      "/999999999/api/v1/attachments.json": () =>
+        jsonResponse({ token: "secret-token-123" })
+    });
+
+    const config = createConfig();
+    const client = new BasecampClient(config, fetchImpl);
+    const service = new BasecampService(client, config, new TtlCache());
+
+    const result = await service.uploadAttachment(filePath);
+
+    expect(result).toEqual({ token: "secret-token-123", name: "report.pdf" });
+  });
+
+  it("postComment with attachmentFilePaths uploads files and includes attachments in body", async () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "basecamp-comment-"));
+    const filePath = path.join(dir, "screenshot.png");
+    writeFileSync(filePath, Buffer.from("png content"));
+
+    const fetchImpl = createRouteFetch({
+      "/999999999/api/v1/stars.json": () =>
+        jsonResponse([{ project_id: 10, created_at: "2026-03-03T00:00:00Z", url: "", app_url: "" }]),
+      "/999999999/api/v1/projects.json": () =>
+        jsonResponse([
+          {
+            id: 10,
+            name: "P",
+            description: null,
+            updated_at: "2026-03-03T00:00:00Z",
+            url: "",
+            app_url: "",
+            template: false,
+            archived: false,
+            starred: true,
+            trashed: false,
+            draft: false,
+            is_client_project: false,
+            color: null
+          }
+        ]),
+      "/999999999/api/v1/attachments.json": () =>
+        jsonResponse({ token: "att-token-1" }),
+      "/999999999/api/v1/projects/10/messages/100/comments.json": () =>
+        jsonResponse({
+          id: 999,
+          content: "Done",
+          created_at: "2026-03-03T12:00:00Z",
+          topic_url: "https://basecamp.com/999999999/api/v1/messages/100.json"
+        })
+    });
+
+    const config = createConfig();
+    const client = new BasecampClient(config, fetchImpl);
+    const service = new BasecampService(client, config, new TtlCache());
+
+    const result = await service.postComment(10, 100, "Done", {
+      attachmentFilePaths: [filePath]
+    });
+
+    expect(result.id).toBe(999);
+    expect(result.content).toBe("Done");
   });
 });

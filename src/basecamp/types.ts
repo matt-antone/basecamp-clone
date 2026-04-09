@@ -4,6 +4,28 @@ export type BasecampPerson = {
   email_address?: string;
 };
 
+export type BasecampAccess = {
+  id: number;
+  identity_id: number;
+  name: string;
+  email_address: string;
+  admin: boolean;
+  is_client: boolean;
+  trashed: boolean;
+  avatar_url: string;
+  fullsize_avatar_url: string;
+  created_at: string;
+  updated_at: string;
+  url: string;
+  app_url: string;
+};
+
+export type ProjectMemberRecord = {
+  id: number;
+  name: string;
+  emailAddress: string | null;
+};
+
 export type BasecampStar = {
   project_id: number;
   created_at: string;
@@ -156,6 +178,7 @@ export type ActivityRecord = {
 
 export type MessageRecord = {
   id: number;
+  messageId: number;
   projectId: number;
   projectName: string;
   subject: string;

@@ -1,16 +1,22 @@
+import { readFile } from "fs/promises";
+import path from "path";
+
 import type { AppConfig } from "../config.js";
 import { TtlCache } from "../cache/ttl-cache.js";
 import { ScopeError } from "../errors.js";
 import { BasecampClient } from "./client.js";
+import { getContentTypeFromFilename } from "./mime.js";
 import {
   normalizeActivity,
   normalizeDocument,
   normalizeMessage,
   normalizeProject,
+  normalizeProjectMember,
   normalizeTodo
 } from "./normalize.js";
 import type {
   ActivityRecord,
+  BasecampAccess,
   BasecampAssignedTodoList,
   BasecampDocument,
   BasecampEvent,
@@ -20,6 +26,7 @@ import type {
   BasecampTopic,
   DocumentRecord,
   MessageRecord,
+  ProjectMemberRecord,
   ProjectSummary,
   TodoRecord
 } from "./types.js";
@@ -177,6 +184,110 @@ export class BasecampService {
         }
       );
     });
+  }
+
+  async listProjectMembers(projectId: number): Promise<ProjectMemberRecord[]> {
+    const projectMap = await this.getProjectMap();
+    this.requireProject(projectMap, projectId);
+
+    const members: ProjectMemberRecord[] = [];
+    for (let page = 1; page <= 20; page += 1) {
+      const batch = await this.client.getCollectionPage<BasecampAccess>(
+        `/projects/${projectId}/accesses`,
+        page
+      );
+      for (const access of batch) {
+        if (!access.trashed) {
+          members.push(normalizeProjectMember(access));
+        }
+      }
+      if (batch.length < 50) {
+        break;
+      }
+    }
+    return members;
+  }
+
+  async uploadAttachment(filePath: string): Promise<{ token: string; name: string }> {
+    const baseDir =
+      process.env.BASECAMP_ATTACHMENTS_CWD?.trim() || process.cwd();
+    const resolvedPath = path.isAbsolute(filePath)
+      ? filePath
+      : path.resolve(baseDir, filePath);
+    let buffer: Buffer;
+    try {
+      buffer = await readFile(resolvedPath);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      throw new Error(`Attachment file not readable: ${filePath}. ${message}`);
+    }
+    const basename = path.basename(resolvedPath);
+    const rawName = basename.includes(".") ? basename : `${basename}.bin`;
+    const name = rawName.replace(/\s+/g, "_");
+    const contentType = getContentTypeFromFilename(rawName);
+    const result = await this.client.createAttachment(buffer, contentType);
+    const token = result?.token;
+    if (!token || typeof token !== "string") {
+      throw new Error(
+        "Attachment upload did not return a token. Basecamp may have rejected the file."
+      );
+    }
+    return { token, name };
+  }
+
+  async postComment(
+    projectId: number,
+    messageId: number,
+    content: string,
+    options?: {
+      subscribers?: number[];
+      newSubscriberEmails?: string[];
+      attachmentFilePaths?: string[];
+    }
+  ): Promise<{
+    id: number;
+    content: string;
+    createdAt: string;
+    appUrl: string;
+  }> {
+    const projectMap = await this.getProjectMap();
+    this.requireProject(projectMap, projectId);
+
+    const path = `/projects/${projectId}/messages/${messageId}/comments`;
+    const body: Record<string, unknown> = { content };
+
+    let attachments: Array<{ token: string; name: string }> = [];
+    if (options?.attachmentFilePaths?.length) {
+      for (const filePath of options.attachmentFilePaths) {
+        const att = await this.uploadAttachment(filePath);
+        attachments.push(att);
+      }
+      body.attachments = attachments;
+    }
+
+    if (options?.subscribers?.length) {
+      body.subscribers = options.subscribers;
+    }
+    if (options?.newSubscriberEmails?.length) {
+      body.new_subscriber_emails = options.newSubscriberEmails;
+    }
+
+    const raw = await this.client.postJson<{
+      id: number;
+      content: string;
+      created_at: string;
+      topic_url: string;
+    }>(path, body);
+
+    const appUrl =
+      raw.topic_url.replace(/\.json$/i, "").replace("/api/v1", "") +
+      `#comment_${raw.id}`;
+    return {
+      id: raw.id,
+      content: raw.content,
+      createdAt: raw.created_at,
+      appUrl
+    };
   }
 
   async getOpenTodos(query: TodoQuery = {}): Promise<{

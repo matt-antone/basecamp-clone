@@ -16,8 +16,16 @@ const envSchema = z.object({
   BASECAMP_ALLOWED_PROJECT_IDS: z.string().optional(),
   BASECAMP_CACHE_TTL_MS: z.string().optional(),
   BASECAMP_DEFAULT_LIMIT: z.string().optional(),
-  BASECAMP_DEFAULT_HOURS: z.string().optional()
+  BASECAMP_DEFAULT_HOURS: z.string().optional(),
+  BASECAMP_EXPORT_OUTPUT_DIR: z.string().optional(),
+  BASECAMP_EXPORT_MAX_CONCURRENCY: z.string().optional(),
+  BASECAMP_EXPORT_DOWNLOAD_TIMEOUT_MS: z.string().optional(),
+  BASECAMP_EXPORT_INCLUDE_STATUSES: z.string().optional()
 });
+
+const allowedExportStatuses = new Set(["active", "archived", "trashed"]);
+
+export type ExportStatus = "active" | "archived" | "trashed";
 
 export type AppConfig = {
   accountId: string;
@@ -37,6 +45,10 @@ export type AppConfig = {
   cacheTtlMs: number;
   defaultLimit: number;
   defaultHours: number;
+  exportOutputDir?: string;
+  exportMaxConcurrency?: number;
+  exportDownloadTimeoutMs?: number;
+  exportIncludeStatuses?: ExportStatus[];
 };
 
 function parsePositiveInt(value: string | undefined, fallback: number): number {
@@ -77,6 +89,33 @@ function resolveBaseUrl(accountId: string, baseUrlOverride: string | undefined):
   return baseUrlOverride ?? `https://basecamp.com/${accountId}/api/v1`;
 }
 
+function parseExportStatuses(value: string | undefined): ExportStatus[] {
+  if (!value) {
+    return ["active", "archived", "trashed"];
+  }
+
+  const statuses = value
+    .split(",")
+    .map((part) => part.trim().toLowerCase())
+    .filter(Boolean);
+
+  if (statuses.length === 0) {
+    throw new ConfigurationError(
+      "BASECAMP_EXPORT_INCLUDE_STATUSES must include at least one status."
+    );
+  }
+
+  for (const status of statuses) {
+    if (!allowedExportStatuses.has(status)) {
+      throw new ConfigurationError(
+        `BASECAMP_EXPORT_INCLUDE_STATUSES contains unsupported status \"${status}\".`
+      );
+    }
+  }
+
+  return [...new Set(statuses)] as ExportStatus[];
+}
+
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
   const parsed = envSchema.parse(env);
   const authMode =
@@ -107,7 +146,20 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
       allowedProjectIds: parseAllowedProjectIds(parsed.BASECAMP_ALLOWED_PROJECT_IDS),
       cacheTtlMs: parsePositiveInt(parsed.BASECAMP_CACHE_TTL_MS, 30_000),
       defaultLimit: parsePositiveInt(parsed.BASECAMP_DEFAULT_LIMIT, 20),
-      defaultHours: parsePositiveInt(parsed.BASECAMP_DEFAULT_HOURS, 168)
+      defaultHours: parsePositiveInt(parsed.BASECAMP_DEFAULT_HOURS, 168),
+      exportOutputDir:
+        parsed.BASECAMP_EXPORT_OUTPUT_DIR?.trim() || "./exports",
+      exportMaxConcurrency: parsePositiveInt(
+        parsed.BASECAMP_EXPORT_MAX_CONCURRENCY,
+        4
+      ),
+      exportDownloadTimeoutMs: parsePositiveInt(
+        parsed.BASECAMP_EXPORT_DOWNLOAD_TIMEOUT_MS,
+        10_000
+      ),
+      exportIncludeStatuses: parseExportStatuses(
+        parsed.BASECAMP_EXPORT_INCLUDE_STATUSES
+      )
     };
   }
 
@@ -133,6 +185,19 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     allowedProjectIds: parseAllowedProjectIds(parsed.BASECAMP_ALLOWED_PROJECT_IDS),
     cacheTtlMs: parsePositiveInt(parsed.BASECAMP_CACHE_TTL_MS, 30_000),
     defaultLimit: parsePositiveInt(parsed.BASECAMP_DEFAULT_LIMIT, 20),
-    defaultHours: parsePositiveInt(parsed.BASECAMP_DEFAULT_HOURS, 168)
+    defaultHours: parsePositiveInt(parsed.BASECAMP_DEFAULT_HOURS, 168),
+    exportOutputDir:
+      parsed.BASECAMP_EXPORT_OUTPUT_DIR?.trim() || "./exports",
+    exportMaxConcurrency: parsePositiveInt(
+      parsed.BASECAMP_EXPORT_MAX_CONCURRENCY,
+      4
+    ),
+    exportDownloadTimeoutMs: parsePositiveInt(
+      parsed.BASECAMP_EXPORT_DOWNLOAD_TIMEOUT_MS,
+      10_000
+    ),
+    exportIncludeStatuses: parseExportStatuses(
+      parsed.BASECAMP_EXPORT_INCLUDE_STATUSES
+    )
   };
 }
