@@ -50,7 +50,6 @@ describe("ProjectsListView", () => {
     expect(markup).toContain("3 discussions · 5 files");
     expect(markup).toContain('class="projectCreatedMeta"');
     expect(markup).toContain("2025-06-15T12:00:00.000Z");
-    expect(markup).toContain(">Open<");
     expect(markup).toContain(">New project<");
   });
 

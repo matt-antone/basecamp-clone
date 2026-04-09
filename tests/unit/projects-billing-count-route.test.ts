@@ -45,13 +45,13 @@ describe("GET /projects/billing-count", () => {
     const { GET } = await import("@/app/projects/billing-count/route");
     const response = await GET(
       new Request(
-        "http://localhost/projects/billing-count?clientId=11111111-1111-1111-1111-111111111111&search=alpha"
+        "http://localhost/projects/billing-count?clientId=11111111-1111-1111-8111-111111111111&search=alpha"
       )
     );
 
     expect(response.status).toBe(200);
     expect(countBillingStageProjectsMock).toHaveBeenCalledWith({
-      clientId: "11111111-1111-1111-1111-111111111111",
+      clientId: "11111111-1111-1111-8111-111111111111",
       search: "alpha"
     });
   });

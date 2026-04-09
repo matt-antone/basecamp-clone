@@ -183,7 +183,7 @@ describe("POST /projects/[id]/threads/[threadId]/comments", () => {
     getProjectMock.mockResolvedValue({
       id: "project-1",
       name: "Blue Sky",
-      client_id: "11111111-1111-1111-1111-111111111111"
+      client_id: "11111111-1111-1111-8111-111111111111"
     });
     getThreadMock.mockResolvedValue({
       id: "thread-1",
@@ -213,7 +213,7 @@ describe("POST /projects/[id]/threads/[threadId]/comments", () => {
       error: "Client is archived. Restore it before posting comments."
     });
     expect(assertClientNotArchivedForMutationMock).toHaveBeenCalledWith(
-      "11111111-1111-1111-1111-111111111111",
+      "11111111-1111-1111-8111-111111111111",
       expect.objectContaining({
         archived: "Client is archived. Restore it before posting comments."
       })

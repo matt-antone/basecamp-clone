@@ -62,7 +62,7 @@ describe("POST /projects", () => {
         },
         body: JSON.stringify({
           name: "Website Refresh",
-          clientId: "11111111-1111-1111-1111-111111111111"
+          clientId: "11111111-1111-1111-8111-111111111111"
         })
       })
     );
@@ -103,7 +103,7 @@ describe("POST /projects", () => {
         },
         body: JSON.stringify({
           name: "Website Refresh",
-          clientId: "11111111-1111-1111-1111-111111111111",
+          clientId: "11111111-1111-1111-8111-111111111111",
           deadline: "2026-05-30",
           requestor: "Jane Producer"
         })
@@ -139,7 +139,7 @@ describe("POST /projects", () => {
         },
         body: JSON.stringify({
           name: "Website Refresh",
-          clientId: "11111111-1111-1111-1111-111111111111"
+          clientId: "11111111-1111-1111-8111-111111111111"
         })
       })
     );
@@ -149,7 +149,7 @@ describe("POST /projects", () => {
       error: "Client is archived. Restore it before creating new work."
     });
     expect(assertClientNotArchivedForMutationMock).toHaveBeenCalledWith(
-      "11111111-1111-1111-1111-111111111111",
+      "11111111-1111-1111-8111-111111111111",
       expect.objectContaining({
         archived: "Client is archived. Restore it before creating new work."
       })
@@ -181,7 +181,7 @@ describe("GET /projects", () => {
     const { GET } = await import("@/app/projects/route");
     const response = await GET(
       new Request(
-        "http://localhost/projects?clientId=11111111-1111-1111-1111-111111111111&search=website%20refresh"
+        "http://localhost/projects?clientId=11111111-1111-1111-8111-111111111111&search=website%20refresh"
       )
     );
 
@@ -190,7 +190,7 @@ describe("GET /projects", () => {
       projects: [{ id: "p1", name: "Alpha" }]
     });
     expect(listProjectsMock).toHaveBeenCalledWith(true, {
-      clientId: "11111111-1111-1111-1111-111111111111",
+      clientId: "11111111-1111-1111-8111-111111111111",
       search: "website refresh"
     });
   });

@@ -64,7 +64,7 @@ describe("/projects/[id] route", () => {
         body: JSON.stringify({
           name: "Website Refresh",
           description: "Updated brief",
-          clientId: "11111111-1111-1111-1111-111111111111",
+          clientId: "11111111-1111-1111-8111-111111111111",
           deadline: "2026-05-30",
           tags: ["ops"],
           requestor: "Jane Producer"
@@ -78,7 +78,7 @@ describe("/projects/[id] route", () => {
       id: "project-1",
       name: "Website Refresh",
       description: "Updated brief",
-      clientId: "11111111-1111-1111-1111-111111111111",
+      clientId: "11111111-1111-1111-8111-111111111111",
       deadline: "2026-05-30",
       tags: ["ops"],
       requestor: "Jane Producer",
@@ -99,7 +99,7 @@ describe("/projects/[id] route", () => {
         },
         body: JSON.stringify({
           name: "Website Refresh",
-          clientId: "11111111-1111-1111-1111-111111111111",
+          clientId: "11111111-1111-1111-8111-111111111111",
           pm_note: `${"a".repeat(256)}x`
         })
       }),

@@ -80,7 +80,7 @@ describe("POST /projects/[id]/files/upload-complete", () => {
     requireUserMock.mockResolvedValue({ id: "user-1", email: "person@example.com" });
     getProjectMock.mockResolvedValue({
       id: "project-1",
-      client_id: "11111111-1111-1111-1111-111111111111",
+      client_id: "11111111-1111-1111-8111-111111111111",
       storage_project_dir: "/Projects/BRGS/BRGS-0001-Site Refresh"
     });
     assertClientNotArchivedForMutationMock.mockRejectedValue(
@@ -113,7 +113,7 @@ describe("POST /projects/[id]/files/upload-complete", () => {
       error: "Client archive is in progress. File uploads are temporarily disabled."
     });
     expect(assertClientNotArchivedForMutationMock).toHaveBeenCalledWith(
-      "11111111-1111-1111-1111-111111111111",
+      "11111111-1111-1111-8111-111111111111",
       expect.objectContaining({
         inProgress: "Client archive is in progress. File uploads are temporarily disabled."
       })
@@ -297,8 +297,8 @@ describe("POST /projects/[id]/files/upload-complete", () => {
   });
 
   it("persists threadId and commentId from multipart when provided", async () => {
-    const threadUuid = "11111111-1111-1111-1111-111111111111";
-    const commentUuid = "22222222-2222-2222-2222-222222222222";
+    const threadUuid = "11111111-1111-1111-8111-111111111111";
+    const commentUuid = "22222222-2222-2222-a222-222222222222";
     requireUserMock.mockResolvedValue({ id: "user-1", email: "person@example.com" });
     getProjectMock.mockResolvedValue({
       id: "project-1",
@@ -363,7 +363,7 @@ describe("POST /projects/[id]/files/upload-complete", () => {
           contentBase64: Buffer.from("pdf").toString("base64"),
           sessionId: "session-1",
           targetPath: "/Projects/BRGS/BRGS-0001-Site Refresh/uploads/report.pdf",
-          commentId: "22222222-2222-2222-2222-222222222222"
+          commentId: "22222222-2222-2222-a222-222222222222"
         })
       }),
       { params: Promise.resolve({ id: "project-1" }) }

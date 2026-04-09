@@ -34,7 +34,7 @@ describe("POST /projects/[id]/files/upload-init", () => {
     requireUserMock.mockResolvedValue({ id: "user-1", email: "person@example.com" });
     getProjectMock.mockResolvedValue({
       id: "project-1",
-      client_id: "11111111-1111-1111-1111-111111111111",
+      client_id: "11111111-1111-1111-8111-111111111111",
       storage_project_dir: "/Projects/BRGS/BRGS-0001-Site Refresh"
     });
     assertClientNotArchivedForMutationMock.mockRejectedValue(
@@ -63,7 +63,7 @@ describe("POST /projects/[id]/files/upload-init", () => {
       error: "Client is archived. Restore it before uploading files."
     });
     expect(assertClientNotArchivedForMutationMock).toHaveBeenCalledWith(
-      "11111111-1111-1111-1111-111111111111",
+      "11111111-1111-1111-8111-111111111111",
       expect.objectContaining({
         archived: "Client is archived. Restore it before uploading files."
       })

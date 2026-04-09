@@ -15,7 +15,7 @@ vi.mock("@/lib/auth", () => ({
   requireUser: requireUserMock
 }));
 
-vi.mock("@/lib/config", () => ({
+vi.mock("@/lib/config-core", () => ({
   config: {
     thumbnailWorkerUrl: thumbnailWorkerUrlMock,
     thumbnailWorkerToken: thumbnailWorkerTokenMock

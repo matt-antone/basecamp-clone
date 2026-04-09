@@ -65,8 +65,8 @@ describe("project file metadata schema compatibility", () => {
         dropboxFileId: "dbx:1",
         dropboxPath: "/Projects/BRGS/brief.pdf",
         checksum: "sha256",
-        threadId: "11111111-1111-1111-1111-111111111111",
-        commentId: "22222222-2222-2222-2222-222222222222"
+        threadId: "11111111-1111-1111-8111-111111111111",
+        commentId: "22222222-2222-2222-a222-222222222222"
       })
     ).rejects.toThrow("Comment attachments require database migration 0007_comment_attachments.sql");
   });

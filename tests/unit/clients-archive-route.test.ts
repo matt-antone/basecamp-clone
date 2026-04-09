@@ -65,7 +65,7 @@ describe("client archive routes", () => {
     requireUserMock.mockResolvedValue({ id: "user-1", email: "person@example.com" });
     dropboxArchivedClientsRootMock.mockReturnValue("/Projects Archive");
     getClientByIdMock.mockResolvedValue({
-      id: "11111111-1111-1111-1111-111111111111",
+      id: "11111111-1111-1111-8111-111111111111",
       code: "ACME",
       name: "Acme",
       archived_at: null,
@@ -81,20 +81,20 @@ describe("client archive routes", () => {
 
     const { POST } = await import("@/app/clients/[id]/archive/route");
     const response = await POST(
-      new Request("http://localhost/clients/11111111-1111-1111-1111-111111111111/archive", {
+      new Request("http://localhost/clients/11111111-1111-1111-8111-111111111111/archive", {
         method: "POST",
         headers: {
           authorization: "Bearer token"
         }
       }),
-      { params: Promise.resolve({ id: "11111111-1111-1111-1111-111111111111" }) }
+      { params: Promise.resolve({ id: "11111111-1111-1111-8111-111111111111" }) }
     );
 
     expect(response.status).toBe(202);
     await expect(response.json()).resolves.toMatchObject({
-      pollUrl: "/clients/11111111-1111-1111-1111-111111111111"
+      pollUrl: "/clients/11111111-1111-1111-8111-111111111111"
     });
-    expect(updateClientArchiveStateMock).toHaveBeenCalledWith("11111111-1111-1111-1111-111111111111", {
+    expect(updateClientArchiveStateMock).toHaveBeenCalledWith("11111111-1111-1111-8111-111111111111", {
       status: "pending",
       archiveError: null
     });
@@ -104,15 +104,15 @@ describe("client archive routes", () => {
 
     expect(archiveClientRootFolderMock).toHaveBeenCalledWith({ clientCodeUpper: "ACME" });
     expect(rewriteClientDropboxPathsMock).toHaveBeenCalledWith({
-      clientId: "11111111-1111-1111-1111-111111111111",
+      clientId: "11111111-1111-1111-8111-111111111111",
       fromRoot: "/Projects/ACME",
       toRoot: "/Projects Archive/ACME"
     });
-    expect(updateClientArchiveStateMock).toHaveBeenNthCalledWith(2, "11111111-1111-1111-1111-111111111111", {
+    expect(updateClientArchiveStateMock).toHaveBeenNthCalledWith(2, "11111111-1111-1111-8111-111111111111", {
       status: "in_progress",
       archiveError: null
     });
-    expect(updateClientArchiveStateMock).toHaveBeenNthCalledWith(3, "11111111-1111-1111-1111-111111111111", {
+    expect(updateClientArchiveStateMock).toHaveBeenNthCalledWith(3, "11111111-1111-1111-8111-111111111111", {
       status: "completed",
       archiveError: null,
       archivedAt: expect.any(String)
@@ -125,7 +125,7 @@ describe("client archive routes", () => {
       throw new Error("DROPBOX_ARCHIVED_CLIENTS_ROOT is required to archive clients.");
     });
     getClientByIdMock.mockResolvedValue({
-      id: "11111111-1111-1111-1111-111111111111",
+      id: "11111111-1111-1111-8111-111111111111",
       code: "ACME",
       name: "Acme",
       archived_at: null,
@@ -135,13 +135,13 @@ describe("client archive routes", () => {
 
     const { POST } = await import("@/app/clients/[id]/archive/route");
     const response = await POST(
-      new Request("http://localhost/clients/11111111-1111-1111-1111-111111111111/archive", {
+      new Request("http://localhost/clients/11111111-1111-1111-8111-111111111111/archive", {
         method: "POST",
         headers: {
           authorization: "Bearer token"
         }
       }),
-      { params: Promise.resolve({ id: "11111111-1111-1111-1111-111111111111" }) }
+      { params: Promise.resolve({ id: "11111111-1111-1111-8111-111111111111" }) }
     );
 
     expect(response.status).toBe(400);

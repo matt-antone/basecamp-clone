@@ -166,7 +166,7 @@ describe("POST /projects/[id]/threads", () => {
     getProjectMock.mockResolvedValue({
       id: "project-1",
       name: "Blue Sky",
-      client_id: "11111111-1111-1111-1111-111111111111"
+      client_id: "11111111-1111-1111-8111-111111111111"
     });
     assertClientNotArchivedForMutationMock.mockRejectedValue(
       new Error("Client archive is in progress. New discussions are temporarily disabled.")
@@ -193,7 +193,7 @@ describe("POST /projects/[id]/threads", () => {
       error: "Client archive is in progress. New discussions are temporarily disabled."
     });
     expect(assertClientNotArchivedForMutationMock).toHaveBeenCalledWith(
-      "11111111-1111-1111-1111-111111111111",
+      "11111111-1111-1111-8111-111111111111",
       expect.objectContaining({
         inProgress: "Client archive is in progress. New discussions are temporarily disabled."
       })
