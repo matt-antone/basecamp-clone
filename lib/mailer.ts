@@ -11,10 +11,8 @@ function buildProjectLabel(project: { name: string; client_code?: string | null;
   return parts.join("-");
 }
 
-marked.setOptions({ gfm: true, breaks: true });
-
 function markdownToEmailHtml(md: string): string {
-  return marked.parse(md, { async: false }) as string;
+  return marked.parse(md, { gfm: true, breaks: true }) as string;
 }
 
 type ThreadEmailArgs = {
