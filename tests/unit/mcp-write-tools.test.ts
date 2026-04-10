@@ -184,7 +184,7 @@ describe("notifications: called on successful writes", () => {
         threadId: "t-1",
         threadTitle: "Kickoff",
         commentId: "c-new",
-        excerpt: "Hi there",
+        bodyMarkdown: "Hi there",
       })
     );
   });
@@ -201,7 +201,7 @@ describe("notifications: called on successful writes", () => {
         type: "comment_updated",
         threadId: "t-1",
         commentId: "c-1",
-        excerpt: "Revised content",
+        bodyMarkdown: "Revised content",
       })
     );
   });
