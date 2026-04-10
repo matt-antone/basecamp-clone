@@ -71,13 +71,27 @@ describe("mailer", () => {
     expect(body.get("text")).toContain("Open: https://app.example.com/project-1/thread-1");
   });
 
+  it("buildProjectLabel: canonical project_code produces no duplicate prefix", async () => {
+    fetchMock.mockResolvedValue({ ok: true, json: async () => ({ id: "<id-label>" }) });
+    const { sendThreadCreatedEmail } = await import("@/lib/mailer");
+    await sendThreadCreatedEmail({
+      recipients: [{ email: "a@example.com" }],
+      actor: { name: "AI", email: "" },
+      project: { id: "p-1", name: "Website Changes", project_code: "JFLA-0450" },
+      thread: { id: "t-1", title: "Scope review" },
+      threadUrl: "https://app.example.com/p-1/t-1",
+    });
+    const body = new URLSearchParams(fetchMock.mock.calls[0][1].body as string);
+    expect(body.get("subject")).toBe("[JFLA-0450-Website Changes] New discussion: Scope review");
+  });
+
   it("sendCommentUpdatedEmail: subject contains [label] and thread title", async () => {
     fetchMock.mockResolvedValue({ ok: true, json: async () => ({ id: "<id-1>" }) });
     const { sendCommentUpdatedEmail } = await import("@/lib/mailer");
     const result = await sendCommentUpdatedEmail({
       recipients: [{ email: "a@example.com" }],
       actor: { name: "AI", email: "" },
-      project: { id: "p-1", name: "Acme Site", client_code: "AC", project_code: "0001" },
+      project: { id: "p-1", name: "Acme Site", project_code: "AC-0001" },
       thread: { id: "t-1", title: "Design Review" },
       threadUrl: "https://app.example.com/p-1/t-1",
       comment: { id: "c-1", excerpt: "Looks good to me" },
@@ -93,7 +107,7 @@ describe("mailer", () => {
     const result = await sendThreadUpdatedEmail({
       recipients: [{ email: "a@example.com" }],
       actor: { name: "AI", email: "" },
-      project: { id: "p-1", name: "Acme Site", client_code: "AC", project_code: "0001" },
+      project: { id: "p-1", name: "Acme Site", project_code: "AC-0001" },
       thread: { id: "t-1", title: "Design Review" },
       threadUrl: "https://app.example.com/p-1/t-1",
     });
@@ -108,7 +122,7 @@ describe("mailer", () => {
     const result = await sendProjectCreatedEmail({
       recipients: [{ email: "a@example.com" }],
       actor: { name: "AI", email: "" },
-      project: { id: "p-1", name: "Acme Site", client_code: "AC", project_code: "0001" },
+      project: { id: "p-1", name: "Acme Site", project_code: "AC-0001" },
       projectUrl: "https://app.example.com/p-1",
     });
     expect(result).toMatchObject({ skipped: false, recipientCount: 1 });
@@ -122,7 +136,7 @@ describe("mailer", () => {
     const result = await sendProjectUpdatedEmail({
       recipients: [{ email: "a@example.com" }],
       actor: { name: "AI", email: "" },
-      project: { id: "p-1", name: "Acme Site", client_code: "AC", project_code: "0001" },
+      project: { id: "p-1", name: "Acme Site", project_code: "AC-0001" },
       projectUrl: "https://app.example.com/p-1",
     });
     expect(result).toMatchObject({ skipped: false, recipientCount: 1 });
@@ -152,4 +166,3 @@ describe("mailer", () => {
   });
 
 });
-

@@ -6,7 +6,7 @@ export type MailRecipient = {
 };
 
 function buildProjectLabel(project: { name: string; client_code?: string | null; project_code?: string | null }): string {
-  const parts = [project.client_code, project.project_code, project.name].filter(Boolean);
+  const parts = [project.project_code ?? project.client_code, project.name].filter(Boolean);
   return parts.join("-");
 }
 
