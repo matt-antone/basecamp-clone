@@ -256,7 +256,7 @@ export function registerTools(
       try {
         const body_html = await toHtml(body_markdown);
         const result = await db.createThread(supabase, { project_id, title, body_markdown, body_html }, agent.client_id);
-        safeNotify({ type: "thread_created", projectId: result.project_id, threadId: result.id, threadTitle: result.title });
+        safeNotify({ type: "thread_created", projectId: result.project_id, threadId: result.id, threadTitle: result.title, bodyMarkdown: body_markdown });
         return ok(result);
       } catch (e) {
         return dbError(e);
@@ -281,7 +281,7 @@ export function registerTools(
         }
         const result = await db.updateThread(supabase, thread_id, patch);
         if (!result) return notFound(thread_id);
-        safeNotify({ type: "thread_updated", projectId: result.project_id, threadId: result.id, threadTitle: result.title ?? title ?? "" });
+        safeNotify({ type: "thread_updated", projectId: result.project_id, threadId: result.id, threadTitle: result.title ?? title ?? "", bodyMarkdown: body_markdown ?? "" });
         return ok(result);
       } catch (e) {
         return dbError(e);
@@ -306,7 +306,7 @@ export function registerTools(
           { thread_id, body_markdown, body_html, project_id: thread.thread.project_id },
           agent.client_id
         );
-        safeNotify({ type: "comment_created", projectId: thread.thread.project_id, threadId: thread_id, threadTitle: thread.thread.title, commentId: result.id, excerpt: body_markdown.slice(0, 200) });
+        safeNotify({ type: "comment_created", projectId: thread.thread.project_id, threadId: thread_id, threadTitle: thread.thread.title, commentId: result.id, bodyMarkdown: body_markdown });
         return ok(result);
       } catch (e) {
         return dbError(e);
@@ -326,7 +326,7 @@ export function registerTools(
         const body_html = await toHtml(body_markdown);
         const result = await db.updateComment(supabase, comment_id, { body_markdown, body_html });
         if (!result) return notFound(comment_id);
-        safeNotify({ type: "comment_updated", threadId: result.thread_id, commentId: result.id, excerpt: body_markdown.slice(0, 200) });
+        safeNotify({ type: "comment_updated", threadId: result.thread_id, commentId: result.id, bodyMarkdown: body_markdown });
         return ok(result);
       } catch (e) {
         return dbError(e);

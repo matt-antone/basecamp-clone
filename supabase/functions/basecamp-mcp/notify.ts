@@ -12,10 +12,10 @@ import {
 } from "../../../lib/mailer.ts";
 
 export type NotifyEvent =
-  | { type: "comment_created"; projectId: string; threadId: string; threadTitle: string; commentId: string; excerpt: string }
-  | { type: "comment_updated"; threadId: string; commentId: string; excerpt: string }
-  | { type: "thread_created"; projectId: string; threadId: string; threadTitle: string }
-  | { type: "thread_updated"; projectId: string; threadId: string; threadTitle: string }
+  | { type: "comment_created"; projectId: string; threadId: string; threadTitle: string; commentId: string; bodyMarkdown: string }
+  | { type: "comment_updated"; threadId: string; commentId: string; bodyMarkdown: string }
+  | { type: "thread_created"; projectId: string; threadId: string; threadTitle: string; bodyMarkdown: string }
+  | { type: "thread_updated"; projectId: string; threadId: string; threadTitle: string; bodyMarkdown: string }
   | { type: "project_created"; projectId: string }
   | { type: "project_updated"; projectId: string };
 
@@ -67,9 +67,9 @@ export function notifyBestEffort(
             recipients,
             actor,
             project,
-            thread: { id: event.threadId, title: event.threadTitle },
+            thread: { id: event.threadId, title: event.threadTitle, bodyMarkdown: "" },
             threadUrl: `${appUrl}/${resolvedProjectId}/${event.threadId}`,
-            comment: { id: event.commentId, excerpt: event.excerpt },
+            comment: { id: event.commentId, bodyMarkdown: event.bodyMarkdown },
           });
           break;
         }
@@ -80,9 +80,9 @@ export function notifyBestEffort(
             recipients,
             actor,
             project,
-            thread: { id: thread.id, title: thread.title },
+            thread: { id: thread.id, title: thread.title, bodyMarkdown: "" },
             threadUrl: `${appUrl}/${resolvedProjectId}/${thread.id}`,
-            comment: { id: event.commentId, excerpt: event.excerpt },
+            comment: { id: event.commentId, bodyMarkdown: event.bodyMarkdown },
           });
           break;
         }
@@ -91,7 +91,7 @@ export function notifyBestEffort(
             recipients,
             actor,
             project,
-            thread: { id: event.threadId, title: event.threadTitle },
+            thread: { id: event.threadId, title: event.threadTitle, bodyMarkdown: event.bodyMarkdown },
             threadUrl: `${appUrl}/${resolvedProjectId}/${event.threadId}`,
           });
           break;
@@ -101,7 +101,7 @@ export function notifyBestEffort(
             recipients,
             actor,
             project,
-            thread: { id: event.threadId, title: event.threadTitle },
+            thread: { id: event.threadId, title: event.threadTitle, bodyMarkdown: event.bodyMarkdown },
             threadUrl: `${appUrl}/${resolvedProjectId}/${event.threadId}`,
           });
           break;

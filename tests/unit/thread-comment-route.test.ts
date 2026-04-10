@@ -83,11 +83,11 @@ describe("POST /projects/[id]/threads/[threadId]/comments", () => {
       expect.objectContaining({
         actor: { name: "Alex Author", email: "author@example.com" },
         project: expect.objectContaining({ id: "project-1", name: "Blue Sky" }),
-        thread: { id: "thread-1", title: "Kickoff notes" },
+        thread: { id: "thread-1", title: "Kickoff notes", bodyMarkdown: "" },
         recipients: [{ email: "jamie@example.com", name: "Jamie Teammate" }],
         comment: {
           id: "comment-1",
-          excerpt: "This is a thoughtful follow up comment."
+          bodyMarkdown: "This is a thoughtful follow-up comment."
         }
       })
     );

@@ -113,7 +113,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
           },
           thread: {
             id: thread.id,
-            title: thread.title
+            title: thread.title,
+            bodyMarkdown: payload.bodyMarkdown
           },
           threadUrl
         });

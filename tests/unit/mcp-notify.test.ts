@@ -33,14 +33,14 @@ describe("notifyBestEffort — event routing", () => {
       threadId: "t-1",
       threadTitle: "Kickoff",
       commentId: "c-1",
-      excerpt: "Hello",
+      bodyMarkdown: "Hello",
     });
     await flush();
     expect(spy).toHaveBeenCalledOnce();
     expect(spy.mock.calls[0][0]).toMatchObject({
       actor: { name: "HAL 9000", email: "" },
       thread: { id: "t-1", title: "Kickoff" },
-      comment: { id: "c-1", excerpt: "Hello" },
+      comment: { id: "c-1", bodyMarkdown: "Hello" },
     });
   });
 
@@ -51,14 +51,14 @@ describe("notifyBestEffort — event routing", () => {
       type: "comment_updated",
       threadId: "t-1",
       commentId: "c-1",
-      excerpt: "Updated content",
+      bodyMarkdown: "Updated content",
     });
     await flush();
     expect(db.getThreadForNotification).toHaveBeenCalledWith(mockSupabase, "t-1");
     expect(spy).toHaveBeenCalledOnce();
     expect(spy.mock.calls[0][0]).toMatchObject({
       thread: { id: "t-1", title: "Kickoff" },
-      comment: { id: "c-1", excerpt: "Updated content" },
+      comment: { id: "c-1", bodyMarkdown: "Updated content" },
     });
   });
 
@@ -70,6 +70,7 @@ describe("notifyBestEffort — event routing", () => {
       projectId: "p-1",
       threadId: "t-1",
       threadTitle: "Kickoff",
+      bodyMarkdown: "",
     });
     await flush();
     expect(spy).toHaveBeenCalledOnce();
@@ -86,6 +87,7 @@ describe("notifyBestEffort — event routing", () => {
       projectId: "p-1",
       threadId: "t-1",
       threadTitle: "Kickoff Updated",
+      bodyMarkdown: "",
     });
     await flush();
     expect(spy).toHaveBeenCalledOnce();

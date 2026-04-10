@@ -1,5 +1,5 @@
 import { requireUser } from "@/lib/auth";
-import { createCommentExcerpt, sendCommentCreatedEmail } from "@/lib/mailer";
+import { sendCommentCreatedEmail } from "@/lib/mailer";
 import { badRequest, conflict, notFound, ok, serverError, unauthorized } from "@/lib/http";
 import {
   assertClientNotArchivedForMutation,
@@ -113,11 +113,12 @@ export async function POST(
           },
           thread: {
             id: threadId,
-            title: thread.title
+            title: thread.title,
+            bodyMarkdown: ""
           },
           comment: {
             id: comment.id,
-            excerpt: createCommentExcerpt(payload.bodyMarkdown)
+            bodyMarkdown: payload.bodyMarkdown
           },
           threadUrl
         });

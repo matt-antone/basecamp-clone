@@ -1,4 +1,5 @@
 import { config } from "./config-core.ts";
+import { marked } from "marked";
 
 export type MailRecipient = {
   email: string;
@@ -8,6 +9,12 @@ export type MailRecipient = {
 function buildProjectLabel(project: { name: string; client_code?: string | null; project_code?: string | null }): string {
   const parts = [project.project_code ?? project.client_code, project.name].filter(Boolean);
   return parts.join("-");
+}
+
+marked.setOptions({ gfm: true, breaks: true });
+
+function markdownToEmailHtml(md: string): string {
+  return marked.parse(md, { async: false }) as string;
 }
 
 type ThreadEmailArgs = {
@@ -25,6 +32,7 @@ type ThreadEmailArgs = {
   thread: {
     id: string;
     title: string;
+    bodyMarkdown: string;
   };
   threadUrl: string;
 };
@@ -32,7 +40,7 @@ type ThreadEmailArgs = {
 type CommentEmailArgs = ThreadEmailArgs & {
   comment: {
     id: string;
-    excerpt: string;
+    bodyMarkdown: string;
   };
 };
 
@@ -77,19 +85,6 @@ export function resetMailerForTests() {
   // No-op retained for compatibility with existing tests/importers.
 }
 
-export function createCommentExcerpt(bodyMarkdown: string, maxLength = 180) {
-  const normalized = bodyMarkdown
-    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, "$1")
-    .replace(/[`*_>#-]/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-
-  if (normalized.length <= maxLength) {
-    return normalized;
-  }
-
-  return `${normalized.slice(0, maxLength - 1).trimEnd()}...`;
-}
 
 export async function sendMail(args: {
   recipients: MailRecipient[];
@@ -149,6 +144,7 @@ export async function sendThreadCreatedEmail(args: ThreadEmailArgs) {
   const escapedProjectName = escapeHtml(args.project.name);
   const escapedThreadTitle = escapeHtml(args.thread.title);
   const escapedThreadUrl = escapeHtml(args.threadUrl);
+  const bodyHtml = markdownToEmailHtml(args.thread.bodyMarkdown);
 
   return sendMail({
     recipients: args.recipients,
@@ -157,13 +153,15 @@ export async function sendThreadCreatedEmail(args: ThreadEmailArgs) {
       `${args.actor.name} started a new discussion in ${args.project.name}.`,
       "",
       `Thread: ${args.thread.title}`,
+      args.thread.bodyMarkdown,
       `Open: ${args.threadUrl}`
     ].join("\n"),
     html: [
       "<div style=\"font-family: Arial, sans-serif; color: #1f2937; line-height: 1.5;\">",
       `<p><strong>${escapedActorName}</strong> started a new discussion in <strong>${escapedProjectName}</strong>.</p>`,
       `<p><strong>Thread:</strong> ${escapedThreadTitle}</p>`,
-      `<p><a href=\"${escapedThreadUrl}\">Open discussion</a></p>`,
+      bodyHtml,
+      `<p><a href="${escapedThreadUrl}">Open discussion</a></p>`,
       "</div>"
     ].join("")
   });
@@ -175,8 +173,8 @@ export async function sendCommentCreatedEmail(args: CommentEmailArgs) {
   const escapedActorName = escapeHtml(args.actor.name);
   const escapedProjectName = escapeHtml(args.project.name);
   const escapedThreadTitle = escapeHtml(args.thread.title);
-  const escapedExcerpt = escapeHtml(args.comment.excerpt);
   const escapedThreadUrl = escapeHtml(args.threadUrl);
+  const commentBodyHtml = markdownToEmailHtml(args.comment.bodyMarkdown);
 
   return sendMail({
     recipients: args.recipients,
@@ -185,15 +183,15 @@ export async function sendCommentCreatedEmail(args: CommentEmailArgs) {
       `${args.actor.name} commented on a discussion in ${args.project.name}.`,
       "",
       `Thread: ${args.thread.title}`,
-      `Comment: ${args.comment.excerpt}`,
+      args.comment.bodyMarkdown,
       `Open: ${args.threadUrl}`
     ].join("\n"),
     html: [
       "<div style=\"font-family: Arial, sans-serif; color: #1f2937; line-height: 1.5;\">",
       `<p><strong>${escapedActorName}</strong> commented on a discussion in <strong>${escapedProjectName}</strong>.</p>`,
       `<p><strong>Thread:</strong> ${escapedThreadTitle}</p>`,
-      `<p style=\"padding: 12px; border-left: 3px solid #d1d5db; background: #f9fafb;\">${escapedExcerpt}</p>`,
-      `<p><a href=\"${escapedThreadUrl}\">Open discussion</a></p>`,
+      commentBodyHtml,
+      `<p><a href="${escapedThreadUrl}">Open discussion</a></p>`,
       "</div>"
     ].join("")
   });
@@ -205,8 +203,8 @@ export async function sendCommentUpdatedEmail(args: CommentEmailArgs) {
   const escapedActorName = escapeHtml(args.actor.name);
   const escapedProjectName = escapeHtml(args.project.name);
   const escapedThreadTitle = escapeHtml(args.thread.title);
-  const escapedExcerpt = escapeHtml(args.comment.excerpt);
   const escapedThreadUrl = escapeHtml(args.threadUrl);
+  const commentBodyHtml = markdownToEmailHtml(args.comment.bodyMarkdown);
 
   return sendMail({
     recipients: args.recipients,
@@ -215,14 +213,14 @@ export async function sendCommentUpdatedEmail(args: CommentEmailArgs) {
       `${args.actor.name} updated a comment in ${args.project.name}.`,
       "",
       `Thread: ${args.thread.title}`,
-      `Comment: ${args.comment.excerpt}`,
+      args.comment.bodyMarkdown,
       `Open: ${args.threadUrl}`
     ].join("\n"),
     html: [
       "<div style=\"font-family: Arial, sans-serif; color: #1f2937; line-height: 1.5;\">",
       `<p><strong>${escapedActorName}</strong> updated a comment in <strong>${escapedProjectName}</strong>.</p>`,
       `<p><strong>Thread:</strong> ${escapedThreadTitle}</p>`,
-      `<p style="padding: 12px; border-left: 3px solid #d1d5db; background: #f9fafb;">${escapedExcerpt}</p>`,
+      commentBodyHtml,
       `<p><a href="${escapedThreadUrl}">Open discussion</a></p>`,
       "</div>"
     ].join("")
@@ -236,6 +234,7 @@ export async function sendThreadUpdatedEmail(args: ThreadEmailArgs) {
   const escapedProjectName = escapeHtml(args.project.name);
   const escapedThreadTitle = escapeHtml(args.thread.title);
   const escapedThreadUrl = escapeHtml(args.threadUrl);
+  const bodyHtml = markdownToEmailHtml(args.thread.bodyMarkdown);
 
   return sendMail({
     recipients: args.recipients,
@@ -244,12 +243,14 @@ export async function sendThreadUpdatedEmail(args: ThreadEmailArgs) {
       `${args.actor.name} updated a discussion in ${args.project.name}.`,
       "",
       `Thread: ${args.thread.title}`,
+      args.thread.bodyMarkdown,
       `Open: ${args.threadUrl}`
     ].join("\n"),
     html: [
       "<div style=\"font-family: Arial, sans-serif; color: #1f2937; line-height: 1.5;\">",
       `<p><strong>${escapedActorName}</strong> updated a discussion in <strong>${escapedProjectName}</strong>.</p>`,
       `<p><strong>Thread:</strong> ${escapedThreadTitle}</p>`,
+      bodyHtml,
       `<p><a href="${escapedThreadUrl}">Open discussion</a></p>`,
       "</div>"
     ].join("")

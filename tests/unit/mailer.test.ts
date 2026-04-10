@@ -46,7 +46,7 @@ describe("mailer", () => {
       recipients: [{ email: "teammate@example.com", name: "Jamie Teammate" }],
       actor: { name: "Alex Author", email: "alex@example.com" },
       project: { id: "project-1", name: "Blue Sky" },
-      thread: { id: "thread-1", title: "Kickoff notes" },
+      thread: { id: "thread-1", title: "Kickoff notes", bodyMarkdown: "**Opening post**" },
       threadUrl: "https://app.example.com/project-1/thread-1"
     });
 
@@ -69,6 +69,7 @@ describe("mailer", () => {
     expect(body.getAll("to")).toEqual(['"Jamie Teammate" <teammate@example.com>']);
     expect(body.get("subject")).toBe("[Blue Sky] New discussion: Kickoff notes");
     expect(body.get("text")).toContain("Open: https://app.example.com/project-1/thread-1");
+    expect(body.get("html")).toContain("<strong>Opening post</strong>");
   });
 
   it("buildProjectLabel: canonical project_code produces no duplicate prefix", async () => {
@@ -78,7 +79,7 @@ describe("mailer", () => {
       recipients: [{ email: "a@example.com" }],
       actor: { name: "AI", email: "" },
       project: { id: "p-1", name: "Website Changes", project_code: "JFLA-0450" },
-      thread: { id: "t-1", title: "Scope review" },
+      thread: { id: "t-1", title: "Scope review", bodyMarkdown: "" },
       threadUrl: "https://app.example.com/p-1/t-1",
     });
     const body = new URLSearchParams(fetchMock.mock.calls[0][1].body as string);
@@ -94,11 +95,12 @@ describe("mailer", () => {
       project: { id: "p-1", name: "Acme Site", project_code: "AC-0001" },
       thread: { id: "t-1", title: "Design Review" },
       threadUrl: "https://app.example.com/p-1/t-1",
-      comment: { id: "c-1", excerpt: "Looks good to me" },
+      comment: { id: "c-1", bodyMarkdown: "**Looks good** to me" },
     });
     expect(result).toMatchObject({ skipped: false, recipientCount: 1 });
     const body = new URLSearchParams(fetchMock.mock.calls[0][1].body as string);
     expect(body.get("subject")).toBe("[AC-0001-Acme Site] Comment updated on: Design Review");
+    expect(body.get("html")).toContain("<strong>Looks good</strong>");
   });
 
   it("sendThreadUpdatedEmail: subject contains [label] and thread title", async () => {
@@ -108,7 +110,7 @@ describe("mailer", () => {
       recipients: [{ email: "a@example.com" }],
       actor: { name: "AI", email: "" },
       project: { id: "p-1", name: "Acme Site", project_code: "AC-0001" },
-      thread: { id: "t-1", title: "Design Review" },
+      thread: { id: "t-1", title: "Design Review", bodyMarkdown: "" },
       threadUrl: "https://app.example.com/p-1/t-1",
     });
     expect(result).toMatchObject({ skipped: false, recipientCount: 1 });
