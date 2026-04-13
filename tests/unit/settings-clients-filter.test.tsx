@@ -1,7 +1,7 @@
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import { SettingsPageContent } from "@/app/settings/page";
+import { SettingsPageContent } from "@/app/settings/_settings-page-content";
 import type { ClientRecord } from "@/lib/types/client-record";
 
 function makeClient(overrides: Partial<ClientRecord> = {}): ClientRecord {
