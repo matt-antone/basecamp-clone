@@ -1727,6 +1727,16 @@ textarea {
   border-top: 1px solid color-mix(in srgb, var(--panel-border) 78%, transparent);
 }
 
+.settingsClientFilter {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.settingsClientFilterCount {
+  font-variant-numeric: tabular-nums;
+}
+
 .settingsClientList {
   list-style: none;
   margin: 0;
