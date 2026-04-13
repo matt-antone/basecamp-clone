@@ -46,6 +46,11 @@ describe("isClientArchived", () => {
   it("returns true when archived_at is a non-empty ISO string", () => {
     expect(isClientArchived(ARCHIVED_C)).toBe(true);
   });
+
+  // Boolean("") === false — an empty string must NOT be treated as archived.
+  it("returns false when archived_at is an empty string", () => {
+    expect(isClientArchived(makeClient({ archived_at: "" }))).toBe(false);
+  });
 });
 
 describe("filterClientsByArchiveState", () => {

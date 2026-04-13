@@ -104,4 +104,47 @@ describe("SettingsPageContent clients filter", () => {
     expect(markup).toContain("(0)");
     expect(markup).toContain("(1)");
   });
+
+  it("shows (0) archived count badge when every client is active", () => {
+    const markup = renderToStaticMarkup(
+      <SettingsPageContent
+        initial={{
+          ...BASE_INITIAL,
+          clients: [
+            activeClient("1", "Acme"),
+            activeClient("2", "Bravo"),
+            activeClient("3", "Charlie")
+          ]
+        }}
+      />
+    );
+    // Active count badge reflects total, archived count badge shows (0)
+    expect(markup).toContain("(3)");
+    // Verify the zero appears inside the archived-tab count span, not just anywhere
+    expect(markup).toMatch(/Archived\s*<span[^>]*>\(0\)<\/span>/);
+  });
+
+  it("keeps a client with dropbox_archive_status 'archiving' visible in the Active list (archived_at still null)", () => {
+    const inFlightClient = makeClient({
+      id: "inflight-1",
+      name: "In-Flight Corp",
+      code: "IFC",
+      archived_at: null,
+      dropbox_archive_status: "archiving"
+    });
+    const markup = renderToStaticMarkup(
+      <SettingsPageContent
+        initial={{
+          ...BASE_INITIAL,
+          clients: [inFlightClient, activeClient("2", "Other Active")]
+        }}
+      />
+    );
+    // The client whose Dropbox archive is in progress but whose archived_at is null
+    // must still appear in the Active list (pollingIds behaviour requires this).
+    expect(markup).toContain("In-Flight Corp");
+    expect(markup).toContain("Other Active");
+    // Both are active — count badge should read (2)
+    expect(markup).toMatch(/Active\s*<span[^>]*>\(2\)<\/span>/);
+  });
 });
