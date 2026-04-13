@@ -1,5 +1,6 @@
 "use client";
 
+import React from "react";
 import Link from "next/link";
 import { PageLoadingState } from "@/components/loading-shells";
 import { OneShotButton } from "@/components/one-shot-button";
@@ -14,7 +15,8 @@ import {
   normalizeSiteTitle
 } from "@/lib/site-branding";
 import type { ClientRecord } from "@/lib/types/client-record";
-import { useEffect, useRef, useState } from "react";
+import { partitionClientsByArchiveState } from "@/lib/clients-filter";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 type UserProfileRecord = {
   id: string;
@@ -272,13 +274,22 @@ function areClientListsEqual(a: string[], b: string[]) {
   return a.length === b.length && a.every((value, index) => value === b[index]);
 }
 
-function SettingsPageContent({ initial }: { initial: SettingsBootstrap }) {
+export function SettingsPageContent({ initial }: { initial: SettingsBootstrap }) {
   const [token, setToken] = useState(initial.token);
   const [googleAvatarUrl] = useState(initial.googleAvatarUrl);
   const [status, setStatus] = useState(initial.status);
   const [tab, setTab] = useState<"clients" | "profile" | "site">("clients");
 
   const [clients, setClients] = useState<ClientRecord[]>(initial.clients);
+  const [clientFilter, setClientFilter] = useState<"active" | "archived">("active");
+  const { activeClients, archivedClients, visibleClients } = useMemo(() => {
+    const { active, archived } = partitionClientsByArchiveState(clients);
+    return {
+      activeClients: active,
+      archivedClients: archived,
+      visibleClients: clientFilter === "active" ? active : archived
+    };
+  }, [clients, clientFilter]);
   const clientDialogRef = useRef<HTMLDialogElement>(null);
   const [clientEditingId, setClientEditingId] = useState<string | null>(null);
   const [clientDialogName, setClientDialogName] = useState("");
@@ -590,11 +601,40 @@ function SettingsPageContent({ initial }: { initial: SettingsBootstrap }) {
             </OneShotButton>
           </div>
 
+          <div
+            role="tablist"
+            aria-label="Client filter"
+            className="settingsClientFilter"
+          >
+            <button
+              type="button"
+              role="tab"
+              aria-selected={clientFilter === "active"}
+              className={clientFilter === "active" ? "tabButton activeTab" : "tabButton"}
+              onClick={() => setClientFilter("active")}
+            >
+              Active <span className="settingsClientFilterCount">({activeClients.length})</span>
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={clientFilter === "archived"}
+              className={clientFilter === "archived" ? "tabButton activeTab" : "tabButton"}
+              onClick={() => setClientFilter("archived")}
+            >
+              Archived <span className="settingsClientFilterCount">({archivedClients.length})</span>
+            </button>
+          </div>
+
           {clients.length === 0 ? (
             <p className="status">No clients yet. Add your first client to start assigning projects.</p>
+          ) : visibleClients.length === 0 ? (
+            <p className="status">
+              {clientFilter === "active" ? "No active clients." : "No archived clients."}
+            </p>
           ) : (
             <ul className="settingsClientList">
-              {clients.map((client) => (
+              {visibleClients.map((client) => (
                 <li key={client.id} className="settingsClientRow">
                   <div className="settingsClientRowBody">
                     <div className="settingsClientRowMain">
