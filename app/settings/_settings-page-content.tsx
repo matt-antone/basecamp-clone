@@ -540,6 +540,7 @@ export function SettingsPageContent({ initial }: { initial: SettingsBootstrap })
         <section className="stackSection">
           <h2 className="profileTitle">
             {displayedAvatarUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
               <img src={getAvatarProxyUrl(displayedAvatarUrl)} alt="Profile avatar" className="profileAvatar" />
             ) : (
               <span className="profileAvatarFallback">{(profile.firstName || profile.email || "U").charAt(0).toUpperCase()}</span>
@@ -670,7 +671,7 @@ export function SettingsPageContent({ initial }: { initial: SettingsBootstrap })
             </label>
             {clientEditingId ? (
               <p id="client-code-immutable-note" className="dialogFieldHint">
-                Code can't be changed after the client is created.
+                Code can&apos;t be changed after the client is created.
               </p>
             ) : null}
             {clientDialogError ? (
@@ -730,6 +731,7 @@ export function SettingsPageContent({ initial }: { initial: SettingsBootstrap })
 
             <p className="siteBrandPreviewLabel">Preview</p>
             <div className="siteBrandPreview" aria-label="Site branding preview">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={siteSettings.logoUrl.trim() || DEFAULT_SITE_LOGO_URL}
                 alt={`${siteSettings.siteTitle.trim() || DEFAULT_SITE_TITLE} logo preview`}
