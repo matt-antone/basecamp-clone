@@ -15,3 +15,13 @@ export function renderMarkdown(input: string) {
     allowedSchemes: ["http", "https", "mailto"]
   });
 }
+
+export function markdownToPlainText(input: string | null | undefined): string {
+  if (!input) return "";
+  const html = marked.parse(input, { async: false }) as string;
+  const stripped = sanitizeHtml(html, {
+    allowedTags: [],
+    allowedAttributes: {}
+  });
+  return stripped.replace(/\s+/g, " ").trim();
+}
