@@ -1,8 +1,10 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { authedJsonFetch } from "@/lib/browser-auth";
+import { buildArchiveProjectsUrl } from "@/lib/archive-projects-url";
 import { OneShotButton } from "@/components/one-shot-button";
+import { useProjectsWorkspace } from "@/components/projects/projects-workspace-context";
 import { ArchiveProjectRow, type ArchiveProjectItem } from "./archive-project-row";
 
 type ArchiveResult = {
@@ -18,12 +20,24 @@ type Props = {
   onToken: (token: string | null) => void;
   onRestore: (project: ArchiveProjectItem) => Promise<void>;
   onOpenCreateDialog: () => void;
-  filterClientId?: string | null;
 };
 
-export function ArchiveTab({ accessToken, onToken, onRestore, onOpenCreateDialog, filterClientId = null }: Props) {
+export function ArchiveTab({ accessToken, onToken, onRestore, onOpenCreateDialog }: Props) {
+  const { clients } = useProjectsWorkspace();
   const [searchValue, setSearchValue] = useState("");
   const [page, setPage] = useState(1);
+  const [filterClientId, setFilterClientId] = useState<string | null>(null);
+
+  const clientOptions = useMemo(
+    () =>
+      [...clients]
+        .sort((a, b) => a.name.localeCompare(b.name))
+        .map((c) => ({
+          id: c.id,
+          label: c.archived_at ? `${c.name} (Archived)` : c.name
+        })),
+    [clients]
+  );
   const [result, setResult] = useState<ArchiveResult | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -49,16 +63,11 @@ export function ArchiveTab({ accessToken, onToken, onRestore, onOpenCreateDialog
     setLoading(true);
     setError(null);
 
-    const params = new URLSearchParams({
-      search: debouncedSearch,
-      page: String(page),
-      limit: "20"
-    });
-    if (filterClientId) {
-      params.set("clientId", filterClientId);
-    }
-
-    authedJsonFetch({ accessToken, onToken, path: `/projects/archived?${params}` })
+    authedJsonFetch({
+      accessToken,
+      onToken,
+      path: buildArchiveProjectsUrl({ search: debouncedSearch, page, clientId: filterClientId })
+    })
       .then(({ data }) => {
         if (!cancelled) {
           setResult(data as unknown as ArchiveResult);
@@ -94,17 +103,38 @@ export function ArchiveTab({ accessToken, onToken, onRestore, onOpenCreateDialog
       </div>
       <section className="projectsFilterShelf">
         <div className="projectsFilterControls">
-          <label className="projectsSearchShell">
-            <span className="projectsSearchLabel sr-only">Find</span>
-            <input
-              className="projectsSearchInput"
-              value={searchValue}
-              onChange={(e) => setSearchValue(e.target.value)}
-              placeholder="Search archived projects"
-              aria-label="Search archived projects"
-            />
-            <span className="projectsSearchHint">/</span>
-          </label>
+          <div className="projectsFilterToolbar">
+            <label className="projectsFilterField projectsClientFilterField">
+              <span className="projectsFilterLabel">Client</span>
+              <select
+                className="projectsClientSelect"
+                value={filterClientId ?? ""}
+                onChange={(e) => {
+                  setFilterClientId(e.target.value || null);
+                  setPage(1);
+                }}
+                aria-label="Filter archived projects by client"
+              >
+                <option value="">All clients</option>
+                {clientOptions.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="projectsFilterField projectsSearchShell">
+              <span className="projectsSearchLabel sr-only">Find</span>
+              <input
+                className="projectsSearchInput"
+                value={searchValue}
+                onChange={(e) => setSearchValue(e.target.value)}
+                placeholder="Search archived projects"
+                aria-label="Search archived projects"
+              />
+              <span className="projectsSearchHint">/</span>
+            </label>
+          </div>
         </div>
         <div className="projectsResultsMeta">
           {!loading && result && (
