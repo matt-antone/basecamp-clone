@@ -2076,7 +2076,7 @@ button {
   overflow: hidden;
 }
 
-.dialogCreateDiscussion .commentMdxContent {
+.dialogCreateDiscussion .commentMdxEditor .markdownContent {
   flex: 1 1 auto;
   display: block;
   min-height: 0;
@@ -3287,7 +3287,7 @@ li.active {
   color: var(--md-editor-icon-active);
 }
 
-.commentMdxContent {
+.commentMdxEditor .markdownContent {
   min-height: 160px;
 }
 
