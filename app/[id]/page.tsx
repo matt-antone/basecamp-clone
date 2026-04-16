@@ -12,6 +12,7 @@ import { getAvatarProxyUrl } from "@/lib/avatar";
 import { authedFormDataFetch, authedJsonFetch, fetchAuthSession } from "@/lib/browser-auth";
 import { createClientResource } from "@/lib/client-resource";
 import { calculateProjectExpensesTotalUsd, formatUsdInput, formatUsdMoney } from "@/lib/project-financials";
+import { renderMarkdown } from "@/lib/markdown";
 import { createProjectDialogValues, formatProjectDeadlineLocal, normalizeProjectColumn, parseProjectTags } from "@/lib/project-utils";
 import type { ClientRecord } from "@/lib/types/client-record";
 import { useEffect, useRef, useState } from "react";
@@ -537,7 +538,12 @@ function ProjectPageContent({ projectId, initial }: { projectId: string; initial
             ) : null}
           </h1>
           {project?.deadline ? <p className="headerSubtitle">Deadline: {formatProjectDeadlineLocal(project.deadline) ?? project.deadline}</p> : null}
-          {projectDescription ? <p className="headerSubtitle">{projectDescription}</p> : null}
+          {projectDescription ? (
+            <div
+              className="markdownContent headerSubtitle"
+              dangerouslySetInnerHTML={{ __html: renderMarkdown(projectDescription) }}
+            />
+          ) : null}
           {/* <ProjectTagList tags={project?.tags} className="projectHeaderTags" /> */}
           <div className="projectHoursRow">
             {project?.archived ? (

@@ -33,7 +33,7 @@ export default function MarkdownEditor(props: MarkdownEditorProps) {
       placeholder={props.placeholder}
       overlayContainer={props.overlayContainer ?? undefined}
       className="commentMdxEditor"
-      contentEditableClassName="commentMdxContent"
+      contentEditableClassName="markdownContent"
       plugins={[
         headingsPlugin(),
         listsPlugin(),
