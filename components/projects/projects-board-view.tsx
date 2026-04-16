@@ -3,6 +3,7 @@ import Link from "next/link";
 import { type CSSProperties, type DragEvent, type ReactNode } from "react";
 import { OneShotButton } from "@/components/one-shot-button";
 import { ProjectTagList } from "@/components/project-tag-list";
+import { markdownToPlainText } from "@/lib/markdown";
 import {
   formatProjectCreatedAtLocal,
   formatProjectDeadlineLocal,
@@ -158,7 +159,7 @@ export function ProjectsBoardView(props: ProjectsBoardViewProps) {
                           </p>
                         ) : null}
                         <p className="projectDescription projectFlowCardDescription line-clamp-2">
-                          {project.description?.trim() || "No description provided."}
+                          {markdownToPlainText(project.description).trim() || "No description provided."}
                         </p>
                         {/* <ProjectTagList tags={project.tags} className="projectTagListCompact" /> */}
                       </div>

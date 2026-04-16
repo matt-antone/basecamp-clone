@@ -3,6 +3,7 @@ import Link from "next/link";
 import { type CSSProperties, type FocusEvent, type ReactNode } from "react";
 import { OneShotButton } from "@/components/one-shot-button";
 import { ProjectTagList } from "@/components/project-tag-list";
+import { markdownToPlainText } from "@/lib/markdown";
 import {
   formatProjectCreatedAtLocal,
   formatProjectDeadlineLocal,
@@ -167,7 +168,7 @@ export function ProjectsListView(props: ProjectsListViewProps) {
                         {renderProjectTitle(project.display_name ?? project.name)}
                       </Link>
                     </div>
-                    <p className="projectDescription">{project.description?.trim() || "No description provided."}</p>
+                    <p className="projectDescription">{markdownToPlainText(project.description).trim() || "No description provided."}</p>
                     {project.pm_note?.trim() ? (
                       <p className="projectPmNote" title={project.pm_note.trim()}>
                         {project.pm_note.trim()}
