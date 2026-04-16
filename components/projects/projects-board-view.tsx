@@ -7,6 +7,7 @@ import { markdownToPlainText } from "@/lib/markdown";
 import {
   formatProjectCreatedAtLocal,
   formatProjectDeadlineLocal,
+  hasMissingHours,
   normalizeProjectColumn,
   type ProjectColumn
 } from "@/lib/project-utils";
@@ -33,6 +34,7 @@ type ProjectBoardItem = {
   created_at?: string | null;
   deadline?: string | null;
   pm_note?: string | null;
+  total_hours?: number | string | null;
 };
 
 export type ProjectsBoardViewProps = {
@@ -152,6 +154,11 @@ export function ProjectsBoardView(props: ProjectsBoardViewProps) {
                               Due: {deadlineLabel}
                             </time>
                           ) : null}
+                          {hasMissingHours(project) && (
+                            <span className="projectMissingHours" role="status">
+                              Missing hours
+                            </span>
+                          )}
                         </div>
                         {project.pm_note?.trim() ? (
                           <p className="projectPmNote" title={project.pm_note.trim()}>

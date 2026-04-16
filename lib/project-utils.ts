@@ -21,6 +21,26 @@ export function normalizeProjectColumn(projectRecord: { status?: string | null }
   return "new";
 }
 
+function coerceHoursTotal(value: number | string | null | undefined): number {
+  if (value === null || value === undefined || value === "") return 0;
+  const parsed = typeof value === "number" ? value : Number(value);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+/**
+ * A project is "missing hours" when it has reached billing/complete state
+ * but no hours have been logged yet. Used to flag jobs waiting on billing
+ * or marked complete without any recorded effort.
+ */
+export function hasMissingHours(
+  projectRecord: { status?: string | null; total_hours?: number | string | null } | null | undefined
+): boolean {
+  const status = (projectRecord?.status ?? "").toLowerCase();
+  const eligible = status === "billing" || status === "complete" || status === "completed";
+  if (!eligible) return false;
+  return coerceHoursTotal(projectRecord?.total_hours) <= 0;
+}
+
 export function parseProjectTags(value: string) {
   return Array.from(
     new Set(

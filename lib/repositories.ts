@@ -292,7 +292,11 @@ const projectListSelectColumns = `p.*, c.name as client_name, c.code as client_c
            (select count(*)::int from discussion_threads t where t.project_id = p.id) +
            (select count(*)::int from discussion_comments dc where dc.project_id = p.id)
          ) as discussion_count,
-         (select count(*)::int from project_files f where f.project_id = p.id) as file_count`;
+         (select count(*)::int from project_files f where f.project_id = p.id) as file_count,
+         coalesce(
+           (select sum(puh.hours) from project_user_hours puh where puh.project_id = p.id),
+           0
+         )::numeric as total_hours`;
 
 export type ListProjectsOptions = {
   clientId?: string | null;

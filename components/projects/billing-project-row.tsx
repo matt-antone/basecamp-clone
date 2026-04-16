@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { OneShotButton } from "@/components/one-shot-button";
 import { ProjectTagList } from "@/components/project-tag-list";
-import { normalizeProjectColumn } from "@/lib/project-utils";
+import { hasMissingHours, normalizeProjectColumn } from "@/lib/project-utils";
 
 export type BillingProjectItem = {
   id: string;
@@ -14,6 +14,7 @@ export type BillingProjectItem = {
   status?: string | null;
   client_name?: string | null;
   client_code?: string | null;
+  total_hours?: number | string | null;
 };
 
 type Props = {
@@ -26,6 +27,7 @@ export function BillingProjectRow({ project, onArchive, onReopen }: Props) {
   const column = normalizeProjectColumn(project);
   const clientLabel = project.client_name?.trim() || project.client_code?.trim() || null;
   const title = project.display_name ?? project.name;
+  const missingHours = hasMissingHours(project);
 
   return (
     <li className="archiveProjectRow">
@@ -33,6 +35,11 @@ export function BillingProjectRow({ project, onArchive, onReopen }: Props) {
       <div className="archiveProjectBody">
         <div className="archiveProjectMeta">
           {clientLabel && <span className="archiveProjectClient">{clientLabel}</span>}
+          {missingHours && (
+            <span className="projectMissingHours" role="status">
+              Missing hours
+            </span>
+          )}
         </div>
         <h3 className="archiveProjectTitle">
           <Link href={`/${project.id}`} className="archiveProjectLink">

@@ -7,6 +7,7 @@ import { markdownToPlainText } from "@/lib/markdown";
 import {
   formatProjectCreatedAtLocal,
   formatProjectDeadlineLocal,
+  hasMissingHours,
   normalizeProjectColumn,
   type ProjectColumn
 } from "@/lib/project-utils";
@@ -33,6 +34,7 @@ type ProjectListItem = {
   created_at?: string | null;
   deadline?: string | null;
   pm_note?: string | null;
+  total_hours?: number | string | null;
 };
 
 type ProjectGroup = {
@@ -200,6 +202,11 @@ export function ProjectsListView(props: ProjectsListViewProps) {
                         </time>
                       ) : null}
                     </div>
+                    {hasMissingHours(project) && (
+                      <span className="projectMissingHours" role="status">
+                        Missing hours
+                      </span>
+                    )}
                   </div>
                 </li>
               );

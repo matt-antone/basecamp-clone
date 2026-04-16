@@ -2462,6 +2462,26 @@ li.active {
   gap: 5px;
 }
 
+.projectMissingHours {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.08rem 0;
+  color: color-mix(in oklch, var(--projects-blocked) 72%, var(--text-muted));
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  line-height: 1;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.projectMissingHours::before {
+  content: "•";
+  font-size: 0.85rem;
+  line-height: 0;
+}
+
 .projectHeaderCopy {
   display: grid;
   gap: 0.7rem;
