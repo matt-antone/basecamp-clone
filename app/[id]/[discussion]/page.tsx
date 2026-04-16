@@ -4,6 +4,7 @@ import Link from "next/link";
 import dynamic from "next/dynamic";
 import { AttachmentCollections } from "@/components/discussions/attachment-collections";
 import { DiscussionComposer } from "@/components/discussions/discussion-composer";
+import { MarkdownHtml } from "@/components/discussions/markdown-html";
 import { InlineLoadingState, PageLoadingState } from "@/components/loading-shells";
 import { OneShotButton } from "@/components/one-shot-button";
 import { authedJsonFetch, ensureAccessToken, fetchAuthSession } from "@/lib/browser-auth";
@@ -347,7 +348,7 @@ function DiscussionPageContent(props: {
                 <small>Started the thread</small>
               </div>
             </div>
-            <div className="markdownContent" dangerouslySetInnerHTML={{ __html: thread.body_html }} />
+            <MarkdownHtml html={thread.body_html} />
             {(thread.threadAttachments?.length ?? 0) > 0 && (
               <div className="commentAttachmentStack">
                 <AttachmentCollections
@@ -413,7 +414,7 @@ function DiscussionPageContent(props: {
                       </div>
                     ) : (
                       <>
-                        <div className="markdownContent" dangerouslySetInnerHTML={{ __html: comment.body_html }} />
+                        <MarkdownHtml html={comment.body_html} />
                         {(comment.attachments?.length ?? 0) > 0 && (
                           <div className="commentAttachmentStack">
                             <AttachmentCollections
