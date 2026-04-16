@@ -173,7 +173,7 @@ export function ProjectsListView(props: ProjectsListViewProps) {
                         {project.pm_note.trim()}
                       </p>
                     ) : null}
-                    <ProjectTagList tags={project.tags} className="projectTagListCompact" />
+                    {/* <ProjectTagList tags={project.tags} className="projectTagListCompact" /> */}
                     <p className="projectLedgerCounts">
                       {project.discussion_count ?? 0} discussions · {project.file_count ?? 0} files
                     </p>

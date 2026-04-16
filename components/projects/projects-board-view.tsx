@@ -160,7 +160,7 @@ export function ProjectsBoardView(props: ProjectsBoardViewProps) {
                         <p className="projectDescription projectFlowCardDescription line-clamp-2">
                           {project.description?.trim() || "No description provided."}
                         </p>
-                        <ProjectTagList tags={project.tags} className="projectTagListCompact" />
+                        {/* <ProjectTagList tags={project.tags} className="projectTagListCompact" /> */}
                       </div>
                       <div className="projectFlowCardFoot">
                         <div className="projectFlowCardActions">

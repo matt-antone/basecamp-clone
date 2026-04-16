@@ -538,7 +538,7 @@ function ProjectPageContent({ projectId, initial }: { projectId: string; initial
           </h1>
           {project?.deadline ? <p className="headerSubtitle">Deadline: {formatDeadline(project.deadline)}</p> : null}
           {projectDescription ? <p className="headerSubtitle">{projectDescription}</p> : null}
-          <ProjectTagList tags={project?.tags} className="projectHeaderTags" />
+          {/* <ProjectTagList tags={project?.tags} className="projectHeaderTags" /> */}
           <div className="projectHoursRow">
             {project?.archived ? (
               <div className="projectArchivedHours">
