@@ -2965,79 +2965,79 @@ li.active {
   gap: 0.5rem;
 }
 
-.discussionRichText {
+.markdownContent {
   color: var(--text-primary);
 }
 
-.discussionRichText :where(h1, h2, h3, h4, h5, h6) {
+.markdownContent :where(h1, h2, h3, h4, h5, h6) {
   margin: 1.25rem 0 0.6rem;
   font-family: var(--font-display), Georgia, serif;
   line-height: 1.08;
   letter-spacing: -0.02em;
 }
 
-.discussionRichText :where(p, ul, ol, blockquote, pre, hr, figure) {
+.markdownContent :where(p, ul, ol, blockquote, pre, hr, figure) {
   margin: 0 0 0.95rem;
 }
 
-.discussionRichText :where(ul, ol) {
+.markdownContent :where(ul, ol) {
   display: block;
   padding-left: 1.25rem;
 }
 
-.discussionRichText ul {
+.markdownContent ul {
   list-style: disc;
 }
 
-.discussionRichText ol {
+.markdownContent ol {
   list-style: decimal;
 }
 
-.discussionRichText li {
+.markdownContent li {
   display: list-item;
   margin: 0.32rem 0;
 }
 
-.discussionRichText li::marker {
+.markdownContent li::marker {
   color: var(--projects-accent-strong);
 }
 
-.discussionRichText a {
+.markdownContent a {
   color: var(--link-color);
   text-decoration: underline;
   text-decoration-thickness: 0.08em;
   text-underline-offset: 0.16em;
 }
 
-.discussionRichText blockquote {
+.markdownContent blockquote {
   padding: 0.1rem 0 0.1rem 0.95rem;
   border-left: 2px solid color-mix(in srgb, var(--active-border) 45%, transparent);
   color: var(--text-muted);
 }
 
-.discussionRichText :where(code, pre) {
+.markdownContent :where(code, pre) {
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
 }
 
-.discussionRichText code {
+.markdownContent code {
   padding: 0.12rem 0.3rem;
   background: color-mix(in srgb, var(--panel-bg) 68%, var(--input-bg));
   font-size: 0.92em;
 }
 
-.discussionRichText pre {
+.markdownContent pre {
   overflow-x: auto;
   padding: 0.8rem 0.9rem;
   border: 1px solid color-mix(in srgb, var(--thread-border) 76%, transparent);
   background: color-mix(in srgb, var(--panel-bg) 74%, var(--input-bg));
 }
 
-.discussionRichText pre code {
+.markdownContent pre code {
   padding: 0;
   background: transparent;
 }
 
-.discussionRichText img {
+.markdownContent img {
   display: block;
   max-width: min(100%, 42rem);
   height: auto;
