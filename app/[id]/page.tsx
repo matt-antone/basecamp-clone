@@ -12,7 +12,7 @@ import { getAvatarProxyUrl } from "@/lib/avatar";
 import { authedFormDataFetch, authedJsonFetch, fetchAuthSession } from "@/lib/browser-auth";
 import { createClientResource } from "@/lib/client-resource";
 import { calculateProjectExpensesTotalUsd, formatUsdInput, formatUsdMoney } from "@/lib/project-financials";
-import { createProjectDialogValues, normalizeProjectColumn, parseProjectTags } from "@/lib/project-utils";
+import { createProjectDialogValues, formatProjectDeadlineLocal, normalizeProjectColumn, parseProjectTags } from "@/lib/project-utils";
 import type { ClientRecord } from "@/lib/types/client-record";
 import { useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
@@ -536,7 +536,7 @@ function ProjectPageContent({ projectId, initial }: { projectId: string; initial
               </span>
             ) : null}
           </h1>
-          {project?.deadline ? <p className="headerSubtitle">Deadline: {formatDeadline(project.deadline)}</p> : null}
+          {project?.deadline ? <p className="headerSubtitle">Deadline: {formatProjectDeadlineLocal(project.deadline) ?? project.deadline}</p> : null}
           {projectDescription ? <p className="headerSubtitle">{projectDescription}</p> : null}
           {/* <ProjectTagList tags={project?.tags} className="projectHeaderTags" /> */}
           <div className="projectHoursRow">
@@ -904,19 +904,6 @@ function getFileBadgeLabel(file: ProjectFile) {
   if (mime.includes("zip") || mime.includes("compressed")) return "ZIP";
   const extension = file.filename.split(".").pop()?.trim().toUpperCase();
   return extension && extension.length <= 5 ? extension : "FILE";
-}
-
-function formatDeadline(value: string) {
-  const date = new Date(`${value}T00:00:00`);
-  if (Number.isNaN(date.getTime())) {
-    return value;
-  }
-
-  return new Intl.DateTimeFormat(undefined, {
-    month: "short",
-    day: "numeric",
-    year: "numeric"
-  }).format(date);
 }
 
 function formatHoursInput(value: number | string | null | undefined) {
