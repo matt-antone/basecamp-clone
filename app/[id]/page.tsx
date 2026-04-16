@@ -6,7 +6,7 @@ import { CreateDiscussionDialog } from "@/components/discussions/create-discussi
 import { InlineLoadingState, PageLoadingState } from "@/components/loading-shells";
 import { OneShotButton } from "@/components/one-shot-button";
 import { ProjectDialogForm, type ProjectDialogValues } from "@/components/project-dialog-form";
-import { ProjectTagList } from "@/components/project-tag-list";
+// import { ProjectTagList } from "@/components/project-tag-list";
 import { ProjectFilesPanel } from "@/components/projects/project-files-panel";
 import { getAvatarProxyUrl } from "@/lib/avatar";
 import { authedFormDataFetch, authedJsonFetch, fetchAuthSession } from "@/lib/browser-auth";

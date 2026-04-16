@@ -2,7 +2,7 @@ import React, { useEffect } from "react";
 import Link from "next/link";
 import { type CSSProperties, type DragEvent, type ReactNode } from "react";
 import { OneShotButton } from "@/components/one-shot-button";
-import { ProjectTagList } from "@/components/project-tag-list";
+// import { ProjectTagList } from "@/components/project-tag-list";
 import { markdownToPlainText } from "@/lib/markdown";
 import {
   formatProjectCreatedAtLocal,
