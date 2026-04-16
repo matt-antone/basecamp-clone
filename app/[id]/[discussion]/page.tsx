@@ -347,7 +347,7 @@ function DiscussionPageContent(props: {
                 <small>Started the thread</small>
               </div>
             </div>
-            <div className="discussionRichText" dangerouslySetInnerHTML={{ __html: thread.body_html }} />
+            <div className="markdownContent" dangerouslySetInnerHTML={{ __html: thread.body_html }} />
             {(thread.threadAttachments?.length ?? 0) > 0 && (
               <div className="commentAttachmentStack">
                 <AttachmentCollections
@@ -413,7 +413,7 @@ function DiscussionPageContent(props: {
                       </div>
                     ) : (
                       <>
-                        <div className="discussionRichText" dangerouslySetInnerHTML={{ __html: comment.body_html }} />
+                        <div className="markdownContent" dangerouslySetInnerHTML={{ __html: comment.body_html }} />
                         {(comment.attachments?.length ?? 0) > 0 && (
                           <div className="commentAttachmentStack">
                             <AttachmentCollections
