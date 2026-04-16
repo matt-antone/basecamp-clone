@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { authedJsonFetch } from "@/lib/browser-auth";
 import { buildArchiveProjectsUrl } from "@/lib/archive-projects-url";
 import { OneShotButton } from "@/components/one-shot-button";
