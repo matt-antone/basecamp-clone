@@ -22,3 +22,4 @@ certificates
 
 # Claude Code worktrees (isolated feature branches, not tracked)
 .claude/worktrees/
+.worktrees/
