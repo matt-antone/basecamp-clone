@@ -1,5 +1,6 @@
 "use client";
 
+import { useRef } from "react";
 import {
   BlockTypeSelect,
   BoldItalicUnderlineToggles,
@@ -26,10 +27,13 @@ type MarkdownEditorProps = {
 };
 
 export default function MarkdownEditor(props: MarkdownEditorProps) {
+  const initialMarkdownRef = useRef(props.markdown);
+  const onChangeRef = useRef(props.onChange);
+  onChangeRef.current = props.onChange;
   return (
     <MDXEditor
-      markdown={props.markdown}
-      onChange={(nextMarkdown) => props.onChange(nextMarkdown)}
+      markdown={initialMarkdownRef.current}
+      onChange={(nextMarkdown) => onChangeRef.current(nextMarkdown)}
       placeholder={props.placeholder}
       overlayContainer={props.overlayContainer ?? undefined}
       className="commentMdxEditor"
