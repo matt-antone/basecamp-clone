@@ -996,7 +996,7 @@ textarea {
 
 .projectsPulseRow {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+  grid-template-columns: repeat(4, auto);
   gap: 0.55rem;
 }
 
@@ -3564,8 +3564,12 @@ textarea:focus-visible,
     align-items: stretch;
   }
 
-  .projectsPulseRow {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+  .projectsPulseButton span {
+    font-size: 0.6rem;
+  }
+
+  .projectsPulseButton strong {
+    font-size: 0.5rem;
   }
 
   .projectLedgerItem {

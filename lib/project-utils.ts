@@ -52,11 +52,26 @@ export function parseProjectTags(value: string) {
   );
 }
 
+function toDateInputValue(deadline: string | null | undefined): string {
+  if (!deadline) return "";
+  const s = String(deadline).trim();
+  if (!s) return "";
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+  const isoMatch = /^(\d{4}-\d{2}-\d{2})T/.exec(s);
+  if (isoMatch) return isoMatch[1];
+  const dt = new Date(s);
+  if (Number.isNaN(dt.getTime())) return "";
+  const y = dt.getFullYear();
+  const m = String(dt.getMonth() + 1).padStart(2, "0");
+  const d = String(dt.getDate()).padStart(2, "0");
+  return y + "-" + m + "-" + d;
+}
+
 export function createProjectDialogValues(clientId = "", project?: ProjectDialogSeed | null) {
   return {
     name: project?.name ?? "",
     description: project?.description ?? "",
-    deadline: project?.deadline ?? "",
+    deadline: toDateInputValue(project?.deadline),
     requestor: project?.requestor ?? "",
     tags: (project?.tags ?? []).join(", "),
     clientId,

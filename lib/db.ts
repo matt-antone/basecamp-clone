@@ -1,5 +1,7 @@
-import { Pool, type QueryResultRow } from "pg";
+import { Pool, types, type QueryResultRow } from "pg";
 import { config } from "./config-core";
+
+types.setTypeParser(1082, (value) => value);
 
 const globalForPg = globalThis as unknown as { pool?: Pool };
 
