@@ -7,6 +7,7 @@ export type ApplyDeps = {
   concurrency?: number;
   limit?: number;
   flush: () => Promise<void>;
+  onFlushError?: (err: unknown) => void;
   db: {
     updateDropboxPath(args: { fileId: string; newPath: string }): Promise<void>;
   };
@@ -17,7 +18,7 @@ export type ApplyDeps = {
       to: string;
       autorename?: boolean;
     }): Promise<{ path: string; fileId?: string }>;
-    listFolderEntries?: (path: string) => Promise<Array<{ ".tag": string; name: string }>>;
+    listFolderEntries(path: string): Promise<Array<{ ".tag": string; name: string }>>;
   };
 };
 
@@ -25,6 +26,7 @@ export type ApplyResult = {
   success: number;
   skipped: number;
   error: number;
+  flushErrors: number;
 };
 
 function dirname(path: string) {
@@ -37,27 +39,30 @@ function basename(path: string) {
   return idx >= 0 ? path.slice(idx + 1) : path;
 }
 
-function isNotFound(err: unknown): boolean {
+function isFromLookupNotFound(err: unknown): boolean {
   if (!err || typeof err !== "object") return false;
   const summary = (err as { error?: { error_summary?: string } }).error?.error_summary;
-  return typeof summary === "string" && summary.includes("not_found");
+  return typeof summary === "string" && summary.startsWith("from_lookup/not_found");
 }
 
-function isConflict(err: unknown): boolean {
+function isToConflict(err: unknown): boolean {
   if (!err || typeof err !== "object") return false;
   const summary = (err as { error?: { error_summary?: string } }).error?.error_summary;
-  return typeof summary === "string" && summary.includes("conflict");
+  return typeof summary === "string" && summary.startsWith("to/conflict");
 }
 
 export async function applyPlan(deps: ApplyDeps): Promise<ApplyResult> {
   const limit = typeof deps.limit === "number" ? deps.plan.slice(0, deps.limit) : deps.plan;
   const concurrency = Math.max(1, deps.concurrency ?? 4);
   const queue = [...limit];
-  const result: ApplyResult = { success: 0, skipped: 0, error: 0 };
+  const result: ApplyResult = { success: 0, skipped: 0, error: 0, flushErrors: 0 };
 
   let flushChain: Promise<void> = Promise.resolve();
   const scheduleFlush = () => {
-    flushChain = flushChain.then(() => deps.flush()).catch(() => {});
+    flushChain = flushChain.then(() => deps.flush()).catch((err) => {
+      result.flushErrors += 1;
+      deps.onFlushError?.(err);
+    });
     return flushChain;
   };
 
@@ -80,7 +85,7 @@ export async function applyPlan(deps: ApplyDeps): Promise<ApplyResult> {
         deps.progress[row.fileId] = { dropbox_done: true, db_done: false, newPath };
         await scheduleFlush();
       } catch (err) {
-        if (isNotFound(err)) {
+        if (isFromLookupNotFound(err)) {
           deps.progress[row.fileId] = {
             dropbox_done: false,
             db_done: false,
@@ -90,17 +95,13 @@ export async function applyPlan(deps: ApplyDeps): Promise<ApplyResult> {
           result.skipped += 1;
           return;
         }
-        if (isConflict(err)) {
+        if (isToConflict(err)) {
           // Re-resolve against current Dropbox listing of the destination dir.
           const dir = dirname(row.toPath);
           const taken = new Set<string>();
-          if (deps.dropbox.listFolderEntries) {
-            const entries = await deps.dropbox.listFolderEntries(dir);
-            for (const e of entries) {
-              if (e[".tag"] === "file") taken.add(e.name);
-            }
-          } else {
-            taken.add(basename(row.toPath));
+          const entries = await deps.dropbox.listFolderEntries(dir);
+          for (const e of entries) {
+            if (e[".tag"] === "file") taken.add(e.name);
           }
           const newName = resolveCollision(basename(row.toPath), taken);
           const retryTo = `${dir}/${newName}`;

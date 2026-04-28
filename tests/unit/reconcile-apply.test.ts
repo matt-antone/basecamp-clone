@@ -23,7 +23,10 @@ function deps(overrides: Partial<Parameters<typeof applyPlan>[0]> = {}) {
       moveFile: vi.fn(async (args: { from?: string; fromId?: string; to: string }) => ({
         path: args.to,
         fileId: args.fromId ?? "id:moved"
-      }))
+      })),
+      listFolderEntries: vi.fn(async () => [
+        { ".tag": "file" as const, name: "new-0.pdf" }
+      ])
     },
     ...overrides
   };
@@ -96,7 +99,8 @@ describe("applyPlan", () => {
         moveFile: vi
           .fn()
           .mockRejectedValueOnce(notFound)
-          .mockResolvedValueOnce({ path: "/p/uploads/new-1.pdf", fileId: "id:1" })
+          .mockResolvedValueOnce({ path: "/p/uploads/new-1.pdf", fileId: "id:1" }),
+        listFolderEntries: vi.fn(async () => [])
       }
     });
     const result = await applyPlan(d);
@@ -113,7 +117,10 @@ describe("applyPlan", () => {
       .fn()
       .mockRejectedValueOnce(conflict)
       .mockResolvedValueOnce({ path: "/p/uploads/new-0-2.pdf", fileId: "id:0" });
-    const d = deps({ dropbox: { moveFile } });
+    const listFolderEntries = vi.fn(async () => [
+      { ".tag": "file" as const, name: "new-0.pdf" }
+    ]);
+    const d = deps({ dropbox: { moveFile, listFolderEntries } });
     const result = await applyPlan(d);
     expect(moveFile).toHaveBeenCalledTimes(2);
     expect(moveFile.mock.calls[1][0].to).toBe("/p/uploads/new-0-2.pdf");
@@ -127,7 +134,8 @@ describe("applyPlan", () => {
         moveFile: vi
           .fn()
           .mockRejectedValueOnce(new Error("boom"))
-          .mockResolvedValueOnce({ path: "/p/uploads/new-1.pdf", fileId: "id:1" })
+          .mockResolvedValueOnce({ path: "/p/uploads/new-1.pdf", fileId: "id:1" }),
+        listFolderEntries: vi.fn(async () => [])
       }
     });
     const result = await applyPlan(d);
@@ -141,5 +149,33 @@ describe("applyPlan", () => {
     const result = await applyPlan(d);
     expect(result.success).toBe(2);
     expect(d.dropbox.moveFile).toHaveBeenCalledTimes(2);
+  });
+
+  it("counts flush errors and calls onFlushError without aborting", async () => {
+    const onFlushError = vi.fn();
+    const flush = vi.fn().mockRejectedValue(new Error("disk full"));
+    const d = deps({ flush, onFlushError });
+    const result = await applyPlan(d);
+    expect(result.success).toBe(1);
+    expect(result.flushErrors).toBeGreaterThan(0);
+    expect(onFlushError).toHaveBeenCalled();
+    expect(onFlushError.mock.calls[0][0]).toBeInstanceOf(Error);
+  });
+
+  it("does not treat unrelated 'not_found' errors as soft-skip", async () => {
+    const wrong = Object.assign(new Error("path/not_found because parent missing"), {
+      error: { error_summary: "to/no_write_permission/something_not_found/." }
+    });
+    const d = deps({
+      plan: plan([{}]),
+      dropbox: {
+        moveFile: vi.fn().mockRejectedValueOnce(wrong),
+        listFolderEntries: vi.fn(async () => [])
+      }
+    });
+    const result = await applyPlan(d);
+    expect(result.skipped).toBe(0);
+    expect(result.error).toBe(1);
+    expect(d.progress["f0"].error).toMatch(/parent missing/);
   });
 });
