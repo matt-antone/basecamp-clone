@@ -110,6 +110,47 @@ export class DropboxStorageAdapter implements StorageAdapter {
     return result.result.link;
   }
 
+  async listFolderEntries(path: string) {
+    const client = await this.getClient();
+    const entries: Array<{
+      ".tag": "file" | "folder" | "deleted";
+      name: string;
+      path_display: string;
+      id?: string;
+    }> = [];
+    try {
+      let response = await client.filesListFolder({ path, recursive: false });
+      entries.push(...(response.result.entries as typeof entries));
+      while (response.result.has_more) {
+        response = await client.filesListFolderContinue({ cursor: response.result.cursor });
+        entries.push(...(response.result.entries as typeof entries));
+      }
+    } catch (error) {
+      if (isNotFoundError(error)) return [];
+      throw error;
+    }
+    return entries;
+  }
+
+  async moveFile(args: { from?: string; fromId?: string; to: string; autorename?: boolean }) {
+    if (!args.from && !args.fromId) {
+      throw new Error("moveFile requires either `from` or `fromId`");
+    }
+    const client = await this.getClient();
+    const fromPath = args.fromId ? args.fromId : (args.from as string);
+    const result = await client.filesMoveV2({
+      from_path: fromPath,
+      to_path: args.to,
+      autorename: args.autorename ?? false
+    });
+    const meta = result.result.metadata as { path_display?: string; id?: string; rev?: string };
+    return {
+      path: meta.path_display ?? args.to,
+      fileId: meta.id,
+      rev: meta.rev
+    };
+  }
+
   async createFolderLink(path: string) {
     const client = await this.getClient();
     const existing = await client.sharingListSharedLinks({
