@@ -142,6 +142,11 @@ export function ProjectsBoardView(props: ProjectsBoardViewProps) {
                           >
                             {renderProjectTitle(project.display_name ?? project.name)}
                           </Link>
+                          {hasMissingHours(project) && (
+                            <span className="projectMissingHours" role="status">
+                              Missing hours
+                            </span>
+                          )}
                         </div>
                         <div className="projectMetaRow">
                           {createdLabel && createdRaw ? (
@@ -154,11 +159,6 @@ export function ProjectsBoardView(props: ProjectsBoardViewProps) {
                               Due: {deadlineLabel}
                             </time>
                           ) : null}
-                          {hasMissingHours(project) && (
-                            <span className="projectMissingHours" role="status">
-                              Missing hours
-                            </span>
-                          )}
                         </div>
                         {project.pm_note?.trim() ? (
                           <p className="projectPmNote" title={project.pm_note.trim()}>
