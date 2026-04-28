@@ -44,7 +44,7 @@ A single TypeScript entry point with two subcommands.
 ### Plan
 
 ```
-pnpm tsx scripts/reconcile-active-filenames.ts plan \
+npx tsx scripts/reconcile-active-filenames.ts plan \
   --out tmp/reconcile-<timestamp>.plan.json \
   [--limit N]
 ```
@@ -65,7 +65,7 @@ Behaviour:
 ### Apply
 
 ```
-pnpm tsx scripts/reconcile-active-filenames.ts apply \
+npx tsx scripts/reconcile-active-filenames.ts apply \
   --plan tmp/reconcile-<timestamp>.plan.json \
   [--concurrency 4] \
   [--limit N]
@@ -76,7 +76,7 @@ Behaviour:
 1. Read `<plan>.json` and (if present) `<plan>.progress.json`.
 2. For each `PlanRow`:
    - If `progress[fileId].db_done === true` → skip.
-   - Else: `filesMoveV2({ from_path: dropboxFileId ? \`id:${dropboxFileId}\` : fromPath, to_path: toPath, autorename: false })`. Using the `id:` form means the move succeeds even if the source path drifted between plan and apply.
+   - Else: `filesMoveV2({ from_path: dropboxFileId ?? fromPath, to_path: toPath, autorename: false })`. The `dropbox_file_id` column is already stored in Dropbox's `id:<file_id>` form (it comes from `filesUpload`'s `result.id`), so it is passed through verbatim — no re-wrapping. Using the id form means the move succeeds even if the source path drifted between plan and apply.
    - On success → set `progress[fileId] = { dropbox_done: true, newPath }` → `update project_files set dropbox_path = $1 where id = $2` → set `db_done: true`.
    - On error → record `progress[fileId].error = <classified-message>`, continue.
 3. Concurrency pool (default 4, configurable). Progress file writes are serialized through a single async mutex so concurrent workers do not corrupt the JSON file; flushed to disk after every row update.
@@ -111,11 +111,11 @@ Suffix inserted before the **last** dot. Files with no extension get a bare `-N`
 
 | Failure | Behaviour |
 |---|---|
-| `dropbox_not_found` (file gone) | Mark row `skipped`; continue. |
-| `dropbox_conflict` (target exists despite plan — race) | Re-resolve suffix on the fly; retry once. |
-| `dropbox_rate_limited` (429) | Honour `Retry-After`; retry up to 3×. |
-| Other Dropbox error | Mark row `error: <msg>`; continue. |
+| `from_lookup/not_found` (source file gone) | Mark row `skipped`; continue. |
+| `to/conflict` (target exists despite plan — race) | Re-resolve suffix against a fresh `listFolderEntries` of the destination dir; retry once. Second failure → `error`. |
+| Any other Dropbox error (including 429 rate limits) | Mark row `error: <msg>`; continue. No automatic retry — the script is one-shot and the resume path lets the operator re-run after the storm passes. |
 | DB update failure after successful Dropbox move | `dropbox_done = true, db_done = false`; log loudly. Resume picks it up. |
+| Progress file flush failure | `result.flushErrors += 1`; invoke `onFlushError` callback (CLI logs to stderr). Run continues — chain stays alive for later flushes. |
 
 Logging: pino-style JSON line per op to stdout; final human-readable summary to stderr.
 
@@ -182,9 +182,9 @@ Reuses `lib/storage/dropbox-adapter.ts`. Add thin wrappers if needed: `listFolde
 
 - Apply happy path (move + db update both succeed).
 - Resume after partial failure (`db_done = false` is retried; `db_done = true` is skipped).
-- Dropbox `not_found` → row marked `skipped`.
-- Dropbox 429 with `Retry-After` → retried up to 3×.
-- Conflict-on-apply triggers re-suffix and retries once.
+- Dropbox `from_lookup/not_found` → row marked `skipped`; unrelated errors that contain the substring `not_found` are NOT misclassified (regression test).
+- `to/conflict` on apply triggers a fresh dir listing, re-suffix, and one retry.
+- Flush failures increment `result.flushErrors` and invoke the `onFlushError` callback without aborting the run.
 - DB-only via existing `tests/utils/pg.ts` helpers.
 
 ### Manual smoke
