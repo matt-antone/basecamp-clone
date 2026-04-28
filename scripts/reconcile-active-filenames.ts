@@ -74,6 +74,25 @@ async function readJsonOr<T>(path: string, fallback: T): Promise<T> {
   }
 }
 
+function siblingPath(planPath: string, suffix: string) {
+  return `${planPath.replace(/\.json$/, "")}.${suffix}`;
+}
+
+function assertValidPlan(rows: unknown): asserts rows is PlanRow[] {
+  if (!Array.isArray(rows)) {
+    throw new Error("Malformed plan: expected an array");
+  }
+  for (let i = 0; i < rows.length; i += 1) {
+    const r = rows[i] as Partial<PlanRow> | undefined;
+    if (!r || typeof r.fileId !== "string" || typeof r.toPath !== "string" || typeof r.fromPath !== "string" || typeof r.projectId !== "string") {
+      throw new Error(`Malformed plan: row ${i} is missing required fields (fileId, projectId, fromPath, toPath)`);
+    }
+    if (r.dropboxFileId !== null && typeof r.dropboxFileId !== "string") {
+      throw new Error(`Malformed plan: row ${i} dropboxFileId must be string or null`);
+    }
+  }
+}
+
 async function runPlan(opts: { out: string; limit?: number }) {
   const adapter = new DropboxStorageAdapter();
   const result = await buildPlan({
@@ -84,8 +103,8 @@ async function runPlan(opts: { out: string; limit?: number }) {
 
   await ensureDir(opts.out);
   await writeFile(opts.out, JSON.stringify(result.plan, null, 2));
-  await writeFile(`${opts.out.replace(/\.json$/, "")}.orphans.json`, JSON.stringify(result.orphans, null, 2));
-  await writeFile(`${opts.out.replace(/\.json$/, "")}.errors.json`, JSON.stringify(result.errors, null, 2));
+  await writeFile(siblingPath(opts.out, "orphans.json"), JSON.stringify(result.orphans, null, 2));
+  await writeFile(siblingPath(opts.out, "errors.json"), JSON.stringify(result.errors, null, 2));
 
   console.log(
     JSON.stringify({
@@ -102,7 +121,8 @@ async function runPlan(opts: { out: string; limit?: number }) {
 async function runApply(opts: { plan: string; concurrency: number; limit?: number }) {
   const adapter = new DropboxStorageAdapter();
   const planRows = await readJsonOr<PlanRow[]>(opts.plan, []);
-  const progressPath = `${opts.plan.replace(/\.json$/, "")}.progress.json`;
+  assertValidPlan(planRows);
+  const progressPath = siblingPath(opts.plan, "progress.json");
   const progress = await readJsonOr<ProgressFile>(progressPath, {});
 
   const flush = async () => {
