@@ -69,7 +69,7 @@ export class DropboxStorageAdapter implements StorageAdapter {
 
   async uploadInit(args: { projectStorageDir: string; filename: string; sizeBytes: number }) {
     const safeFilename = sanitizeFilename(args.filename);
-    const targetPath = `${args.projectStorageDir}/uploads/${Date.now()}-${safeFilename}`;
+    const targetPath = `${args.projectStorageDir}/uploads/${safeFilename}`;
     return {
       sessionId: crypto.randomUUID(),
       targetPath

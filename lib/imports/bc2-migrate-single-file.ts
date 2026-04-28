@@ -127,7 +127,7 @@ export async function importBc2FileFromAttachment(
       });
       const buffer = Buffer.from(arrayBuffer);
       const safeFilename = attachment.name.replace(/[^a-zA-Z0-9._-]/g, "_");
-      const targetPath = `${args.storageDir}/uploads/${Date.now()}-${attachment.id}-${safeFilename}`;
+      const targetPath = `${args.storageDir}/uploads/${safeFilename}`;
 
       const uploaded = await args.adapter.uploadComplete({
         sessionId: attachment.id.toString(),
