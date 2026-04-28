@@ -113,17 +113,25 @@ export class DropboxStorageAdapter implements StorageAdapter {
   async listFolderEntries(path: string) {
     const client = await this.getClient();
     const entries: Array<{
-      ".tag": "file" | "folder" | "deleted";
+      ".tag": "file" | "folder";
       name: string;
       path_display: string;
       id?: string;
     }> = [];
     try {
       let response = await client.filesListFolder({ path, recursive: false });
-      entries.push(...(response.result.entries as typeof entries));
+      for (const entry of response.result.entries) {
+        if (entry[".tag"] === "file" || entry[".tag"] === "folder") {
+          entries.push(entry as (typeof entries)[number]);
+        }
+      }
       while (response.result.has_more) {
         response = await client.filesListFolderContinue({ cursor: response.result.cursor });
-        entries.push(...(response.result.entries as typeof entries));
+        for (const entry of response.result.entries) {
+          if (entry[".tag"] === "file" || entry[".tag"] === "folder") {
+            entries.push(entry as (typeof entries)[number]);
+          }
+        }
       }
     } catch (error) {
       if (isNotFoundError(error)) return [];
@@ -133,8 +141,8 @@ export class DropboxStorageAdapter implements StorageAdapter {
   }
 
   async moveFile(args: { from?: string; fromId?: string; to: string; autorename?: boolean }) {
-    if (!args.from && !args.fromId) {
-      throw new Error("moveFile requires either `from` or `fromId`");
+    if (!!args.from === !!args.fromId) {
+      throw new Error("moveFile requires exactly one of `from` or `fromId`");
     }
     const client = await this.getClient();
     const fromPath = args.fromId ? args.fromId : (args.from as string);

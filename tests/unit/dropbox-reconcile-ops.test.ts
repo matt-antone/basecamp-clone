@@ -48,6 +48,27 @@ describe("DropboxStorageAdapter.listFolderEntries", () => {
     expect(client.filesListFolderContinue).toHaveBeenCalledWith({ cursor: "c1" });
   });
 
+  it("filters out deleted entries", async () => {
+    const client: FakeClient = {
+      filesListFolder: vi.fn().mockResolvedValue({
+        result: {
+          entries: [
+            { ".tag": "file", name: "keep.pdf", path_display: "/u/keep.pdf", id: "id:k" },
+            { ".tag": "deleted", name: "gone.pdf", path_display: "/u/gone.pdf" },
+            { ".tag": "folder", name: "sub", path_display: "/u/sub", id: "id:s" }
+          ],
+          cursor: "c1",
+          has_more: false
+        }
+      }),
+      filesListFolderContinue: vi.fn(),
+      filesMoveV2: vi.fn()
+    };
+    const adapter = adapterWithClient(client);
+    const entries = await adapter.listFolderEntries("/u");
+    expect(entries.map((e) => e.name)).toEqual(["keep.pdf", "sub"]);
+  });
+
   it("returns an empty array for a non-existent folder (path/not_found)", async () => {
     const notFound = Object.assign(new Error("not_found"), {
       error: { error_summary: "path/not_found/.." }
@@ -63,6 +84,32 @@ describe("DropboxStorageAdapter.listFolderEntries", () => {
 });
 
 describe("DropboxStorageAdapter.moveFile", () => {
+  it("throws when neither from nor fromId is provided", async () => {
+    const client: FakeClient = {
+      filesListFolder: vi.fn(),
+      filesListFolderContinue: vi.fn(),
+      filesMoveV2: vi.fn()
+    };
+    const adapter = adapterWithClient(client);
+    await expect(adapter.moveFile({ to: "/u/x.pdf" } as never)).rejects.toThrow(
+      /exactly one of `from` or `fromId`/
+    );
+    expect(client.filesMoveV2).not.toHaveBeenCalled();
+  });
+
+  it("throws when both from and fromId are provided", async () => {
+    const client: FakeClient = {
+      filesListFolder: vi.fn(),
+      filesListFolderContinue: vi.fn(),
+      filesMoveV2: vi.fn()
+    };
+    const adapter = adapterWithClient(client);
+    await expect(
+      adapter.moveFile({ from: "/u/old.pdf", fromId: "id:abc", to: "/u/new.pdf" })
+    ).rejects.toThrow(/exactly one of `from` or `fromId`/);
+    expect(client.filesMoveV2).not.toHaveBeenCalled();
+  });
+
   it("moves by path with autorename=false by default", async () => {
     const client: FakeClient = {
       filesListFolder: vi.fn(),
