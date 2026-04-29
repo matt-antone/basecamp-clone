@@ -1,22 +1,15 @@
+import { handleUpload, type HandleUploadBody } from "@vercel/blob/client";
 import { requireUser } from "@/lib/auth";
-import { badRequest, conflict, notFound, ok, serverError, unauthorized } from "@/lib/http";
-import { getProjectStorageDir } from "@/lib/project-storage";
+import { badRequest, conflict, notFound, serverError, unauthorized } from "@/lib/http";
 import { assertClientNotArchivedForMutation, getProject } from "@/lib/repositories";
-import { DropboxStorageAdapter } from "@/lib/storage/dropbox-adapter";
 import { isTeamSelectUserRequiredError } from "@/lib/storage/dropbox-adapter";
-import { z } from "zod";
+import { ZodError } from "zod";
 
 const CLIENT_MUTATION_BLOCK_PATTERN = /client is archived|client archive is in progress/i;
 
-const uploadInitSchema = z.object({
-  filename: z.string().min(1),
-  sizeBytes: z.number().int().nonnegative(),
-  mimeType: z.string().min(1)
-});
-
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
-    await requireUser(request);
+    const user = await requireUser(request);
     const { id } = await params;
     const project = await getProject(id);
     if (!project) {
@@ -27,23 +20,21 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       inProgress: "Client archive is in progress. File uploads are temporarily disabled."
     });
 
-    const payload = uploadInitSchema.parse(await request.json());
-    const adapter = new DropboxStorageAdapter();
-    const projectStorageDir = getProjectStorageDir(project);
+    const body = (await request.json()) as HandleUploadBody;
 
-    const init = await adapter.uploadInit({
-      projectStorageDir,
-      filename: payload.filename,
-      sizeBytes: payload.sizeBytes
+    const json = await handleUpload({
+      body,
+      request,
+      onBeforeGenerateToken: async (pathname, _clientPayload, _multipart) => ({
+        addRandomSuffix: true,
+        allowedContentTypes: undefined,
+        tokenPayload: JSON.stringify({ projectId: id, uploaderUserId: user.id, pathname })
+      }),
+      // No-op: persistence happens in /upload-complete (Task 5). handleUpload requires this callback.
+      onUploadCompleted: async () => {}
     });
 
-    return ok({
-      upload: {
-        sessionId: init.sessionId,
-        targetPath: init.targetPath,
-        mimeType: payload.mimeType
-      }
-    });
+    return Response.json(json);
   } catch (error) {
     if (error instanceof Error && /auth|token|workspace/i.test(error.message)) {
       return unauthorized(error.message);
@@ -51,7 +42,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     if (error instanceof Error && CLIENT_MUTATION_BLOCK_PATTERN.test(error.message)) {
       return conflict(error.message);
     }
-    if (error instanceof z.ZodError) {
+    if (error instanceof ZodError) {
       return badRequest(error.message);
     }
     if (isTeamSelectUserRequiredError(error)) {
