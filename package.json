@@ -20,6 +20,7 @@
   "dependencies": {
     "@mdxeditor/editor": "^3.52.5",
     "@supabase/supabase-js": "^2.54.0",
+    "@vercel/blob": "^2.3.3",
     "dropbox": "^10.34.0",
     "marked": "^13.0.2",
     "next": "^15.2.4",
@@ -39,8 +40,8 @@
     "@types/sanitize-html": "^2.13.0",
     "dotenv": "^16.4.5",
     "eslint": "^9.39.4",
-    "fallow": "^2.54.3",
     "eslint-config-next": "^15.2.4",
+    "fallow": "^2.54.3",
     "typescript": "5.9.3",
     "vitest": "^2.1.9"
   },
