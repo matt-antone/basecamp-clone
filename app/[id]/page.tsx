@@ -10,6 +10,7 @@ import { ProjectDialogForm, type ProjectDialogValues } from "@/components/projec
 import { ProjectFilesPanel } from "@/components/projects/project-files-panel";
 import { getAvatarProxyUrl } from "@/lib/avatar";
 import { authedFormDataFetch, authedJsonFetch, fetchAuthSession } from "@/lib/browser-auth";
+import { triggerBrowserDownload } from "@/lib/browser-download";
 import { createClientResource } from "@/lib/client-resource";
 import { calculateProjectExpensesTotalUsd, formatUsdInput, formatUsdMoney } from "@/lib/project-financials";
 import { renderMarkdown } from "@/lib/markdown";
@@ -483,7 +484,10 @@ function ProjectPageContent({ projectId, initial }: { projectId: string; initial
     if (!token || !projectId) return;
     const data = await authedFetch(token, `/projects/${projectId}/files/${fileId}/download-link`);
     const downloadUrl = typeof data?.url === "string" ? data.url : "";
-    if (downloadUrl) {
+    const filename = typeof data?.filename === "string" ? data.filename : "";
+    if (downloadUrl && filename) {
+      await triggerBrowserDownload({ url: downloadUrl, filename });
+    } else if (downloadUrl) {
       window.open(downloadUrl, "_blank", "noopener,noreferrer");
     }
   }

@@ -21,7 +21,7 @@ export async function GET(
         ? file.dropbox_file_id
         : file.dropbox_path;
     const url = await adapter.createTemporaryDownloadLink(dropboxTarget);
-    return ok({ url, expiresInSeconds: 14400 });
+    return ok({ url, filename: file.filename, expiresInSeconds: 14400 });
   } catch (error) {
     if (error instanceof Error && /auth|token|workspace/i.test(error.message)) {
       return unauthorized(error.message);
