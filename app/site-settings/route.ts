@@ -37,7 +37,7 @@ export const GET = withRouteErrors(async (request: Request) => {
       defaultHourlyRateUsd: normalizeHourlyRateForResponse(siteSettings?.defaultHourlyRateUsd)
     }
   });
-});
+}, { mapError: mapSiteSettingsError });
 
 export const PATCH = withRouteErrors(async (request: Request) => {
   await requireUser(request);

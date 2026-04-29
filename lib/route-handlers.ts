@@ -1,6 +1,12 @@
 import { badRequest, serverError, unauthorized } from "@/lib/http";
 import { ZodError } from "zod";
 
+/**
+ * Pattern matched against `Error.message` to classify an error as auth-shaped
+ * (e.g. thrown by `requireUser`). Matching errors map to 401 in `withRouteErrors`.
+ */
+const AUTH_ERROR_PATTERN = /auth|token|workspace/i;
+
 type RouteHandler<Args extends readonly unknown[]> = (...args: Args) => Promise<Response>;
 
 type WithRouteErrorsOptions = {
@@ -13,7 +19,7 @@ type WithRouteErrorsOptions = {
 
 /**
  * Wraps a route handler with the standard error mapping used across the app:
- * - Errors whose message matches /auth|token|workspace/i → 401
+ * - Errors whose message matches `AUTH_ERROR_PATTERN` → 401
  * - ZodError → 400
  * - Anything else → 500
  *
@@ -28,10 +34,10 @@ export function withRouteErrors<Args extends readonly unknown[]>(
       return await handler(...args);
     } catch (error) {
       const custom = options?.mapError?.(error);
-      if (custom) {
+      if (custom !== null && custom !== undefined) {
         return custom;
       }
-      if (error instanceof Error && /auth|token|workspace/i.test(error.message)) {
+      if (error instanceof Error && AUTH_ERROR_PATTERN.test(error.message)) {
         return unauthorized(error.message);
       }
       if (error instanceof ZodError) {
