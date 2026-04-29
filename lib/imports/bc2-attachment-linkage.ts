@@ -4,8 +4,6 @@
 import type { QueryResultRow } from "pg";
 import type { Bc2Attachment, Bc2Attachable } from "./bc2-fetcher";
 
-export type { Bc2Attachable };
-
 export type QueryFn = <T extends QueryResultRow = QueryResultRow>(
   text: string,
   values?: unknown[]

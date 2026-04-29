@@ -11,7 +11,7 @@ type PendingAttachment = {
   error?: string;
 };
 
-export type DiscussionComposerProps = {
+type DiscussionComposerProps = {
   editor: ReactNode;
   commentFileInputRef: RefObject<HTMLInputElement | null>;
   pendingAttachments: PendingAttachment[];

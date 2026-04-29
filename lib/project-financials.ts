@@ -21,7 +21,7 @@ export function roundUsdHalfUp(value: number) {
   return sign * (Math.round((absolute + Number.EPSILON) * 100) / 100);
 }
 
-export function normalizeHourlyRateUsd(value: number | string | null | undefined) {
+function normalizeHourlyRateUsd(value: number | string | null | undefined) {
   if (value === null || value === undefined || value === "") {
     return DEFAULT_HOURLY_RATE_USD;
   }

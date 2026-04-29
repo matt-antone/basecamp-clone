@@ -2,7 +2,7 @@ import React from "react";
 import { type ReactNode, type RefObject } from "react";
 import { OneShotButton } from "@/components/one-shot-button";
 
-export type CreateDiscussionDialogProps = {
+type CreateDiscussionDialogProps = {
   dialogRef: RefObject<HTMLDialogElement | null>;
   title: string;
   bodyMarkdown: string;

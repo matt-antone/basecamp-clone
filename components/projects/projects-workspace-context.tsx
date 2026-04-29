@@ -28,7 +28,6 @@ import {
   useState
 } from "react";
 
-export type { ClientRecord };
 export type Project = {
   id: string;
   name: string;
@@ -63,7 +62,7 @@ type RefreshProjectsOptions = {
   signal?: AbortSignal;
 };
 
-export const PROJECT_COLUMNS: { key: ProjectColumn; title: string; subtitle: string }[] = [
+const PROJECT_COLUMNS: { key: ProjectColumn; title: string; subtitle: string }[] = [
   { key: "new", title: "New", subtitle: "Ready to shape" },
   { key: "in_progress", title: "In Progress", subtitle: "Actively moving" },
   { key: "blocked", title: "Blocked", subtitle: "Needs a decision" },
@@ -79,7 +78,7 @@ type ProjectsBootstrap = {
   latestFeaturedPosts: FeaturedFeedPost[];
 };
 
-export type ProjectsWorkspaceContextValue = {
+type ProjectsWorkspaceContextValue = {
   accessToken: string | null;
   setAccessToken: (t: string | null) => void;
   status: string;

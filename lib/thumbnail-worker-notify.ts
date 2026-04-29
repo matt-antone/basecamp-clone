@@ -8,7 +8,7 @@ export function normalizeBearerToken(value: string | null) {
   return normalized.length > 0 ? normalized : null;
 }
 
-export function logThumbnailWorkerNotifySkipped(args: {
+function logThumbnailWorkerNotifySkipped(args: {
   projectId: string;
   fileId: string;
   requestId: string;

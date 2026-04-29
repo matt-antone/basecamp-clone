@@ -17,7 +17,7 @@ export type ErrorRow = {
   error: string;
 };
 
-export type ProgressRow = {
+type ProgressRow = {
   dropbox_done: boolean;
   db_done: boolean;
   newPath?: string;

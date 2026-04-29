@@ -1,11 +1,11 @@
 "use client";
 
-export type BrowserAuthUser = {
+type BrowserAuthUser = {
   id: string;
   email?: string;
 };
 
-export type BrowserAuthSession = {
+type BrowserAuthSession = {
   accessToken: string | null;
   domainAllowed: boolean;
   googleAvatarUrl: string;

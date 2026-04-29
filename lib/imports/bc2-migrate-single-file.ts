@@ -13,12 +13,12 @@ import type { DropboxStorageAdapter } from "../storage/dropbox-adapter";
 const DEFAULT_RETRY_ATTEMPTS = 5;
 const DEFAULT_RETRY_DELAY_MS = 2000;
 
-export type ImportBc2FileResult =
+type ImportBc2FileResult =
   | { status: "imported"; localFileId: string }
   | { status: "skipped_existing"; localFileId: string }
   | { status: "failed"; error: string };
 
-export type QueryFn = <T extends QueryResultRow = QueryResultRow>(
+type QueryFn = <T extends QueryResultRow = QueryResultRow>(
   text: string,
   values?: unknown[]
 ) => Promise<{ rows: T[] }>;
@@ -32,7 +32,7 @@ function isUniqueViolation(err: unknown): boolean {
   );
 }
 
-export type ImportBc2FileFromAttachmentArgs = {
+type ImportBc2FileFromAttachmentArgs = {
   query: QueryFn;
   jobId: string;
   projectLocalId: string;

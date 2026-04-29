@@ -17,18 +17,17 @@ export type UserProfile = {
   bio: string | null;
 };
 
-export type NotificationRecipient = Pick<UserProfile, "id" | "email" | "firstName" | "lastName">;
-export type SiteSettings = {
+type NotificationRecipient = Pick<UserProfile, "id" | "email" | "firstName" | "lastName">;
+type SiteSettings = {
   siteTitle: string | null;
   logoUrl: string | null;
   defaultHourlyRateUsd: number | string | null;
 };
 
-export type { ClientRecord } from "./types/client-record";
 
-export type ClientArchiveStatus = "idle" | "pending" | "in_progress" | "completed" | "failed";
+type ClientArchiveStatus = "idle" | "pending" | "in_progress" | "completed" | "failed";
 
-export type ProjectUserHours = {
+type ProjectUserHours = {
   userId: string;
   firstName: string | null;
   lastName: string | null;
@@ -37,7 +36,7 @@ export type ProjectUserHours = {
   hours: number | string;
 };
 
-export type ProjectExpenseLine = {
+type ProjectExpenseLine = {
   id: string;
   projectId: string;
   label: string;
@@ -298,7 +297,7 @@ const projectListSelectColumns = `p.*, c.name as client_name, c.code as client_c
            0
          )::numeric as total_hours`;
 
-export type ListProjectsOptions = {
+type ListProjectsOptions = {
   clientId?: string | null;
   search?: string | null;
   /** Ignored when `search` is non-empty after trim (FTS ordering). */
@@ -1259,17 +1258,6 @@ export async function setProjectStorageDir(id: string, storageProjectDir: string
 
 export async function deleteProjectById(id: string) {
   await query("delete from projects where id = $1", [id]);
-}
-
-export async function setProjectArchived(id: string, archived: boolean) {
-  const result = await query(
-    `update projects
-     set archived = $2, updated_at = now()
-     where id = $1
-     returning *`,
-    [id, archived]
-  );
-  return result.rows[0] ?? null;
 }
 
 export async function setProjectArchivedWithStorageDir(id: string, archived: boolean, storageProjectDir: string) {

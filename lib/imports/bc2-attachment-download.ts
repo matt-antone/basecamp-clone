@@ -8,7 +8,7 @@ export type Bc2DownloadEnv = {
 
 const DEFAULT_BACKOFF_MS = [5000, 15000, 30000, 60000] as const;
 
-export type DownloadBc2AttachmentOptions = {
+type DownloadBc2AttachmentOptions = {
   backoffMs?: readonly number[];
   /** Called before sleeping on HTTP 429 (rate limit). */
   onBackoff?: (waitMs: number) => void;

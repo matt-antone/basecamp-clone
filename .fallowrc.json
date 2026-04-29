@@ -1,0 +1,25 @@
+{
+  "$schema": "https://raw.githubusercontent.com/fallow-rs/fallow/main/schema.json",
+  "entry": [
+    "supabase/functions/*/index.ts",
+    "scripts/*.{ts,mjs}"
+  ],
+  "ignorePatterns": [
+    "supabase/functions/**"
+  ],
+  "ignoreDependencies": [
+    "@modelcontextprotocol/sdk",
+    "eslint-config-next",
+    "react-dom"
+  ],
+  "dynamicallyLoaded": [
+    "tests/support/**"
+  ],
+  "usedClassMembers": [
+    "downloadFile"
+  ],
+  "rules": {
+    "unused-dependencies": "warn",
+    "unused-types": "warn"
+  }
+}

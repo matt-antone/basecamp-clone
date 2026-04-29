@@ -9,7 +9,7 @@ export type PlanDbRow = {
   storage_dir: string;
 };
 
-export type PlanDeps = {
+type PlanDeps = {
   db: { listActiveFileRows(): Promise<PlanDbRow[]> };
   dropbox: {
     listFolderEntries(path: string): Promise<Array<{
@@ -22,7 +22,7 @@ export type PlanDeps = {
   limit?: number;
 };
 
-export type PlanResult = {
+type PlanResult = {
   plan: PlanRow[];
   orphans: OrphanRow[];
   errors: ErrorRow[];

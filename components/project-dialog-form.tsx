@@ -2,7 +2,7 @@
 
 import { OneShotButton } from "@/components/one-shot-button";
 
-export type ProjectDialogClient = {
+type ProjectDialogClient = {
   id: string;
   name: string;
   code: string;

@@ -1,6 +1,6 @@
 import type { ProjectStatus } from "./project-status";
 
-export type ProjectDialogSeed = {
+type ProjectDialogSeed = {
   name?: string | null;
   description?: string | null;
   deadline?: string | null;

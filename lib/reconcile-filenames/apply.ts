@@ -1,7 +1,7 @@
 import { resolveCollision } from "./strip";
 import type { PlanRow, ProgressFile } from "./types";
 
-export type ApplyDeps = {
+type ApplyDeps = {
   plan: PlanRow[];
   progress: ProgressFile;
   concurrency?: number;
@@ -22,7 +22,7 @@ export type ApplyDeps = {
   };
 };
 
-export type ApplyResult = {
+type ApplyResult = {
   success: number;
   skipped: number;
   error: number;

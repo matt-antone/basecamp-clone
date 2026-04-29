@@ -1,5 +1,5 @@
 /** Allowed `projects.status` values (matches DB CHECK). */
-export const PROJECT_STATUSES = ["new", "in_progress", "blocked", "complete", "billing"] as const;
+const PROJECT_STATUSES = ["new", "in_progress", "blocked", "complete", "billing"] as const;
 
 export type ProjectStatus = (typeof PROJECT_STATUSES)[number];
 

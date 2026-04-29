@@ -1,7 +1,7 @@
 // lib/imports/bc2-transformer.ts
 import { query } from "../db";
 
-export interface ParsedProjectTitle {
+interface ParsedProjectTitle {
   code: string | null;
   num: string | null;
   title: string;
@@ -52,7 +52,7 @@ export async function resolveClientId(code: string): Promise<string> {
 
 import type { Bc2Person } from "./bc2-fetcher";
 
-export interface ResolvedPerson {
+interface ResolvedPerson {
   localProfileId: string;
   isLegacy: boolean;
 }

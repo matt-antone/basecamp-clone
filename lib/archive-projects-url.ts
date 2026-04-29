@@ -1,4 +1,4 @@
-export type ArchiveProjectsUrlOptions = {
+type ArchiveProjectsUrlOptions = {
   search: string;
   page: number;
   clientId: string | null;

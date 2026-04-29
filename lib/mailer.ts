@@ -1,7 +1,7 @@
 import { config } from "./config-core.ts";
 import { marked } from "marked";
 
-export type MailRecipient = {
+type MailRecipient = {
   email: string;
   name?: string | null;
 };
@@ -49,7 +49,7 @@ type ProjectEmailArgs = {
   projectUrl: string;
 };
 
-export type SendMailResult =
+type SendMailResult =
   | { skipped: true; reason: "disabled" | "no_recipients" }
   | { skipped: false; recipientCount: number; messageId?: string };
 

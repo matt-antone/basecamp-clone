@@ -188,32 +188,6 @@ export class DropboxStorageAdapter implements StorageAdapter {
     }
   }
 
-  async createThumbnail(path: string, size: ThumbnailSize = "w256h256") {
-    const client = await this.getClient();
-    try {
-      const response = await client.filesGetThumbnail({
-        path,
-        format: { ".tag": "jpeg" },
-        size: { ".tag": size },
-        mode: { ".tag": "bestfit" }
-      });
-      const payload = response.result as unknown as Record<string, unknown>;
-      const binary = payload.fileBinary ?? payload.fileBlob;
-      if (!binary) {
-        throw new Error("Dropbox thumbnail response did not include binary image data");
-      }
-      return {
-        bytes: this.ensureBuffer(binary, "Dropbox thumbnail response did not include binary image data"),
-        contentType: "image/jpeg"
-      };
-    } catch (error) {
-      if (isThumbnailUnavailableError(error) || isNotFoundError(error)) {
-        return null;
-      }
-      throw error;
-    }
-  }
-
   async downloadFile(path: string) {
     const client = await this.getClient();
     const response = await client.filesDownload({ path });
@@ -408,8 +382,6 @@ export function mapDropboxMetadata(args: {
   };
 }
 
-type ThumbnailSize = "w64h64" | "w128h128" | "w256h256" | "w480h320" | "w640h480";
-
 function sanitizeFilename(filename: string) {
   const trimmed = filename.trim();
   const normalized = trimmed.replace(/[\\/:*?"<>|]/g, "-");
@@ -497,11 +469,3 @@ function isNotFoundError(error: unknown) {
   return summary.includes("not_found");
 }
 
-function isThumbnailUnavailableError(error: unknown) {
-  const summary = getDropboxErrorSummary(error).toLowerCase();
-  return (
-    summary.includes("unsupported_extension") ||
-    summary.includes("unsupported_image") ||
-    summary.includes("conversion_error")
-  );
-}

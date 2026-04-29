@@ -37,7 +37,7 @@ type ProjectBoardItem = {
   total_hours?: number | string | null;
 };
 
-export type ProjectsBoardViewProps = {
+type ProjectsBoardViewProps = {
   items: ProjectBoardItem[];
   projectColumns: ProjectColumnDefinition[];
   dragOverColumn: ProjectColumn | null;

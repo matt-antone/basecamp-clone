@@ -13,7 +13,7 @@ type ProjectFile = {
   created_at: string;
 };
 
-export type ProjectFilesPanelProps = {
+type ProjectFilesPanelProps = {
   projectId: string;
   token: string | null;
   onToken: (value: string | null) => void;

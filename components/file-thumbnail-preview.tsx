@@ -21,7 +21,7 @@ const OFFICE_EXTENSIONS = new Set(["doc", "docx", "xls", "xlsx", "ppt", "pptx", 
 
 const DEFAULT_POLL_AFTER_MS = 2000;
 
-export type ThumbnailPreviewProps = {
+type ThumbnailPreviewProps = {
   projectId: string;
   fileId: string;
   filename: string;

@@ -1,7 +1,7 @@
 /** Pure helpers for filtering and partitioning {@link ClientRecord} arrays by archive state. No React or framework dependencies. */
 import type { ClientRecord } from "@/lib/types/client-record";
 
-export type ClientArchiveFilter = "active" | "archived";
+type ClientArchiveFilter = "active" | "archived";
 
 export function isClientArchived(client: ClientRecord): boolean {
   return Boolean(client.archived_at);

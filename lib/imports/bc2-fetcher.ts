@@ -11,7 +11,7 @@ export interface Bc2Person {
   time_zone: string | null;
 }
 
-export interface Bc2Project {
+interface Bc2Project {
   id: number;
   name: string;
   description: string | null;
@@ -20,7 +20,7 @@ export interface Bc2Project {
   updated_at: string;
 }
 
-export interface Bc2Comment {
+interface Bc2Comment {
   id: number;
   content: string;
   created_at: string;
@@ -38,7 +38,7 @@ export interface Bc2Attachable {
 
 // Individual message response from GET /projects/{id}/messages/{id}.json
 // Comments are embedded — there is no separate list endpoint for them.
-export interface Bc2Message {
+interface Bc2Message {
   id: number;
   subject: string;
   content: string;

@@ -3,7 +3,7 @@
 const BC2_BASE = "https://basecamp.com";
 const BACKOFF_SEQUENCE_MS = [1000, 2000, 4000, 8000, 16000, 30000];
 
-export interface Bc2ClientOptions {
+interface Bc2ClientOptions {
   accountId: string;
   username: string;
   password: string;

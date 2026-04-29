@@ -23,7 +23,7 @@ export function parseCallbackBody(body: unknown) {
   return callbackSchema.parse(body);
 }
 
-export type AuthenticatedUser = {
+type AuthenticatedUser = {
   id: string;
   email: string;
 };

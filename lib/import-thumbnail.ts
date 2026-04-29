@@ -22,7 +22,7 @@ const OFFICE_MIME_TYPES = new Set([
 ]);
 const OFFICE_EXTENSIONS = new Set(["doc", "docx", "xls", "xlsx", "ppt", "pptx", "odt", "ods", "odp", "rtf"]);
 
-export type ImportThumbnailAction =
+type ImportThumbnailAction =
   | { action: "generated"; thumbnailPath: string; thumbnailUrl?: string; message: string }
   | { action: "reused"; thumbnailPath: string; thumbnailUrl?: string; message: string }
   | { action: "skipped"; message: string };
@@ -49,7 +49,7 @@ type ThumbnailStorageAdapter = ThumbnailDownloadAdapter & {
   getClient?: () => Promise<DropboxClientLike>;
 };
 
-export type ImportThumbnailRequest = {
+type ImportThumbnailRequest = {
   projectStorageDir: string;
   projectFileId: string;
   filename: string;

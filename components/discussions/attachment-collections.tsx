@@ -5,7 +5,7 @@ import { ThumbnailPreview, isThumbnailPreviewSupported } from "@/components/file
 import { OneShotButton } from "@/components/one-shot-button";
 import { formatBytes } from "@/lib/format-bytes";
 
-export type DiscussionAttachment = {
+type DiscussionAttachment = {
   id: string;
   filename: string;
   mime_type: string;

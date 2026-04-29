@@ -1,4 +1,4 @@
-export type ProjectsViewTab = "list" | "board" | "billing" | "archived";
+type ProjectsViewTab = "list" | "board" | "billing" | "archived";
 
 /** Maps App Router pathname to the projects workbench tab (Index / Flow / Archive). */
 export function projectsViewTabFromPathname(pathname: string | null): ProjectsViewTab {

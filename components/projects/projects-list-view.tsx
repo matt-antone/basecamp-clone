@@ -42,7 +42,7 @@ type ProjectGroup = {
   projects: ProjectListItem[];
 };
 
-export type ProjectsListViewProps = {
+type ProjectsListViewProps = {
   items: ProjectListItem[];
   projectColumns: ProjectColumnDefinition[];
   activeTab: "list" | "archived";
