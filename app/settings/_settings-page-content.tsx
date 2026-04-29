@@ -3,7 +3,6 @@
 import React from "react";
 import Link from "next/link";
 import { OneShotButton } from "@/components/one-shot-button";
-import { getAvatarProxyUrl } from "@/lib/avatar";
 import { authedJsonFetch } from "@/lib/browser-auth";
 import { DEFAULT_HOURLY_RATE_USD, formatUsdInput } from "@/lib/project-financials";
 import {
@@ -128,7 +127,6 @@ function areClientListsEqual(a: string[], b: string[]) {
 
 export function SettingsPageContent({ initial }: { initial: SettingsBootstrap }) {
   const [token, setToken] = useState(initial.token);
-  const [googleAvatarUrl] = useState(initial.googleAvatarUrl);
   const [status, setStatus] = useState(initial.status);
   const [tab, setTab] = useState<"clients" | "profile" | "site">("clients");
 
@@ -155,7 +153,6 @@ export function SettingsPageContent({ initial }: { initial: SettingsBootstrap })
   const [siteSettings, setSiteSettings] = useState<SiteSettingsForm>(initial.siteSettings);
   const [savingProfile, setSavingProfile] = useState(false);
   const [savingSiteSettings, setSavingSiteSettings] = useState(false);
-  const displayedAvatarUrl = googleAvatarUrl || profile.avatarUrl;
   const trimmedClientName = clientDialogName.trim();
   const trimmedClientCode = clientDialogCode.trim().toUpperCase();
   const parsedClientGithubRepos = parseClientListInput(clientDialogGithubRepos);
@@ -539,12 +536,7 @@ export function SettingsPageContent({ initial }: { initial: SettingsBootstrap })
       {tab === "profile" && (
         <section className="stackSection">
           <h2 className="profileTitle">
-            {displayedAvatarUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={getAvatarProxyUrl(displayedAvatarUrl)} alt="Profile avatar" className="profileAvatar" />
-            ) : (
-              <span className="profileAvatarFallback">{(profile.firstName || profile.email || "U").charAt(0).toUpperCase()}</span>
-            )}
+            <span className="profileAvatarFallback">{(profile.firstName || profile.email || "U").charAt(0).toUpperCase()}</span>
             <span>My Profile</span>
           </h2>
           <p>Set the details shown to teammates across the workspace.</p>
