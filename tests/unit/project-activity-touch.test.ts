@@ -128,7 +128,9 @@ describe("createFileMetadata touches project activity", () => {
       sizeBytes: 1024,
       dropboxFileId: "id:abc",
       dropboxPath: "/Projects/doc.pdf",
-      checksum: "deadbeef"
+      checksum: "deadbeef",
+      status: "ready",
+      blobUrl: null
     });
 
     expect(queryMock).toHaveBeenCalledTimes(2);

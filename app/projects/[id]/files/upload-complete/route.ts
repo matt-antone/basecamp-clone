@@ -151,7 +151,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       dropboxPath: metadata.dropbox_path,
       checksum: metadata.checksum,
       threadId: payload.threadId ?? null,
-      commentId: payload.commentId ?? null
+      commentId: payload.commentId ?? null,
+      status: "ready",
+      blobUrl: null
     });
     if (!file) {
       throw new Error("Failed to create file metadata");

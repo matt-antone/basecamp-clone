@@ -154,7 +154,9 @@ export async function importBc2FileFromAttachment(
         threadId: args.threadId,
         commentId: args.commentId,
         bcAttachmentId: bcKey,
-        sourceCreatedAt
+        sourceCreatedAt,
+        status: "ready",
+        blobUrl: null
       });
       if (!fileRecord) {
         throw new Error(`createFileMetadata returned null for attachment ${attachment.id}`);
