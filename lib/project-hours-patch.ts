@@ -1,7 +1,7 @@
 import { requireUser } from "@/lib/auth";
 import { badRequest, forbidden, notFound, ok, serverError, unauthorized } from "@/lib/http";
 import { getProject, listProjectUserHours, setProjectUserHours } from "@/lib/repositories";
-import { z } from "zod";
+import { ZodError } from "zod";
 
 type ResolvedHours = {
   userId: string;
@@ -9,6 +9,7 @@ type ResolvedHours = {
 };
 
 type ProjectHoursPatchOptions = {
+  /** May throw ZodError; caught by handler and mapped to 400. */
   resolveUserAndHours: (
     request: Request,
     authUser: { id: string }
@@ -21,7 +22,6 @@ export function createProjectHoursPatchHandler(options: ProjectHoursPatchOptions
     try {
       const user = await requireUser(request);
       const { id } = await params;
-      const { userId, hours } = await options.resolveUserAndHours(request, user);
       const project = await getProject(id, user.id);
       if (!project) {
         return notFound("Project not found");
@@ -29,6 +29,8 @@ export function createProjectHoursPatchHandler(options: ProjectHoursPatchOptions
       if (options.requireArchived && !project.archived) {
         return forbidden("Archived hours can only be edited on archived projects");
       }
+
+      const { userId, hours } = await options.resolveUserAndHours(request, user);
 
       await setProjectUserHours({
         projectId: id,
@@ -45,7 +47,7 @@ export function createProjectHoursPatchHandler(options: ProjectHoursPatchOptions
       if (error instanceof Error && /auth|token|workspace/i.test(error.message)) {
         return unauthorized(error.message);
       }
-      if (error instanceof z.ZodError) {
+      if (error instanceof ZodError) {
         return badRequest(error.message);
       }
       return serverError();
