@@ -79,6 +79,69 @@ function buildMailgunAuthorization() {
   return `Basic ${btoa(`api:${apiKey}`)}`;
 }
 
+type ThreadEmailContentOpts = {
+  subjectPrefix: string;
+  actionDescription: string;
+  bodyMarkdown: string;
+};
+
+function buildThreadEmailContent(args: ThreadEmailArgs, opts: ThreadEmailContentOpts) {
+  const projectLabel = buildProjectLabel(args.project);
+  const subject = `[${projectLabel}] ${opts.subjectPrefix}: ${args.thread.title}`;
+  const escapedActorName = escapeHtml(args.actor.name);
+  const escapedProjectName = escapeHtml(args.project.name);
+  const escapedThreadTitle = escapeHtml(args.thread.title);
+  const escapedThreadUrl = escapeHtml(args.threadUrl);
+  const bodyHtml = markdownToEmailHtml(opts.bodyMarkdown);
+
+  const text = [
+    `${args.actor.name} ${opts.actionDescription} in ${args.project.name}.`,
+    "",
+    `Thread: ${args.thread.title}`,
+    opts.bodyMarkdown,
+    `Open: ${args.threadUrl}`
+  ].join("\n");
+
+  const html = [
+    "<div style=\"font-family: Arial, sans-serif; color: #1f2937; line-height: 1.5;\">",
+    `<p><strong>${escapedActorName}</strong> ${opts.actionDescription} in <strong>${escapedProjectName}</strong>.</p>`,
+    `<p><strong>Thread:</strong> ${escapedThreadTitle}</p>`,
+    bodyHtml,
+    `<p><a href="${escapedThreadUrl}">Open discussion</a></p>`,
+    "</div>"
+  ].join("");
+
+  return { subject, text, html };
+}
+
+type ProjectEmailContentOpts = {
+  subjectPrefix: string;
+  actionDescription: string;
+};
+
+function buildProjectEmailContent(args: ProjectEmailArgs, opts: ProjectEmailContentOpts) {
+  const projectLabel = buildProjectLabel(args.project);
+  const subject = `[${projectLabel}] ${opts.subjectPrefix}`;
+  const escapedActorName = escapeHtml(args.actor.name);
+  const escapedProjectName = escapeHtml(args.project.name);
+  const escapedProjectUrl = escapeHtml(args.projectUrl);
+
+  const text = [
+    `${args.actor.name} ${opts.actionDescription}: ${args.project.name}.`,
+    "",
+    `Open: ${args.projectUrl}`
+  ].join("\n");
+
+  const html = [
+    "<div style=\"font-family: Arial, sans-serif; color: #1f2937; line-height: 1.5;\">",
+    `<p><strong>${escapedActorName}</strong> ${opts.actionDescription}: <strong>${escapedProjectName}</strong>.</p>`,
+    `<p><a href="${escapedProjectUrl}">Open project</a></p>`,
+    "</div>"
+  ].join("");
+
+  return { subject, text, html };
+}
+
 export function resetMailerForTests() {
   // No-op retained for compatibility with existing tests/importers.
 }
@@ -136,169 +199,53 @@ export async function sendMail(args: {
 }
 
 export async function sendThreadCreatedEmail(args: ThreadEmailArgs) {
-  const projectLabel = buildProjectLabel(args.project);
-  const subject = `[${projectLabel}] New discussion: ${args.thread.title}`;
-  const escapedActorName = escapeHtml(args.actor.name);
-  const escapedProjectName = escapeHtml(args.project.name);
-  const escapedThreadTitle = escapeHtml(args.thread.title);
-  const escapedThreadUrl = escapeHtml(args.threadUrl);
-  const bodyHtml = markdownToEmailHtml(args.thread.bodyMarkdown);
-
-  return sendMail({
-    recipients: args.recipients,
-    subject,
-    text: [
-      `${args.actor.name} started a new discussion in ${args.project.name}.`,
-      "",
-      `Thread: ${args.thread.title}`,
-      args.thread.bodyMarkdown,
-      `Open: ${args.threadUrl}`
-    ].join("\n"),
-    html: [
-      "<div style=\"font-family: Arial, sans-serif; color: #1f2937; line-height: 1.5;\">",
-      `<p><strong>${escapedActorName}</strong> started a new discussion in <strong>${escapedProjectName}</strong>.</p>`,
-      `<p><strong>Thread:</strong> ${escapedThreadTitle}</p>`,
-      bodyHtml,
-      `<p><a href="${escapedThreadUrl}">Open discussion</a></p>`,
-      "</div>"
-    ].join("")
+  const { subject, text, html } = buildThreadEmailContent(args, {
+    subjectPrefix: "New discussion",
+    actionDescription: "started a new discussion",
+    bodyMarkdown: args.thread.bodyMarkdown
   });
+  return sendMail({ recipients: args.recipients, subject, text, html });
 }
 
 export async function sendCommentCreatedEmail(args: CommentEmailArgs) {
-  const projectLabel = buildProjectLabel(args.project);
-  const subject = `[${projectLabel}] New comment on: ${args.thread.title}`;
-  const escapedActorName = escapeHtml(args.actor.name);
-  const escapedProjectName = escapeHtml(args.project.name);
-  const escapedThreadTitle = escapeHtml(args.thread.title);
-  const escapedThreadUrl = escapeHtml(args.threadUrl);
-  const commentBodyHtml = markdownToEmailHtml(args.comment.bodyMarkdown);
-
-  return sendMail({
-    recipients: args.recipients,
-    subject,
-    text: [
-      `${args.actor.name} commented on a discussion in ${args.project.name}.`,
-      "",
-      `Thread: ${args.thread.title}`,
-      args.comment.bodyMarkdown,
-      `Open: ${args.threadUrl}`
-    ].join("\n"),
-    html: [
-      "<div style=\"font-family: Arial, sans-serif; color: #1f2937; line-height: 1.5;\">",
-      `<p><strong>${escapedActorName}</strong> commented on a discussion in <strong>${escapedProjectName}</strong>.</p>`,
-      `<p><strong>Thread:</strong> ${escapedThreadTitle}</p>`,
-      commentBodyHtml,
-      `<p><a href="${escapedThreadUrl}">Open discussion</a></p>`,
-      "</div>"
-    ].join("")
+  const { subject, text, html } = buildThreadEmailContent(args, {
+    subjectPrefix: "New comment on",
+    actionDescription: "commented on a discussion",
+    bodyMarkdown: args.comment.bodyMarkdown
   });
+  return sendMail({ recipients: args.recipients, subject, text, html });
 }
 
 export async function sendCommentUpdatedEmail(args: CommentEmailArgs) {
-  const projectLabel = buildProjectLabel(args.project);
-  const subject = `[${projectLabel}] Comment updated on: ${args.thread.title}`;
-  const escapedActorName = escapeHtml(args.actor.name);
-  const escapedProjectName = escapeHtml(args.project.name);
-  const escapedThreadTitle = escapeHtml(args.thread.title);
-  const escapedThreadUrl = escapeHtml(args.threadUrl);
-  const commentBodyHtml = markdownToEmailHtml(args.comment.bodyMarkdown);
-
-  return sendMail({
-    recipients: args.recipients,
-    subject,
-    text: [
-      `${args.actor.name} updated a comment in ${args.project.name}.`,
-      "",
-      `Thread: ${args.thread.title}`,
-      args.comment.bodyMarkdown,
-      `Open: ${args.threadUrl}`
-    ].join("\n"),
-    html: [
-      "<div style=\"font-family: Arial, sans-serif; color: #1f2937; line-height: 1.5;\">",
-      `<p><strong>${escapedActorName}</strong> updated a comment in <strong>${escapedProjectName}</strong>.</p>`,
-      `<p><strong>Thread:</strong> ${escapedThreadTitle}</p>`,
-      commentBodyHtml,
-      `<p><a href="${escapedThreadUrl}">Open discussion</a></p>`,
-      "</div>"
-    ].join("")
+  const { subject, text, html } = buildThreadEmailContent(args, {
+    subjectPrefix: "Comment updated on",
+    actionDescription: "updated a comment",
+    bodyMarkdown: args.comment.bodyMarkdown
   });
+  return sendMail({ recipients: args.recipients, subject, text, html });
 }
 
 export async function sendThreadUpdatedEmail(args: ThreadEmailArgs) {
-  const projectLabel = buildProjectLabel(args.project);
-  const subject = `[${projectLabel}] Discussion updated: ${args.thread.title}`;
-  const escapedActorName = escapeHtml(args.actor.name);
-  const escapedProjectName = escapeHtml(args.project.name);
-  const escapedThreadTitle = escapeHtml(args.thread.title);
-  const escapedThreadUrl = escapeHtml(args.threadUrl);
-  const bodyHtml = markdownToEmailHtml(args.thread.bodyMarkdown);
-
-  return sendMail({
-    recipients: args.recipients,
-    subject,
-    text: [
-      `${args.actor.name} updated a discussion in ${args.project.name}.`,
-      "",
-      `Thread: ${args.thread.title}`,
-      args.thread.bodyMarkdown,
-      `Open: ${args.threadUrl}`
-    ].join("\n"),
-    html: [
-      "<div style=\"font-family: Arial, sans-serif; color: #1f2937; line-height: 1.5;\">",
-      `<p><strong>${escapedActorName}</strong> updated a discussion in <strong>${escapedProjectName}</strong>.</p>`,
-      `<p><strong>Thread:</strong> ${escapedThreadTitle}</p>`,
-      bodyHtml,
-      `<p><a href="${escapedThreadUrl}">Open discussion</a></p>`,
-      "</div>"
-    ].join("")
+  const { subject, text, html } = buildThreadEmailContent(args, {
+    subjectPrefix: "Discussion updated",
+    actionDescription: "updated a discussion",
+    bodyMarkdown: args.thread.bodyMarkdown
   });
+  return sendMail({ recipients: args.recipients, subject, text, html });
 }
 
 export async function sendProjectCreatedEmail(args: ProjectEmailArgs) {
-  const projectLabel = buildProjectLabel(args.project);
-  const subject = `[${projectLabel}] New project created`;
-  const escapedActorName = escapeHtml(args.actor.name);
-  const escapedProjectName = escapeHtml(args.project.name);
-  const escapedProjectUrl = escapeHtml(args.projectUrl);
-
-  return sendMail({
-    recipients: args.recipients,
-    subject,
-    text: [
-      `${args.actor.name} created a new project: ${args.project.name}.`,
-      "",
-      `Open: ${args.projectUrl}`
-    ].join("\n"),
-    html: [
-      "<div style=\"font-family: Arial, sans-serif; color: #1f2937; line-height: 1.5;\">",
-      `<p><strong>${escapedActorName}</strong> created a new project: <strong>${escapedProjectName}</strong>.</p>`,
-      `<p><a href="${escapedProjectUrl}">Open project</a></p>`,
-      "</div>"
-    ].join("")
+  const { subject, text, html } = buildProjectEmailContent(args, {
+    subjectPrefix: "New project created",
+    actionDescription: "created a new project"
   });
+  return sendMail({ recipients: args.recipients, subject, text, html });
 }
 
 export async function sendProjectUpdatedEmail(args: ProjectEmailArgs) {
-  const projectLabel = buildProjectLabel(args.project);
-  const subject = `[${projectLabel}] Project updated: ${args.project.name}`;
-  const escapedActorName = escapeHtml(args.actor.name);
-  const escapedProjectName = escapeHtml(args.project.name);
-  const escapedProjectUrl = escapeHtml(args.projectUrl);
-
-  return sendMail({
-    recipients: args.recipients,
-    subject,
-    text: [
-      `${args.actor.name} updated project: ${args.project.name}.`,
-      "",
-      `Open: ${args.projectUrl}`
-    ].join("\n"),
-    html: [
-      "<div style=\"font-family: Arial, sans-serif; color: #1f2937; line-height: 1.5;\">",
-      `<p><strong>${escapedActorName}</strong> updated project: <strong>${escapedProjectName}</strong>.</p>`,
-      `<p><a href="${escapedProjectUrl}">Open project</a></p>`,
-      "</div>"
-    ].join("")
+  const { subject, text, html } = buildProjectEmailContent(args, {
+    subjectPrefix: `Project updated: ${args.project.name}`,
+    actionDescription: "updated project"
   });
+  return sendMail({ recipients: args.recipients, subject, text, html });
 }
