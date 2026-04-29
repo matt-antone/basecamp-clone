@@ -8,6 +8,7 @@ import { MarkdownHtml } from "@/components/discussions/markdown-html";
 import { InlineLoadingState, PageLoadingState } from "@/components/loading-shells";
 import { OneShotButton } from "@/components/one-shot-button";
 import { authedJsonFetch, ensureAccessToken, fetchAuthSession } from "@/lib/browser-auth";
+import { triggerBrowserDownload } from "@/lib/browser-download";
 import { createClientResource } from "@/lib/client-resource";
 import { useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
@@ -244,7 +245,10 @@ function DiscussionPageContent(props: {
     if (!token || !projectId) return;
     const data = await authedFetch(token, `/projects/${projectId}/files/${fileId}/download-link`);
     const downloadUrl = typeof data?.url === "string" ? data.url : "";
-    if (downloadUrl) {
+    const filename = typeof data?.filename === "string" ? data.filename : "";
+    if (downloadUrl && filename) {
+      await triggerBrowserDownload({ url: downloadUrl, filename });
+    } else if (downloadUrl) {
       window.open(downloadUrl, "_blank", "noopener,noreferrer");
     }
   }

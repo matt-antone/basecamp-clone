@@ -8,8 +8,8 @@ import { OneShotButton } from "@/components/one-shot-button";
 import { ProjectDialogForm, type ProjectDialogValues } from "@/components/project-dialog-form";
 // import { ProjectTagList } from "@/components/project-tag-list";
 import { ProjectFilesPanel } from "@/components/projects/project-files-panel";
-import { getAvatarProxyUrl } from "@/lib/avatar";
 import { authedFormDataFetch, authedJsonFetch, fetchAuthSession } from "@/lib/browser-auth";
+import { triggerBrowserDownload } from "@/lib/browser-download";
 import { createClientResource } from "@/lib/client-resource";
 import { calculateProjectExpensesTotalUsd, formatUsdInput, formatUsdMoney } from "@/lib/project-financials";
 import { renderMarkdown } from "@/lib/markdown";
@@ -483,7 +483,10 @@ function ProjectPageContent({ projectId, initial }: { projectId: string; initial
     if (!token || !projectId) return;
     const data = await authedFetch(token, `/projects/${projectId}/files/${fileId}/download-link`);
     const downloadUrl = typeof data?.url === "string" ? data.url : "";
-    if (downloadUrl) {
+    const filename = typeof data?.filename === "string" ? data.filename : "";
+    if (downloadUrl && filename) {
+      await triggerBrowserDownload({ url: downloadUrl, filename });
+    } else if (downloadUrl) {
       window.open(downloadUrl, "_blank", "noopener,noreferrer");
     }
   }
@@ -555,11 +558,7 @@ function ProjectPageContent({ projectId, initial }: { projectId: string; initial
                       {userHours.map((entry) => (
                         <li key={entry.userId} className="projectArchivedHoursRow">
                           <span className="projectArchivedHoursUser">
-                            {entry.avatarUrl ? (
-                              <img src={getAvatarProxyUrl(entry.avatarUrl)} alt="" className="projectHoursAvatar" />
-                            ) : (
-                              <span className="projectHoursAvatar projectHoursAvatarFallback">{getHoursEntryInitials(entry)}</span>
-                            )}
+                            <span className="projectHoursAvatar projectHoursAvatarFallback">{getHoursEntryInitials(entry)}</span>
                             <span className="projectArchivedHoursName">
                               {getHoursEntryLabel(entry)}
                             </span>
@@ -616,11 +615,7 @@ function ProjectPageContent({ projectId, initial }: { projectId: string; initial
                 <label className="projectHoursField">
                   <span>My Hours</span>
                   <span className="projectHoursFieldInput">
-                    {viewerProfile?.avatar_url ? (
-                      <img src={getAvatarProxyUrl(viewerProfile.avatar_url)} alt="Your avatar" className="projectHoursAvatar" />
-                    ) : (
-                      <span className="projectHoursAvatar projectHoursAvatarFallback">{getViewerInitials(viewerProfile)}</span>
-                    )}
+                    <span className="projectHoursAvatar projectHoursAvatarFallback">{getViewerInitials(viewerProfile)}</span>
                     <input
                       type="number"
                       min="0"
@@ -737,11 +732,7 @@ function ProjectPageContent({ projectId, initial }: { projectId: string; initial
                 {userHours.map((entry) => (
                   <div key={entry.userId} className="projectFinancialRow projectFinancialRowHoursOnly" role="row">
                     <div className="projectFinancialPerson" role="cell">
-                      {entry.avatarUrl ? (
-                        <img src={getAvatarProxyUrl(entry.avatarUrl)} alt="" className="projectHoursAvatar" />
-                      ) : (
-                        <span className="projectHoursAvatar projectHoursAvatarFallback">{getHoursEntryInitials(entry)}</span>
-                      )}
+                      <span className="projectHoursAvatar projectHoursAvatarFallback">{getHoursEntryInitials(entry)}</span>
                       <span>{getHoursEntryLabel(entry)}</span>
                     </div>
                     <span role="cell">{formatHoursValue(entry.hours)}</span>
