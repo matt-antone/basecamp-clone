@@ -149,7 +149,7 @@ export const config = {
     return value;
   },
   blobReadWriteToken: () => {
-    const value = process.env.BLOB_READ_WRITE_TOKEN;
+    const value = getOptionalEnv("BLOB_READ_WRITE_TOKEN");
     if (!value) {
       throw new Error("BLOB_READ_WRITE_TOKEN is required for file uploads");
     }
