@@ -1,7 +1,8 @@
 import { requireUser } from "@/lib/auth";
-import { badRequest, ok, serverError, unauthorized } from "@/lib/http";
+import { ok, serverError } from "@/lib/http";
 import { DEFAULT_HOURLY_RATE_USD } from "@/lib/project-financials";
 import { getSiteSettings, upsertSiteSettings } from "@/lib/repositories";
+import { withRouteErrors } from "@/lib/route-handlers";
 import { z } from "zod";
 
 const patchSiteSettingsSchema = z.object({
@@ -19,65 +20,52 @@ function normalizeHourlyRateForResponse(value: number | string | null | undefine
   return Number.isFinite(parsed) ? parsed : DEFAULT_HOURLY_RATE_USD;
 }
 
-export async function GET(request: Request) {
-  try {
-    await requireUser(request);
-    const siteSettings = await getSiteSettings();
-    return ok({
-      siteSettings: {
-        siteTitle: siteSettings?.siteTitle ?? null,
-        logoUrl: siteSettings?.logoUrl ?? null,
-        defaultHourlyRateUsd: normalizeHourlyRateForResponse(siteSettings?.defaultHourlyRateUsd)
-      }
-    });
-  } catch (error) {
-    if (error instanceof Error && /auth|token|workspace/i.test(error.message)) {
-      return unauthorized(error.message);
-    }
-    return serverError();
+function mapSiteSettingsError(error: unknown): Response | null {
+  if (error instanceof Error && /site_settings table is not available/i.test(error.message)) {
+    return serverError(error.message);
   }
+  return null;
 }
 
-export async function PATCH(request: Request) {
-  try {
-    await requireUser(request);
-    const payload = patchSiteSettingsSchema.parse(await request.json());
-    const currentSettings = await getSiteSettings();
-    const siteSettings = await upsertSiteSettings({
-      siteTitle:
-        payload.siteTitle === undefined
-          ? currentSettings?.siteTitle ?? null
-          : typeof payload.siteTitle === "string"
-            ? payload.siteTitle.trim() || null
-            : null,
-      logoUrl:
-        payload.logoUrl === undefined
-          ? currentSettings?.logoUrl ?? null
-          : typeof payload.logoUrl === "string"
-            ? payload.logoUrl.trim() || null
-            : null,
-      defaultHourlyRateUsd:
-        payload.defaultHourlyRateUsd === undefined
-          ? currentSettings?.defaultHourlyRateUsd ?? DEFAULT_HOURLY_RATE_USD
-          : payload.defaultHourlyRateUsd ?? DEFAULT_HOURLY_RATE_USD
-    });
-    return ok({
-      siteSettings: {
-        siteTitle: siteSettings.siteTitle,
-        logoUrl: siteSettings.logoUrl,
-        defaultHourlyRateUsd: normalizeHourlyRateForResponse(siteSettings.defaultHourlyRateUsd)
-      }
-    });
-  } catch (error) {
-    if (error instanceof Error && /auth|token|workspace/i.test(error.message)) {
-      return unauthorized(error.message);
+export const GET = withRouteErrors(async (request: Request) => {
+  await requireUser(request);
+  const siteSettings = await getSiteSettings();
+  return ok({
+    siteSettings: {
+      siteTitle: siteSettings?.siteTitle ?? null,
+      logoUrl: siteSettings?.logoUrl ?? null,
+      defaultHourlyRateUsd: normalizeHourlyRateForResponse(siteSettings?.defaultHourlyRateUsd)
     }
-    if (error instanceof z.ZodError) {
-      return badRequest(error.message);
+  });
+});
+
+export const PATCH = withRouteErrors(async (request: Request) => {
+  await requireUser(request);
+  const payload = patchSiteSettingsSchema.parse(await request.json());
+  const currentSettings = await getSiteSettings();
+  const siteSettings = await upsertSiteSettings({
+    siteTitle:
+      payload.siteTitle === undefined
+        ? currentSettings?.siteTitle ?? null
+        : typeof payload.siteTitle === "string"
+          ? payload.siteTitle.trim() || null
+          : null,
+    logoUrl:
+      payload.logoUrl === undefined
+        ? currentSettings?.logoUrl ?? null
+        : typeof payload.logoUrl === "string"
+          ? payload.logoUrl.trim() || null
+          : null,
+    defaultHourlyRateUsd:
+      payload.defaultHourlyRateUsd === undefined
+        ? currentSettings?.defaultHourlyRateUsd ?? DEFAULT_HOURLY_RATE_USD
+        : payload.defaultHourlyRateUsd ?? DEFAULT_HOURLY_RATE_USD
+  });
+  return ok({
+    siteSettings: {
+      siteTitle: siteSettings.siteTitle,
+      logoUrl: siteSettings.logoUrl,
+      defaultHourlyRateUsd: normalizeHourlyRateForResponse(siteSettings.defaultHourlyRateUsd)
     }
-    if (error instanceof Error && /site_settings table is not available/i.test(error.message)) {
-      return serverError(error.message);
-    }
-    return serverError();
-  }
-}
+  });
+}, { mapError: mapSiteSettingsError });
