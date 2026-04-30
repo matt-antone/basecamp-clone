@@ -395,4 +395,215 @@ describe("POST /projects/[id]/files/upload-complete", () => {
 
     expect(response.status).toBe(400);
   });
+
+  it("marks transfer failed when fetching the blob returns non-OK", async () => {
+    requireUserMock.mockResolvedValue({ id: "user-1", email: "person@example.com" });
+    getProjectMock.mockResolvedValue({
+      id: "project-1",
+      storage_project_dir: "/Projects/BRGS/BRGS-0001-Site Refresh"
+    });
+    createFileMetadataMock.mockResolvedValue({ id: "file-1" });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({ ok: false, status: 500 })
+    );
+
+    const { POST } = await import("@/app/projects/[id]/files/upload-complete/route");
+    const response = await POST(
+      new Request("http://localhost/projects/project-1/files/upload-complete", {
+        method: "POST",
+        headers: {
+          authorization: "Bearer token",
+          "content-type": "application/json"
+        },
+        body: JSON.stringify({
+          blobUrl: BLOB_URL,
+          filename: "report.pdf",
+          mimeType: "application/pdf",
+          sizeBytes: 1234
+        })
+      }),
+      { params: Promise.resolve({ id: "project-1" }) }
+    );
+
+    await flushAfter();
+
+    expect(response.status).toBe(202);
+    expect(markFileTransferFailedMock).toHaveBeenCalledWith(
+      expect.objectContaining({ fileId: "file-1", error: expect.stringContaining("500") })
+    );
+    expect(finalizeFileMetadataAfterTransferMock).not.toHaveBeenCalled();
+    expect(delMock).toHaveBeenCalledWith(BLOB_URL);
+  });
+
+  it("marks transfer failed when markFileTransferInProgress throws", async () => {
+    requireUserMock.mockResolvedValue({ id: "user-1", email: "person@example.com" });
+    getProjectMock.mockResolvedValue({
+      id: "project-1",
+      storage_project_dir: "/Projects/BRGS/BRGS-0001-Site Refresh"
+    });
+    createFileMetadataMock.mockResolvedValue({ id: "file-1" });
+    markFileTransferInProgressMock.mockRejectedValueOnce(new Error("DB unavailable"));
+    vi.stubGlobal("fetch", makeFetchMock());
+
+    const { POST } = await import("@/app/projects/[id]/files/upload-complete/route");
+    const response = await POST(
+      new Request("http://localhost/projects/project-1/files/upload-complete", {
+        method: "POST",
+        headers: {
+          authorization: "Bearer token",
+          "content-type": "application/json"
+        },
+        body: JSON.stringify({
+          blobUrl: BLOB_URL,
+          filename: "report.pdf",
+          mimeType: "application/pdf",
+          sizeBytes: 1234
+        })
+      }),
+      { params: Promise.resolve({ id: "project-1" }) }
+    );
+
+    await flushAfter();
+
+    expect(response.status).toBe(202);
+    expect(markFileTransferFailedMock).toHaveBeenCalledWith(
+      expect.objectContaining({ fileId: "file-1", error: "DB unavailable" })
+    );
+    expect(finalizeFileMetadataAfterTransferMock).not.toHaveBeenCalled();
+    expect(delMock).toHaveBeenCalledWith(BLOB_URL);
+  });
+
+  it("marks transfer failed when finalizeFileMetadataAfterTransfer throws after Dropbox succeeds", async () => {
+    requireUserMock.mockResolvedValue({ id: "user-1", email: "person@example.com" });
+    getProjectMock.mockResolvedValue({
+      id: "project-1",
+      storage_project_dir: "/Projects/BRGS/BRGS-0001-Site Refresh"
+    });
+    createFileMetadataMock.mockResolvedValue({ id: "file-1" });
+    uploadCompleteMock.mockResolvedValue({
+      fileId: "id:abc123",
+      path: "/Projects/BRGS/BRGS-0001-Site Refresh/uploads/report.pdf"
+    });
+    finalizeFileMetadataAfterTransferMock.mockRejectedValueOnce(new Error("finalize DB error"));
+    vi.stubGlobal("fetch", makeFetchMock());
+
+    const { POST } = await import("@/app/projects/[id]/files/upload-complete/route");
+    const response = await POST(
+      new Request("http://localhost/projects/project-1/files/upload-complete", {
+        method: "POST",
+        headers: {
+          authorization: "Bearer token",
+          "content-type": "application/json"
+        },
+        body: JSON.stringify({
+          blobUrl: BLOB_URL,
+          filename: "report.pdf",
+          mimeType: "application/pdf",
+          sizeBytes: 1234
+        })
+      }),
+      { params: Promise.resolve({ id: "project-1" }) }
+    );
+
+    await flushAfter();
+
+    expect(response.status).toBe(202);
+    expect(uploadCompleteMock).toHaveBeenCalledTimes(1);
+    expect(markFileTransferFailedMock).toHaveBeenCalledWith(
+      expect.objectContaining({ fileId: "file-1", error: "finalize DB error" })
+    );
+    expect(enqueueThumbnailJobAndNotifyBestEffortMock).not.toHaveBeenCalled();
+    expect(delMock).toHaveBeenCalledWith(BLOB_URL);
+  });
+
+  it("passes projectArchived=true to thumbnail enqueue when project is archived", async () => {
+    requireUserMock.mockResolvedValue({ id: "user-1", email: "person@example.com" });
+    getProjectMock.mockResolvedValue({
+      id: "project-1",
+      storage_project_dir: "/Projects/BRGS/BRGS-0001-Site Refresh",
+      archived: true
+    });
+    createFileMetadataMock.mockResolvedValue({ id: "file-1" });
+    uploadCompleteMock.mockResolvedValue({
+      fileId: "id:abc123",
+      path: "/Projects/BRGS/BRGS-0001-Site Refresh/uploads/report.pdf"
+    });
+    vi.stubGlobal("fetch", makeFetchMock());
+
+    const { POST } = await import("@/app/projects/[id]/files/upload-complete/route");
+    const response = await POST(
+      new Request("http://localhost/projects/project-1/files/upload-complete", {
+        method: "POST",
+        headers: {
+          authorization: "Bearer token",
+          "content-type": "application/json"
+        },
+        body: JSON.stringify({
+          blobUrl: BLOB_URL,
+          filename: "report.pdf",
+          mimeType: "application/pdf",
+          sizeBytes: 1234
+        })
+      }),
+      { params: Promise.resolve({ id: "project-1" }) }
+    );
+
+    await flushAfter();
+
+    expect(response.status).toBe(202);
+    expect(finalizeFileMetadataAfterTransferMock).toHaveBeenCalledTimes(1);
+    expect(enqueueThumbnailJobAndNotifyBestEffortMock).toHaveBeenCalledWith(
+      expect.objectContaining({ projectArchived: true })
+    );
+    expect(delMock).toHaveBeenCalledWith(BLOB_URL);
+  });
+
+  it("logs blob_cleanup_failed but still completes transfer when del() throws", async () => {
+    const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      requireUserMock.mockResolvedValue({ id: "user-1", email: "person@example.com" });
+      getProjectMock.mockResolvedValue({
+        id: "project-1",
+        storage_project_dir: "/Projects/BRGS/BRGS-0001-Site Refresh"
+      });
+      createFileMetadataMock.mockResolvedValue({ id: "file-1" });
+      uploadCompleteMock.mockResolvedValue({
+        fileId: "id:abc123",
+        path: "/Projects/BRGS/BRGS-0001-Site Refresh/uploads/report.pdf"
+      });
+      delMock.mockRejectedValueOnce(new Error("blob 503"));
+      vi.stubGlobal("fetch", makeFetchMock());
+
+      const { POST } = await import("@/app/projects/[id]/files/upload-complete/route");
+      const response = await POST(
+        new Request("http://localhost/projects/project-1/files/upload-complete", {
+          method: "POST",
+          headers: {
+            authorization: "Bearer token",
+            "content-type": "application/json"
+          },
+          body: JSON.stringify({
+            blobUrl: BLOB_URL,
+            filename: "report.pdf",
+            mimeType: "application/pdf",
+            sizeBytes: 1234
+          })
+        }),
+        { params: Promise.resolve({ id: "project-1" }) }
+      );
+
+      await flushAfter();
+
+      expect(response.status).toBe(202);
+      expect(finalizeFileMetadataAfterTransferMock).toHaveBeenCalledTimes(1);
+      expect(markFileTransferFailedMock).not.toHaveBeenCalled();
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        "blob_cleanup_failed",
+        expect.objectContaining({ blobUrl: BLOB_URL })
+      );
+    } finally {
+      consoleErrorSpy.mockRestore();
+    }
+  });
 });
