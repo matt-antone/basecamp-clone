@@ -476,6 +476,8 @@ function ProjectPageContent({ projectId, initial }: { projectId: string; initial
           }
         };
         xhr.onerror = () => reject(new Error("Network error uploading to Dropbox"));
+        xhr.timeout = 300_000; // 5 minutes
+        xhr.ontimeout = () => reject(new Error("Upload timed out"));
         xhr.send(selectedFile);
       });
 
