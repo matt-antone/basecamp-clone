@@ -17,7 +17,7 @@ export type UserProfile = {
   bio: string | null;
 };
 
-type NotificationRecipient = Pick<UserProfile, "id" | "email" | "firstName" | "lastName">;
+export type NotificationRecipient = Pick<UserProfile, "id" | "email" | "firstName" | "lastName">;
 type SiteSettings = {
   siteTitle: string | null;
   logoUrl: string | null;
@@ -1326,17 +1326,10 @@ export async function listProjectMembers(projectId: string): Promise<ProjectMemb
   return result.rows as ProjectMember[];
 }
 
-export type NotificationRecipientRow = {
-  id: string;
-  email: string;
-  firstName: string | null;
-  lastName: string | null;
-};
-
 export async function listProjectMemberRecipients(
   projectId: string,
   excludeUserId: string
-): Promise<NotificationRecipientRow[]> {
+): Promise<NotificationRecipient[]> {
   const result = await query(
     `select up.id, up.email, up.first_name, up.last_name
        from project_members pm
