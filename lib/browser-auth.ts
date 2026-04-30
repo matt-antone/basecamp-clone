@@ -99,32 +99,3 @@ export async function authedJsonFetch(options: AuthedFetchOptions) {
   };
 }
 
-export async function authedFormDataFetch(options: AuthedFetchOptions & { body: FormData }) {
-  let accessToken = await ensureAccessToken(options.accessToken, options.onToken);
-
-  const send = (token: string) =>
-    fetch(options.path, {
-      ...options.init,
-      body: options.body,
-      headers: {
-        Authorization: `Bearer ${token}`,
-        ...(options.init?.headers ?? {})
-      }
-    });
-
-  let response = await send(accessToken);
-  if (response.status === 401) {
-    accessToken = await ensureAccessToken(null, options.onToken);
-    response = await send(accessToken);
-  }
-
-  const data = await readJsonResponse(response);
-  if (!response.ok) {
-    throw new Error(responseErrorMessage(data, response.status));
-  }
-
-  return {
-    accessToken,
-    data
-  };
-}

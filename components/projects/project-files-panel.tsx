@@ -142,19 +142,7 @@ export function ProjectFilesPanel(props: ProjectFilesPanelProps) {
                 onClick={() => isReady && onDownloadFile(file.id)}
                 disabled={!isReady}
               >
-                {isPending ? (
-                  <div className="fileThumbFallback fileThumbTransferring" aria-label="Transferring">
-                    <span className="fileThumbSpinner" aria-hidden="true" />
-                  </div>
-                ) : isFailed ? (
-                  <div
-                    className="fileThumbFallback fileThumbFailed"
-                    title={file.transfer_error ?? "Transfer failed"}
-                    aria-label="Transfer failed"
-                  >
-                    ✕
-                  </div>
-                ) : (
+                {isReady ? (
                   <ThumbnailPreview
                     projectId={projectId}
                     fileId={file.id}
@@ -167,6 +155,22 @@ export function ProjectFilesPanel(props: ProjectFilesPanelProps) {
                     imageClassName="fileThumbImage"
                     fallback={<div className="fileThumbFallback">{getFileBadgeLabel(file)}</div>}
                   />
+                ) : isPending ? (
+                  <div className="fileThumbFallback fileThumbTransferring" aria-label="Transferring">
+                    <span className="fileThumbSpinner" aria-hidden="true" />
+                  </div>
+                ) : isFailed ? (
+                  <div
+                    className="fileThumbFallback fileThumbFailed"
+                    title={file.transfer_error ?? "Transfer failed"}
+                    aria-label="Transfer failed"
+                  >
+                    ✕
+                  </div>
+                ) : (
+                  <div className="fileThumbFallback fileThumbUnknown" aria-label="Unknown status">
+                    <span className="fileThumbSpinner" aria-hidden="true" />
+                  </div>
                 )}
               </OneShotButton>
               <div className="fileThumbMeta">

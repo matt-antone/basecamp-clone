@@ -16,7 +16,7 @@ import { calculateProjectExpensesTotalUsd, formatUsdInput, formatUsdMoney } from
 import { renderMarkdown } from "@/lib/markdown";
 import { createProjectDialogValues, formatProjectDeadlineLocal, normalizeProjectColumn, parseProjectTags } from "@/lib/project-utils";
 import type { ClientRecord } from "@/lib/types/client-record";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 
 const MarkdownEditor = dynamic(() => import("@/components/markdown-editor"), {
@@ -180,7 +180,7 @@ function ProjectPageContent({ projectId, initial }: { projectId: string; initial
     return data;
   }
 
-  async function load(accessToken: string, id: string) {
+  const load = useCallback(async (accessToken: string, id: string) => {
     const nextState = await loadProjectData(accessToken, id);
     setProject(nextState.project);
     setUserHours(nextState.userHours);
@@ -190,7 +190,7 @@ function ProjectPageContent({ projectId, initial }: { projectId: string; initial
     setClients(nextState.clients);
     setViewerProfile(nextState.viewerProfile);
     setStatus("Ready");
-  }
+  }, []);
 
   useEffect(() => {
     setProjectForm(createProjectDialogValues(project?.client_id ?? "", project));
@@ -225,7 +225,7 @@ function ProjectPageContent({ projectId, initial }: { projectId: string; initial
       load(token, projectId).catch(() => {});
     }, 5000);
     return () => clearTimeout(timer);
-  }, [files, token, projectId]);
+  }, [files, token, projectId, load]);
 
   function getStarterLabel(thread: Thread) {
     const fullName = `${thread.starter_first_name ?? ""} ${thread.starter_last_name ?? ""}`.trim();
