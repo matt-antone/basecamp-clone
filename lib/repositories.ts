@@ -1291,6 +1291,21 @@ export async function addProjectMember(projectId: string, userId: string) {
   );
 }
 
+export async function removeProjectMember(projectId: string, userId: string) {
+  const countResult = await query(
+    "select count(*)::int as count from project_members where project_id = $1",
+    [projectId]
+  );
+  const current = Number(countResult.rows[0]?.count ?? 0);
+  if (current <= 1) {
+    throw new Error("Cannot remove the last member of a project");
+  }
+  await query(
+    "delete from project_members where project_id = $1 and user_id = $2",
+    [projectId, userId]
+  );
+}
+
 export async function listThreads(projectId: string) {
   const result = await query(
     `select
