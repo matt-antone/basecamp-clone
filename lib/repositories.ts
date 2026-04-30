@@ -634,7 +634,9 @@ export async function createProject(args: {
        returning *`,
       values
     );
-    return result.rows[0];
+    const created = result.rows[0];
+    await addProjectMember(created.id, args.createdBy);
+    return created;
   } catch (error) {
     if (!isMissingProjectDeadlineColumnError(error)) {
       throw error;
@@ -671,7 +673,9 @@ export async function createProject(args: {
        returning *`,
       [...values.slice(0, 9), requestor]
     );
-    return fallback.rows[0];
+    const created = fallback.rows[0];
+    await addProjectMember(created.id, args.createdBy);
+    return created;
   }
 }
 

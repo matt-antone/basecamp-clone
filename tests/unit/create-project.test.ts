@@ -27,7 +27,8 @@ describe("createProject", () => {
             storage_project_dir: "/projects/BRGS/BRGS-0007-Website Refresh"
           }
         ]
-      });
+      })
+      .mockResolvedValueOnce({ rowCount: 1, rows: [] });
 
     const { createProject } = await import("@/lib/repositories");
 
@@ -41,7 +42,7 @@ describe("createProject", () => {
       requestor: "Jane Producer"
     });
 
-    expect(queryMock).toHaveBeenCalledTimes(2);
+    expect(queryMock).toHaveBeenCalledTimes(3);
     const [sql, params] = queryMock.mock.calls[1];
     expect(sql).toContain("requestor");
     expect(sql).toContain("storage_project_dir");
@@ -54,5 +55,41 @@ describe("createProject", () => {
     expect(params[8]).toBe("/projects");
     expect(params[9]).toBe("2026-04-30");
     expect(params[10]).toBe("Jane Producer");
+  });
+
+  it("inserts the creator into project_members after creating the project", async () => {
+    queryMock
+      .mockResolvedValueOnce({
+        rows: [{ id: "client-1", name: "Acme", code: "ACME" }]
+      })
+      .mockResolvedValueOnce({
+        rows: [
+          {
+            id: "project-77",
+            project_code: "ACME-0001",
+            client_slug: "Acme",
+            project_slug: "kickoff",
+            storage_project_dir: "/projects/ACME/ACME-0001-Kickoff"
+          }
+        ]
+      })
+      .mockResolvedValueOnce({ rowCount: 1, rows: [] });
+
+    const { createProject } = await import("@/lib/repositories");
+
+    await createProject({
+      name: "Kickoff",
+      description: "First project",
+      createdBy: "user-77",
+      clientId: "client-1",
+      tags: [],
+      deadline: null,
+      requestor: null
+    });
+
+    expect(queryMock).toHaveBeenCalledTimes(3);
+    const [memberSql, memberParams] = queryMock.mock.calls[2];
+    expect(memberSql).toMatch(/insert into project_members/i);
+    expect(memberParams).toEqual(["project-77", "user-77"]);
   });
 });
