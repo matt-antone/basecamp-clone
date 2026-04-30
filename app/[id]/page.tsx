@@ -8,7 +8,6 @@ import { OneShotButton } from "@/components/one-shot-button";
 import { ProjectDialogForm, type ProjectDialogValues } from "@/components/project-dialog-form";
 // import { ProjectTagList } from "@/components/project-tag-list";
 import { ProjectFilesPanel } from "@/components/projects/project-files-panel";
-import { upload } from "@vercel/blob/client";
 import { authedJsonFetch, fetchAuthSession } from "@/lib/browser-auth";
 import { triggerBrowserDownload } from "@/lib/browser-download";
 import { createClientResource } from "@/lib/client-resource";
@@ -216,16 +215,6 @@ function ProjectPageContent({ projectId, initial }: { projectId: string; initial
       )
     );
   }, [expenseLines]);
-
-  // Poll once after 5 s if any file is still transferring.
-  useEffect(() => {
-    const hasPending = files.some((f) => f.status === "pending" || f.status === "in_progress");
-    if (!hasPending || !token || !projectId) return;
-    const timer = setTimeout(() => {
-      load(token, projectId).catch(() => {});
-    }, 5000);
-    return () => clearTimeout(timer);
-  }, [files, token, projectId, load]);
 
   function getStarterLabel(thread: Thread) {
     const fullName = `${thread.starter_first_name ?? ""} ${thread.starter_last_name ?? ""}`.trim();
@@ -457,30 +446,55 @@ function ProjectPageContent({ projectId, initial }: { projectId: string; initial
     if (!token || !projectId || !selectedFile) return;
     setIsUploading(true);
     try {
-      // Step 1: browser → Vercel Blob directly (bypasses 4.5 MB function body limit).
-      const blob = await upload(selectedFile.name, selectedFile, {
-        access: "public",
-        handleUploadUrl: `/projects/${projectId}/files/upload-init`,
-        headers: { Authorization: `Bearer ${token}` }
-      });
-
-      // Step 2: tell server to start the Dropbox transfer (small JSON, no body limit issue).
-      await authedFetch(token, `/projects/${projectId}/files/upload-complete`, {
+      // 1. Mint a Dropbox temporary upload link.
+      const initRes = await authedFetch(token, `/projects/${projectId}/files/upload-init`, {
         method: "POST",
         body: JSON.stringify({
-          blobUrl: blob.url,
           filename: selectedFile.name,
-          sizeBytes: selectedFile.size,
-          mimeType: selectedFile.type || "application/octet-stream"
+          mimeType: selectedFile.type || "application/octet-stream",
+          sizeBytes: selectedFile.size
+        })
+      });
+      const { uploadUrl, requestId } = initRes as { uploadUrl: string; requestId: string };
+
+      // 2. POST bytes directly to Dropbox via XHR (Fetch lacks upload-progress events).
+      //    Dropbox's /2/files/get_temporary_upload_link returns a content-server URL
+      //    that accepts POST with the file body.
+      const dropboxMetadata = await new Promise<{ id: string; path_display: string }>((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.open("POST", uploadUrl);
+        xhr.setRequestHeader("Content-Type", "application/octet-stream");
+        xhr.onload = () => {
+          if (xhr.status >= 200 && xhr.status < 300) {
+            try {
+              resolve(JSON.parse(xhr.responseText));
+            } catch {
+              reject(new Error("Dropbox response was not JSON"));
+            }
+          } else {
+            reject(new Error(`Dropbox upload failed (${xhr.status})`));
+          }
+        };
+        xhr.onerror = () => reject(new Error("Network error uploading to Dropbox"));
+        xhr.send(selectedFile);
+      });
+
+      // 3. Tell the server to finalize via metadata lookup.
+      await authedFetch(token, `/projects/${projectId}/files/upload-complete`, {
+        method: "POST",
+        headers: { "x-original-mime-type": selectedFile.type || "application/octet-stream" },
+        body: JSON.stringify({
+          dropboxFileId: dropboxMetadata.id,
+          requestId
         })
       });
 
       setSelectedFile(null);
-      if (fileInputRef.current) {
-        fileInputRef.current.value = "";
-      }
+      if (fileInputRef.current) fileInputRef.current.value = "";
       await load(token, projectId);
-      setStatus(`Uploading ${selectedFile.name} — will appear when transfer completes.`);
+    } catch (err) {
+      console.error("upload_failed", err);
+      setStatus(err instanceof Error ? err.message : "Upload failed");
     } finally {
       setIsUploading(false);
     }
