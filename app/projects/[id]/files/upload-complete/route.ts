@@ -13,7 +13,7 @@ import { getProjectStorageDir } from "@/lib/project-storage";
 import { DropboxStorageAdapter } from "@/lib/storage/dropbox-adapter";
 
 const completeSchema = z.object({
-  dropboxFileId: z.string().min(1).max(256),
+  targetPath: z.string().min(1).max(1024),
   requestId: z.string().min(1).max(128),
   threadId: z.string().uuid().optional(),
   commentId: z.string().uuid().optional()
@@ -70,10 +70,20 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       }
     }
 
+    const expectedPrefix = `${getProjectStorageDir(project)}/uploads/`;
+    if (!payload.targetPath.startsWith(expectedPrefix)) {
+      console.warn("upload_complete_path_attribution_blocked", {
+        projectId,
+        targetPath: payload.targetPath,
+        expectedPrefix
+      });
+      return forbidden("Uploaded file is outside the project's storage area");
+    }
+
     const adapter = new DropboxStorageAdapter();
     let metadata;
     try {
-      metadata = await adapter.getFileMetadata({ dropboxFileId: payload.dropboxFileId });
+      metadata = await adapter.getFileMetadata({ targetPath: payload.targetPath });
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       if (DROPBOX_PATH_NOT_FOUND_PATTERN.test(message)) {
@@ -82,11 +92,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       throw error;
     }
 
-    const expectedPrefix = `${getProjectStorageDir(project)}/uploads/`;
     if (!metadata.pathDisplay.startsWith(expectedPrefix)) {
       console.warn("upload_complete_path_attribution_blocked", {
         projectId,
-        dropboxFileId: payload.dropboxFileId,
+        targetPath: payload.targetPath,
         pathDisplay: metadata.pathDisplay,
         expectedPrefix
       });

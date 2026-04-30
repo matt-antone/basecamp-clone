@@ -493,12 +493,12 @@ async function uploadAttachmentForComment(args: {
     onToken,
     path: `/projects/${projectId}/files/upload-init`
   });
-  const { uploadUrl, requestId } = initData as { uploadUrl: string; requestId: string };
+  const { uploadUrl, targetPath, requestId } = initData as { uploadUrl: string; targetPath: string; requestId: string };
 
   // 2. POST bytes directly to Dropbox via XHR (Fetch lacks upload-progress events).
-  //    Dropbox temporary upload links accept POST with the file body; the response
-  //    carries FileMetadata (id, path_display, ...).
-  const dropboxMetadata = await new Promise<{ id: string }>((resolve, reject) => {
+  //    Dropbox temporary upload links accept POST with the file body. The response is
+  //    only {"content-hash": "..."} so we rely on targetPath for the metadata lookup.
+  await new Promise<void>((resolve, reject) => {
     const xhr = new XMLHttpRequest();
     xhr.open("POST", uploadUrl);
     xhr.setRequestHeader("Content-Type", "application/octet-stream");
@@ -514,39 +514,7 @@ async function uploadAttachmentForComment(args: {
         reject(new Error(`Dropbox upload failed (${xhr.status}): ${xhr.responseText.slice(0, 200)}`));
         return;
       }
-      // Dropbox content-upload endpoints typically return FileMetadata in the
-      // Dropbox-API-Result header. Some endpoints (including temp upload links
-      // in some configurations) place it in the body instead. Try both.
-      const apiResult = xhr.getResponseHeader("Dropbox-API-Result");
-      if (apiResult) {
-        try {
-          resolve(JSON.parse(apiResult));
-          return;
-        } catch {
-          // fall through to body
-        }
-      }
-      if (xhr.responseText) {
-        try {
-          const parsed = JSON.parse(xhr.responseText);
-          if (parsed && typeof parsed === "object" && parsed.id) {
-            resolve(parsed);
-            return;
-          }
-        } catch {
-          // fall through
-        }
-      }
-      console.error("dropbox_upload_unparseable", {
-        status: xhr.status,
-        headers: xhr.getAllResponseHeaders(),
-        body: xhr.responseText.slice(0, 500)
-      });
-      reject(new Error(
-        `Dropbox response unparseable. status=${xhr.status} ` +
-        `apiResultHeader=${apiResult ? "present" : "missing"} ` +
-        `bodyLen=${xhr.responseText.length}`
-      ));
+      resolve();
     };
     xhr.onerror = () => reject(new Error("Network error uploading to Dropbox"));
     xhr.timeout = 300_000; // 5 minutes
@@ -556,14 +524,14 @@ async function uploadAttachmentForComment(args: {
 
   onUploadProgress(0.9);
 
-  // 3. Finalize on the server via Dropbox metadata lookup.
+  // 3. Finalize on the server via path-keyed metadata lookup.
   await authedJsonFetch({
     accessToken: resolvedToken,
     init: {
       method: "POST",
       headers: { "x-original-mime-type": file.type || "application/octet-stream" },
       body: JSON.stringify({
-        dropboxFileId: dropboxMetadata.id,
+        targetPath,
         requestId,
         threadId,
         commentId
