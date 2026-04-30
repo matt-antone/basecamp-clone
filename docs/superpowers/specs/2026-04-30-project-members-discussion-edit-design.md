@@ -137,8 +137,11 @@ No changes to the project list, client pages, settings page, or any non-discussi
 
 The work ships as four independent PRs against `main`. Each PR is shippable on its own; PR2 depends on PR1's migration but no other ordering is required.
 
+**Pre-deploy requirement:** A full database backup is taken before applying any migration that ships in this spec (PR1's `0026_project_members.sql`, and any follow-up schema migration). The backup must be verified restorable before the migration runs in production. This applies to every environment promotion, not just prod.
+
 ### PR1 — schema and repository
 
+0. Take a verified database backup before applying the migration in any environment.
 1. Migration `0026_project_members.sql`:
    - Create `project_members` table and index.
    - Add `threads.edited_at` column.
@@ -182,7 +185,7 @@ PR description must call out the notification behavior change explicitly, since 
 
 ## Risks
 
-- **Backfill correctness on production data.** Mitigation: run the backfill query as a read-only `select count(*)` first against a prod snapshot; verify totals before applying. Migration is idempotent (`on conflict do nothing`) and safe to re-run.
+- **Backfill correctness on production data.** Mitigation: take a verified database backup before applying; run the backfill query as a read-only `select count(*)` first against a prod snapshot; verify totals before applying. Migration is idempotent (`on conflict do nothing`) and safe to re-run.
 - **Notification volume changes (PR2).** Today users likely receive email for every active project; after PR2 they only receive email for projects they're members of. Mitigation: PR2 description spells out the change; team is told to add themselves to projects they want to follow.
 - **Last-member edge case.** A project with zero members would never notify anyone. Server enforces the "cannot remove last member" rule; UI prevents the action and shows an inline message.
 - **Composer refactor scope creep (PR4).** Extracting the attachment pipeline could grow into a broader composer rewrite. Mitigation: PR4 only extracts what the create-discussion dialog needs; broader cleanup is explicitly out of scope.
