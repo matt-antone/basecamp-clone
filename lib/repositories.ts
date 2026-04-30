@@ -729,7 +729,7 @@ export async function getProject(id: string, viewerUserId?: string | null) {
 }
 
 export async function getProjectUpdatedDate(id: string): Promise<{ updatedDate: string } | null> {
-  const result = await query(
+  const result = await query<{ updatedDate: string }>(
     `select greatest(updated_at, coalesce(last_activity_at, updated_at)) as "updatedDate"
      from projects
      where id = $1`,
@@ -1779,4 +1779,3 @@ function isMissingProjectFileColumnError(error: unknown) {
     message.includes("project_files.bc_attachment_id")
   );
 }
-
