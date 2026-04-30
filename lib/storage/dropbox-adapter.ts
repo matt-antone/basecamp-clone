@@ -1,8 +1,6 @@
 import { Dropbox } from "dropbox";
 import { config } from "../config-core";
-import type { StorageAdapter } from "./types";
-
-export class DropboxStorageAdapter implements StorageAdapter {
+export class DropboxStorageAdapter {
   private readonly baseClient: Dropbox;
   private clientPromise: Promise<Dropbox> | null = null;
   private readonly clientId: string | undefined;
@@ -417,12 +415,6 @@ export function mapDropboxMetadata(args: {
     dropbox_path: args.dropboxPath,
     checksum: args.checksum
   };
-}
-
-function sanitizeFilename(filename: string) {
-  const trimmed = filename.trim();
-  const normalized = trimmed.replace(/[\\/:*?"<>|]/g, "-");
-  return normalized.length > 0 ? normalized : "file";
 }
 
 function normalizeClientCode(value: string) {
