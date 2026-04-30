@@ -99,7 +99,8 @@ export class DropboxStorageAdapter {
       commit_info: {
         path: args.targetPath,
         mode: { ".tag": "add" },
-        autorename: true,
+        // autorename is false because targetPath is UUID-prefixed and globally unique by construction
+        autorename: false,
         mute: true
       },
       duration: 14400 // 4 hours, the documented Dropbox max for this endpoint
@@ -107,7 +108,7 @@ export class DropboxStorageAdapter {
     return { uploadUrl: response.result.link };
   }
 
-  async getFileMetadata(args: { dropboxFileId: string }): Promise<{
+  async getFileMetadata(args: { targetPath: string }): Promise<{
     fileId: string;
     pathDisplay: string;
     contentHash: string;
@@ -115,7 +116,7 @@ export class DropboxStorageAdapter {
     serverModified: string;
   }> {
     const client = await this.getClient();
-    const response = await client.filesGetMetadata({ path: args.dropboxFileId });
+    const response = await client.filesGetMetadata({ path: args.targetPath });
     const entry = response.result as {
       ".tag": string;
       id?: string;
@@ -125,10 +126,10 @@ export class DropboxStorageAdapter {
       server_modified?: string;
     };
     if (entry[".tag"] !== "file") {
-      throw new Error(`Dropbox metadata for ${args.dropboxFileId} is not a file (got .tag=${entry[".tag"]})`);
+      throw new Error(`Dropbox metadata for ${args.targetPath} is not a file (got .tag=${entry[".tag"]})`);
     }
     if (!entry.id || !entry.path_display || !entry.content_hash || typeof entry.size !== "number" || !entry.server_modified) {
-      throw new Error(`Dropbox metadata for ${args.dropboxFileId} is missing required fields`);
+      throw new Error(`Dropbox metadata for ${args.targetPath} is missing required fields`);
     }
     return {
       fileId: entry.id,

@@ -40,14 +40,15 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       return badRequest(parsed.error.message);
     }
 
-    const targetPath = `${getProjectStorageDir(project)}/uploads/${parsed.data.filename}`;
+    const requestId = randomUUID();
+    const targetPath = `${getProjectStorageDir(project)}/uploads/${requestId}-${parsed.data.filename}`;
     const adapter = new DropboxStorageAdapter();
     const { uploadUrl } = await adapter.getTemporaryUploadLink({ targetPath });
 
     return ok({
       uploadUrl,
       targetPath,
-      requestId: randomUUID()
+      requestId
     });
   } catch (error) {
     if (error instanceof Error && /auth|token|workspace/i.test(error.message)) {

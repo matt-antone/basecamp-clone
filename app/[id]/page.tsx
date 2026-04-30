@@ -453,12 +453,13 @@ function ProjectPageContent({ projectId, initial }: { projectId: string; initial
           sizeBytes: selectedFile.size
         })
       });
-      const { uploadUrl, requestId } = initRes as { uploadUrl: string; requestId: string };
+      const { uploadUrl, targetPath, requestId } = initRes as { uploadUrl: string; targetPath: string; requestId: string };
 
       // 2. POST bytes directly to Dropbox via XHR (Fetch lacks upload-progress events).
       //    Dropbox's /2/files/get_temporary_upload_link returns a content-server URL
-      //    that accepts POST with the file body.
-      const dropboxMetadata = await new Promise<{ id: string; path_display: string }>((resolve, reject) => {
+      //    that accepts POST with the file body. The response is only {"content-hash": "..."}
+      //    so we rely on targetPath (returned from /upload-init) for the metadata lookup.
+      await new Promise<void>((resolve, reject) => {
         const xhr = new XMLHttpRequest();
         xhr.open("POST", uploadUrl);
         xhr.setRequestHeader("Content-Type", "application/octet-stream");
@@ -467,39 +468,7 @@ function ProjectPageContent({ projectId, initial }: { projectId: string; initial
             reject(new Error(`Dropbox upload failed (${xhr.status}): ${xhr.responseText.slice(0, 200)}`));
             return;
           }
-          // Dropbox content-upload endpoints typically return FileMetadata in the
-          // Dropbox-API-Result header. Some endpoints (including temp upload links
-          // in some configurations) place it in the body instead. Try both.
-          const apiResult = xhr.getResponseHeader("Dropbox-API-Result");
-          if (apiResult) {
-            try {
-              resolve(JSON.parse(apiResult));
-              return;
-            } catch {
-              // fall through to body
-            }
-          }
-          if (xhr.responseText) {
-            try {
-              const parsed = JSON.parse(xhr.responseText);
-              if (parsed && typeof parsed === "object" && parsed.id) {
-                resolve(parsed);
-                return;
-              }
-            } catch {
-              // fall through
-            }
-          }
-          console.error("dropbox_upload_unparseable", {
-            status: xhr.status,
-            headers: xhr.getAllResponseHeaders(),
-            body: xhr.responseText.slice(0, 500)
-          });
-          reject(new Error(
-            `Dropbox response unparseable. status=${xhr.status} ` +
-            `apiResultHeader=${apiResult ? "present" : "missing"} ` +
-            `bodyLen=${xhr.responseText.length}`
-          ));
+          resolve();
         };
         xhr.onerror = () => reject(new Error("Network error uploading to Dropbox"));
         xhr.timeout = 300_000; // 5 minutes
@@ -507,12 +476,12 @@ function ProjectPageContent({ projectId, initial }: { projectId: string; initial
         xhr.send(selectedFile);
       });
 
-      // 3. Tell the server to finalize via metadata lookup.
+      // 3. Tell the server to finalize via path-keyed metadata lookup.
       await authedFetch(token, `/projects/${projectId}/files/upload-complete`, {
         method: "POST",
         headers: { "x-original-mime-type": selectedFile.type || "application/octet-stream" },
         body: JSON.stringify({
-          dropboxFileId: dropboxMetadata.id,
+          targetPath,
           requestId
         })
       });

@@ -74,7 +74,12 @@ describe("verifyJwt", () => {
 
   it("rejects invalid signatures", async () => {
     const token = await mintAgentJwt({ client_id: "mcp-test-client" }, JWT_CONFIG);
-    const tampered = token.slice(0, -1) + (token.endsWith("a") ? "b" : "a");
+    const parts = token.split(".");
+    // Flip the first byte of the signature: that bit position is always significant,
+    // unlike the trailing base64url char which can be in a padding region.
+    const firstSigChar = parts[2][0];
+    parts[2] = (firstSigChar === "a" ? "b" : "a") + parts[2].slice(1);
+    const tampered = parts.join(".");
     await expect(verifyJwt(tampered, JWT_CONFIG)).rejects.toBeInstanceOf(AuthError);
   });
 

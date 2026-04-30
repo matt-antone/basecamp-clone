@@ -160,7 +160,7 @@ describe("DropboxStorageAdapter.getTemporaryUploadLink", () => {
       commit_info: {
         path: "/Projects/ACME/ACME-0001-Brief/uploads/cover.jpg",
         mode: { ".tag": "add" },
-        autorename: true,
+        autorename: false,
         mute: true
       },
       duration: 14400
@@ -170,12 +170,12 @@ describe("DropboxStorageAdapter.getTemporaryUploadLink", () => {
 });
 
 describe("DropboxStorageAdapter.getFileMetadata", () => {
-  it("looks up by id: prefix and returns normalized fields", async () => {
+  it("looks up by targetPath and returns normalized fields", async () => {
     const filesGetMetadata = vi.fn().mockResolvedValue({
       result: {
         ".tag": "file",
         id: "id:abc123",
-        path_display: "/Projects/ACME/ACME-0001-Brief/uploads/cover.jpg",
+        path_display: "/Projects/ACME/ACME-0001-Brief/uploads/550e8400-e29b-41d4-a716-446655440000-cover.jpg",
         content_hash: "deadbeef",
         size: 1234,
         server_modified: "2026-04-30T17:00:00Z"
@@ -186,12 +186,13 @@ describe("DropboxStorageAdapter.getFileMetadata", () => {
     const adapter = new DropboxStorageAdapter();
     adapter.getClient = async () => ({ filesGetMetadata }) as unknown as Dropbox;
 
-    const result = await adapter.getFileMetadata({ dropboxFileId: "id:abc123" });
+    const targetPath = "/Projects/ACME/ACME-0001-Brief/uploads/550e8400-e29b-41d4-a716-446655440000-cover.jpg";
+    const result = await adapter.getFileMetadata({ targetPath });
 
-    expect(filesGetMetadata).toHaveBeenCalledWith({ path: "id:abc123" });
+    expect(filesGetMetadata).toHaveBeenCalledWith({ path: targetPath });
     expect(result).toEqual({
       fileId: "id:abc123",
-      pathDisplay: "/Projects/ACME/ACME-0001-Brief/uploads/cover.jpg",
+      pathDisplay: "/Projects/ACME/ACME-0001-Brief/uploads/550e8400-e29b-41d4-a716-446655440000-cover.jpg",
       contentHash: "deadbeef",
       size: 1234,
       serverModified: "2026-04-30T17:00:00Z"
@@ -207,7 +208,7 @@ describe("DropboxStorageAdapter.getFileMetadata", () => {
     const adapter = new DropboxStorageAdapter();
     adapter.getClient = async () => ({ filesGetMetadata }) as unknown as Dropbox;
 
-    await expect(adapter.getFileMetadata({ dropboxFileId: "id:xyz" })).rejects.toThrow(/not a file/);
+    await expect(adapter.getFileMetadata({ targetPath: "/Projects/ACME/ACME-0001-Brief/uploads/uuid-x.jpg" })).rejects.toThrow(/not a file/);
   });
 
   it("throws when Dropbox returns a file entry with missing required fields", async () => {
@@ -226,7 +227,7 @@ describe("DropboxStorageAdapter.getFileMetadata", () => {
     const adapter = new DropboxStorageAdapter();
     adapter.getClient = async () => ({ filesGetMetadata }) as unknown as Dropbox;
 
-    await expect(adapter.getFileMetadata({ dropboxFileId: "id:abc" }))
+    await expect(adapter.getFileMetadata({ targetPath: "/Projects/ACME/ACME-0001-Brief/uploads/uuid-file.jpg" }))
       .rejects.toThrow(/missing required fields/);
   });
 });
