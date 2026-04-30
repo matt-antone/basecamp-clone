@@ -41,7 +41,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     }
 
     const requestId = randomUUID();
-    const targetPath = `${getProjectStorageDir(project)}/uploads/${requestId}-${parsed.data.filename}`;
+    const targetPath = `${getProjectStorageDir(project)}/uploads/${parsed.data.filename}`;
     const adapter = new DropboxStorageAdapter();
     const { uploadUrl } = await adapter.getTemporaryUploadLink({ targetPath });
 

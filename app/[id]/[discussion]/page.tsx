@@ -511,7 +511,14 @@ async function uploadAttachmentForComment(args: {
     };
     xhr.onload = () => {
       if (xhr.status < 200 || xhr.status >= 300) {
-        reject(new Error(`Dropbox upload failed (${xhr.status}): ${xhr.responseText.slice(0, 200)}`));
+        const body = xhr.responseText.slice(0, 200);
+        if (/conflict|already exists|path\/conflict/i.test(body)) {
+          reject(new Error(
+            "A file with this name already exists in this project. Rename the file and try again."
+          ));
+          return;
+        }
+        reject(new Error(`Dropbox upload failed (${xhr.status}): ${body}`));
         return;
       }
       resolve();
