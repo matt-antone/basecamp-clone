@@ -1,8 +1,4 @@
 export interface StorageAdapter {
-  uploadInit(args: { projectStorageDir: string; filename: string; sizeBytes: number }): Promise<{
-    sessionId: string;
-    targetPath: string;
-  }>;
   uploadComplete(args: {
     sessionId: string;
     targetPath: string;
