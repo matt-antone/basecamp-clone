@@ -102,4 +102,18 @@ describe("POST /projects/[id]/members", () => {
     );
     expect(res.status).toBe(404);
   });
+
+  it("returns 401 when auth fails", async () => {
+    requireUserMock.mockRejectedValue(new Error("auth required"));
+    const { POST } = await import("@/app/projects/[id]/members/route");
+    const res = await POST(
+      new Request("http://localhost/projects/p1/members", {
+        method: "POST",
+        body: JSON.stringify({ userId: "u2" }),
+        headers: { "content-type": "application/json" }
+      }),
+      { params: Promise.resolve({ id: "p1" }) }
+    );
+    expect(res.status).toBe(401);
+  });
 });
