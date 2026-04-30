@@ -75,8 +75,6 @@ type ProjectFile = {
   size_bytes: number;
   thumbnail_url?: string | null;
   created_at: string;
-  status: "pending" | "in_progress" | "ready" | "failed";
-  transfer_error: string | null;
 };
 
 type ViewerProfile = {
