@@ -1306,6 +1306,32 @@ export async function removeProjectMember(projectId: string, userId: string) {
   );
 }
 
+export type ProjectMember = {
+  user_id: string;
+  email: string;
+  first_name: string | null;
+  last_name: string | null;
+  added_at: Date;
+};
+
+export async function listProjectMembers(projectId: string): Promise<ProjectMember[]> {
+  const result = await query(
+    `select pm.user_id, up.email, up.first_name, up.last_name, pm.added_at
+       from project_members pm
+       join user_profiles up on up.id = pm.user_id
+      where pm.project_id = $1
+      order by pm.added_at asc`,
+    [projectId]
+  );
+  return result.rows.map((row: ProjectMember) => ({
+    user_id: row.user_id,
+    email: row.email,
+    first_name: row.first_name,
+    last_name: row.last_name,
+    added_at: row.added_at
+  }));
+}
+
 export async function listThreads(projectId: string) {
   const result = await query(
     `select

@@ -48,3 +48,27 @@ describe("removeProjectMember", () => {
     expect(queryMock).toHaveBeenCalledTimes(1);
   });
 });
+
+describe("listProjectMembers", () => {
+  it("returns members joined with user_profiles, ordered by added_at", async () => {
+    queryMock.mockResolvedValueOnce({
+      rows: [
+        {
+          user_id: "u1",
+          email: "a@x.com",
+          first_name: "Alex",
+          last_name: "A",
+          added_at: new Date("2026-04-30T00:00:00Z")
+        }
+      ]
+    });
+    const { listProjectMembers } = await import("@/lib/repositories");
+    const result = await listProjectMembers("p1");
+    expect(result).toHaveLength(1);
+    expect(result[0].email).toBe("a@x.com");
+    expect(queryMock).toHaveBeenCalledWith(
+      expect.stringMatching(/from project_members.*join user_profiles/is),
+      ["p1"]
+    );
+  });
+});
