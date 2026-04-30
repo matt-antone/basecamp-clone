@@ -1502,22 +1502,42 @@ export async function createFileMetadata(args: {
       throw error;
     }
 
-    if (args.threadId || args.commentId) {
-      throw new Error("Comment attachments require database migration 0007_comment_attachments.sql");
-    }
+    try {
+      const result = await query(
+        `insert into project_files (
+          project_id, uploader_user_id, filename, mime_type, size_bytes,
+          dropbox_file_id, dropbox_path, checksum, thread_id, comment_id,
+          created_at
+         )
+         values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, coalesce($11::timestamptz, now()))
+         returning *`,
+        [...values.slice(0, 10), sourceTs]
+      );
+      const file = result.rows[0] ? normalizeProjectFileSizeRow(result.rows[0]) : null;
+      await touchProjectActivity(args.projectId, args.sourceCreatedAt ?? undefined);
+      return file;
+    } catch (legacyError) {
+      if (!isMissingProjectFileColumnError(legacyError)) {
+        throw legacyError;
+      }
 
-    const result = await query(
-      `insert into project_files (
-        project_id, uploader_user_id, filename, mime_type, size_bytes,
-        dropbox_file_id, dropbox_path, checksum, created_at
-       )
-       values ($1, $2, $3, $4, $5, $6, $7, $8, coalesce($9::timestamptz, now()))
-       returning *`,
-      [...values.slice(0, 8), sourceTs]
-    );
-    const file = result.rows[0] ? normalizeProjectFileSizeRow(result.rows[0]) : null;
-    await touchProjectActivity(args.projectId, args.sourceCreatedAt ?? undefined);
-    return file;
+      if (args.threadId || args.commentId) {
+        throw new Error("Comment attachments require database migration 0007_comment_attachments.sql");
+      }
+
+      const result = await query(
+        `insert into project_files (
+          project_id, uploader_user_id, filename, mime_type, size_bytes,
+          dropbox_file_id, dropbox_path, checksum, created_at
+         )
+         values ($1, $2, $3, $4, $5, $6, $7, $8, coalesce($9::timestamptz, now()))
+         returning *`,
+        [...values.slice(0, 8), sourceTs]
+      );
+      const file = result.rows[0] ? normalizeProjectFileSizeRow(result.rows[0]) : null;
+      await touchProjectActivity(args.projectId, args.sourceCreatedAt ?? undefined);
+      return file;
+    }
   }
 }
 
