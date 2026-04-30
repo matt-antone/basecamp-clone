@@ -1692,3 +1692,10 @@ function isMissingProjectFileColumnError(error: unknown) {
     message.includes("project_files.bc_attachment_id")
   );
 }
+
+export async function addProjectMember(projectId: string, userId: string) {
+  await query(
+    "insert into project_members (project_id, user_id) values ($1, $2) on conflict do nothing",
+    [projectId, userId]
+  );
+}
