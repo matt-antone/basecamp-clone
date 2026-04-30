@@ -1323,13 +1323,7 @@ export async function listProjectMembers(projectId: string): Promise<ProjectMemb
       order by pm.added_at asc`,
     [projectId]
   );
-  return result.rows.map((row: ProjectMember) => ({
-    user_id: row.user_id,
-    email: row.email,
-    first_name: row.first_name,
-    last_name: row.last_name,
-    added_at: row.added_at
-  }));
+  return result.rows as ProjectMember[];
 }
 
 export async function listThreads(projectId: string) {

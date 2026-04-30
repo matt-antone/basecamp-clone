@@ -70,5 +70,9 @@ describe("listProjectMembers", () => {
       expect.stringMatching(/from project_members.*join user_profiles/is),
       ["p1"]
     );
+    expect(queryMock).toHaveBeenCalledWith(
+      expect.stringMatching(/order by pm\.added_at asc/i),
+      ["p1"]
+    );
   });
 });
