@@ -53,14 +53,14 @@ describe("POST /projects/[id]/files/upload-complete", () => {
     assertClientNotArchivedForMutationMock.mockResolvedValue(undefined);
   });
 
-  const TARGET_PATH = `${STORAGE_DIR}/uploads/550e8400-e29b-41d4-a716-446655440000-cover.jpg`;
+  const TARGET_PATH = `${STORAGE_DIR}/uploads/cover.jpg`;
 
   it("creates the row and returns it on success", async () => {
     getFileMetadataMock.mockResolvedValue({
       fileId: "id:abc", pathDisplay: TARGET_PATH,
       contentHash: "deadbeef", size: 1234, serverModified: "2026-04-30T17:00:00Z"
     });
-    createFileMetadataMock.mockResolvedValue({ id: "row-1", filename: "550e8400-e29b-41d4-a716-446655440000-cover.jpg" });
+    createFileMetadataMock.mockResolvedValue({ id: "row-1", filename: "cover.jpg" });
 
     const { POST } = await import("@/app/projects/[id]/files/upload-complete/route");
     const res = await POST(
@@ -87,7 +87,7 @@ describe("POST /projects/[id]/files/upload-complete", () => {
   });
 
   it("falls back to application/octet-stream when x-original-mime-type header is missing", async () => {
-    const noMimePath = `${STORAGE_DIR}/uploads/550e8400-e29b-41d4-a716-446655440000-no-mime.bin`;
+    const noMimePath = `${STORAGE_DIR}/uploads/no-mime.bin`;
     getFileMetadataMock.mockResolvedValue({
       fileId: "id:abc", pathDisplay: noMimePath,
       contentHash: "h", size: 1, serverModified: "2026-04-30T17:00:00Z"
@@ -107,7 +107,7 @@ describe("POST /projects/[id]/files/upload-complete", () => {
   });
 
   it("returns 400 when x-original-mime-type contains control characters", async () => {
-    const xPath = `${STORAGE_DIR}/uploads/550e8400-e29b-41d4-a716-446655440000-x.jpg`;
+    const xPath = `${STORAGE_DIR}/uploads/x.jpg`;
     getFileMetadataMock.mockResolvedValue({
       fileId: "id:abc", pathDisplay: xPath,
       contentHash: "h", size: 1, serverModified: "2026-04-30T17:00:00Z"
@@ -126,7 +126,7 @@ describe("POST /projects/[id]/files/upload-complete", () => {
   });
 
   it("accepts a well-formed mime with a charset parameter", async () => {
-    const htmlPath = `${STORAGE_DIR}/uploads/550e8400-e29b-41d4-a716-446655440000-x.html`;
+    const htmlPath = `${STORAGE_DIR}/uploads/x.html`;
     getFileMetadataMock.mockResolvedValue({
       fileId: "id:abc", pathDisplay: htmlPath,
       contentHash: "h", size: 1, serverModified: "2026-04-30T17:00:00Z"
@@ -148,7 +148,7 @@ describe("POST /projects/[id]/files/upload-complete", () => {
 
   it("returns 403 when targetPath starts with the prefix sans trailing slash but lands in a sibling project (prefix collision regression)", async () => {
     // STORAGE_DIR-LEAK/uploads/... shares the STORAGE_DIR prefix string but not the /uploads/ suffix
-    const leakPath = `${STORAGE_DIR}-LEAK/uploads/550e8400-e29b-41d4-a716-446655440000-x.jpg`;
+    const leakPath = `${STORAGE_DIR}-LEAK/uploads/x.jpg`;
     const { POST } = await import("@/app/projects/[id]/files/upload-complete/route");
     const res = await POST(
       makeRequest({ targetPath: leakPath, requestId: "r" }),
@@ -161,7 +161,7 @@ describe("POST /projects/[id]/files/upload-complete", () => {
   });
 
   it("validates threadId and commentId together for comment attachments", async () => {
-    const attachPath = `${STORAGE_DIR}/uploads/550e8400-e29b-41d4-a716-446655440000-x.jpg`;
+    const attachPath = `${STORAGE_DIR}/uploads/x.jpg`;
     getThreadMock.mockResolvedValue({ id: "thread-1" });
     getCommentMock.mockResolvedValue({ id: "comment-1" });
     getFileMetadataMock.mockResolvedValue({
@@ -199,7 +199,7 @@ describe("POST /projects/[id]/files/upload-complete", () => {
   it("returns 403 when targetPath is outside the project storage prefix", async () => {
     const { POST } = await import("@/app/projects/[id]/files/upload-complete/route");
     const res = await POST(
-      makeRequest({ targetPath: "/Projects/OTHER_CLIENT/uploads/550e8400-e29b-41d4-a716-446655440000-leak.jpg", requestId: "r" }),
+      makeRequest({ targetPath: "/Projects/OTHER_CLIENT/uploads/leak.jpg", requestId: "r" }),
       { params: Promise.resolve({ id: "project-1" }) }
     );
     expect(res.status).toBe(403);
@@ -208,7 +208,7 @@ describe("POST /projects/[id]/files/upload-complete", () => {
   });
 
   it("maps Dropbox path_not_found to 404", async () => {
-    const nopePath = `${STORAGE_DIR}/uploads/550e8400-e29b-41d4-a716-446655440000-nope.jpg`;
+    const nopePath = `${STORAGE_DIR}/uploads/nope.jpg`;
     getFileMetadataMock.mockRejectedValue(Object.assign(new Error("path_not_found"), { status: 409 }));
     const { POST } = await import("@/app/projects/[id]/files/upload-complete/route");
     const res = await POST(

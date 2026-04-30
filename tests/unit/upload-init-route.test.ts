@@ -54,7 +54,7 @@ describe("POST /projects/[id]/files/upload-init", () => {
     expect(res.status).toBe(200);
     const json = await res.json();
     expect(json.uploadUrl).toBe("https://content.dropboxapi.com/apitul/x/abc");
-    expect(json.targetPath).toMatch(new RegExp(`^${STORAGE_DIR}/uploads/[0-9a-f-]+-cover\\.jpg$`));
+    expect(json.targetPath).toBe(`${STORAGE_DIR}/uploads/cover.jpg`);
     expect(typeof json.requestId).toBe("string");
     expect(getTemporaryUploadLinkMock).toHaveBeenCalledWith({ targetPath: json.targetPath });
   });
