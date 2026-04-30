@@ -7,7 +7,6 @@ import { DiscussionComposer } from "@/components/discussions/discussion-composer
 import { MarkdownHtml } from "@/components/discussions/markdown-html";
 import { InlineLoadingState, PageLoadingState } from "@/components/loading-shells";
 import { OneShotButton } from "@/components/one-shot-button";
-import { upload } from "@vercel/blob/client";
 import { authedJsonFetch, ensureAccessToken, fetchAuthSession } from "@/lib/browser-auth";
 import { triggerBrowserDownload } from "@/lib/browser-download";
 import { createClientResource } from "@/lib/client-resource";
@@ -478,29 +477,66 @@ async function uploadAttachmentForComment(args: {
   const { token, onToken, projectId, threadId, commentId, file, onUploadProgress } = args;
   const resolvedToken = await ensureAccessToken(token, onToken);
 
-  // Step 1: browser → Vercel Blob directly (bypasses 4.5 MB function body limit).
   onUploadProgress(0.1);
-  const blob = await upload(file.name, file, {
-    access: "public",
-    handleUploadUrl: `/projects/${projectId}/files/upload-init`,
-    headers: { Authorization: `Bearer ${resolvedToken}` },
-    onUploadProgress: ({ percentage }) => {
-      // Map 0-100% blob upload to 10-90% of our progress.
-      onUploadProgress(Math.max(0.1, Math.min(0.9, percentage / 100 * 0.8 + 0.1)));
-    }
-  });
-  onUploadProgress(0.9);
 
-  // Step 2: tell server to start the Dropbox transfer (small JSON, no body limit issue).
-  const { accessToken: nextToken } = await authedJsonFetch({
+  // 1. Mint upload link.
+  const { data: initData } = await authedJsonFetch({
     accessToken: resolvedToken,
     init: {
       method: "POST",
       body: JSON.stringify({
-        blobUrl: blob.url,
         filename: file.name,
-        sizeBytes: file.size,
         mimeType: file.type || "application/octet-stream",
+        sizeBytes: file.size
+      })
+    },
+    onToken,
+    path: `/projects/${projectId}/files/upload-init`
+  });
+  const { uploadUrl, requestId } = initData as { uploadUrl: string; requestId: string };
+
+  // 2. POST bytes directly to Dropbox via XHR (Fetch lacks upload-progress events).
+  //    Dropbox temporary upload links accept POST with the file body; the response
+  //    carries FileMetadata (id, path_display, ...).
+  const dropboxMetadata = await new Promise<{ id: string }>((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", uploadUrl);
+    xhr.setRequestHeader("Content-Type", "application/octet-stream");
+    xhr.upload.onprogress = (event) => {
+      if (event.lengthComputable) {
+        const dropboxFraction = event.loaded / event.total;
+        // Map 0-100% Dropbox upload to 10-90% of the overall progress band.
+        onUploadProgress(Math.max(0.1, Math.min(0.9, 0.1 + dropboxFraction * 0.8)));
+      }
+    };
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        try {
+          resolve(JSON.parse(xhr.responseText));
+        } catch {
+          reject(new Error("Dropbox response was not JSON"));
+        }
+      } else {
+        reject(new Error(`Dropbox upload failed (${xhr.status})`));
+      }
+    };
+    xhr.onerror = () => reject(new Error("Network error uploading to Dropbox"));
+    xhr.timeout = 300_000; // 5 minutes
+    xhr.ontimeout = () => reject(new Error("Upload timed out"));
+    xhr.send(file);
+  });
+
+  onUploadProgress(0.9);
+
+  // 3. Finalize on the server via Dropbox metadata lookup.
+  await authedJsonFetch({
+    accessToken: resolvedToken,
+    init: {
+      method: "POST",
+      headers: { "x-original-mime-type": file.type || "application/octet-stream" },
+      body: JSON.stringify({
+        dropboxFileId: dropboxMetadata.id,
+        requestId,
         threadId,
         commentId
       })
@@ -508,7 +544,7 @@ async function uploadAttachmentForComment(args: {
     onToken,
     path: `/projects/${projectId}/files/upload-complete`
   });
-  if (nextToken) onToken(nextToken);
+
   onUploadProgress(1);
 }
 

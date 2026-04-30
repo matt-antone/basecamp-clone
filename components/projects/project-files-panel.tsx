@@ -11,8 +11,6 @@ type ProjectFile = {
   size_bytes: number;
   thumbnail_url?: string | null;
   created_at: string;
-  status: "pending" | "in_progress" | "ready" | "failed";
-  transfer_error: string | null;
 };
 
 type ProjectFilesPanelProps = {
@@ -131,74 +129,38 @@ export function ProjectFilesPanel(props: ProjectFilesPanelProps) {
           </div>
         </li>
         {files.map((file) => {
-          const isReady = file.status === "ready";
-          const isPending = file.status === "pending" || file.status === "in_progress";
-          const isFailed = file.status === "failed";
           return (
             <li key={file.id} className="fileThumbItem">
               <OneShotButton
                 type="button"
                 className="fileThumbHitArea"
-                onClick={() => isReady && onDownloadFile(file.id)}
-                disabled={!isReady}
+                onClick={() => onDownloadFile(file.id)}
               >
-                {isReady ? (
-                  <ThumbnailPreview
-                    projectId={projectId}
-                    fileId={file.id}
-                    filename={file.filename}
-                    mimeType={file.mime_type}
-                    thumbnailUrl={file.thumbnail_url}
-                    accessToken={token}
-                    onToken={onToken}
-                    alt={file.filename}
-                    imageClassName="fileThumbImage"
-                    fallback={<div className="fileThumbFallback">{getFileBadgeLabel(file)}</div>}
-                  />
-                ) : isPending ? (
-                  <div className="fileThumbFallback fileThumbTransferring" aria-label="Transferring">
-                    <span className="fileThumbSpinner" aria-hidden="true" />
-                  </div>
-                ) : isFailed ? (
-                  <div
-                    className="fileThumbFallback fileThumbFailed"
-                    title={file.transfer_error ?? "Transfer failed"}
-                    aria-label="Transfer failed"
-                  >
-                    ✕
-                  </div>
-                ) : (
-                  <div className="fileThumbFallback fileThumbUnknown" aria-label="Unknown status">
-                    <span className="fileThumbSpinner" aria-hidden="true" />
-                  </div>
-                )}
+                <ThumbnailPreview
+                  projectId={projectId}
+                  fileId={file.id}
+                  filename={file.filename}
+                  mimeType={file.mime_type}
+                  thumbnailUrl={file.thumbnail_url}
+                  accessToken={token}
+                  onToken={onToken}
+                  alt={file.filename}
+                  imageClassName="fileThumbImage"
+                  fallback={<div className="fileThumbFallback">{getFileBadgeLabel(file)}</div>}
+                />
               </OneShotButton>
               <div className="fileThumbMeta">
-                {isReady ? (
-                  <OneShotButton
-                    type="button"
-                    className="fileDownloadButton"
-                    onClick={() => onDownloadFile(file.id)}
-                    title={file.filename}
-                  >
-                    {file.filename}
-                  </OneShotButton>
-                ) : (
-                  <span className="fileDownloadButton" title={file.filename}>
-                    {file.filename}
-                  </span>
-                )}
+                <OneShotButton
+                  type="button"
+                  className="fileDownloadButton"
+                  onClick={() => onDownloadFile(file.id)}
+                  title={file.filename}
+                >
+                  {file.filename}
+                </OneShotButton>
                 <small>
                   {formatBytes(file.size_bytes)} •{" "}
-                  {isPending ? (
-                    <span className="fileStatusTransferring">Transferring to Dropbox…</span>
-                  ) : isFailed ? (
-                    <span className="fileStatusFailed" title={file.transfer_error ?? undefined}>
-                      Transfer failed
-                    </span>
-                  ) : (
-                    new Date(file.created_at).toLocaleDateString()
-                  )}
+                  {new Date(file.created_at).toLocaleDateString()}
                 </small>
               </div>
             </li>
