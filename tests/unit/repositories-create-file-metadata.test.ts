@@ -6,7 +6,7 @@ vi.mock("@/lib/db", () => ({
   query: queryMock
 }));
 
-describe("createFileMetadata (post-revert)", () => {
+describe("createFileMetadata (direct-to-Dropbox)", () => {
   beforeEach(() => {
     queryMock.mockReset();
   });
