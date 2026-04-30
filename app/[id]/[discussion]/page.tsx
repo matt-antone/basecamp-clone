@@ -514,19 +514,39 @@ async function uploadAttachmentForComment(args: {
         reject(new Error(`Dropbox upload failed (${xhr.status}): ${xhr.responseText.slice(0, 200)}`));
         return;
       }
-      // Dropbox content-upload endpoints return FileMetadata in the
-      // Dropbox-API-Result response header, NOT the response body.
-      // See https://www.dropbox.com/developers/documentation/http/documentation#formats
+      // Dropbox content-upload endpoints typically return FileMetadata in the
+      // Dropbox-API-Result header. Some endpoints (including temp upload links
+      // in some configurations) place it in the body instead. Try both.
       const apiResult = xhr.getResponseHeader("Dropbox-API-Result");
-      if (!apiResult) {
-        reject(new Error("Dropbox response missing Dropbox-API-Result header"));
-        return;
+      if (apiResult) {
+        try {
+          resolve(JSON.parse(apiResult));
+          return;
+        } catch {
+          // fall through to body
+        }
       }
-      try {
-        resolve(JSON.parse(apiResult));
-      } catch {
-        reject(new Error(`Dropbox-API-Result not JSON: ${apiResult.slice(0, 200)}`));
+      if (xhr.responseText) {
+        try {
+          const parsed = JSON.parse(xhr.responseText);
+          if (parsed && typeof parsed === "object" && parsed.id) {
+            resolve(parsed);
+            return;
+          }
+        } catch {
+          // fall through
+        }
       }
+      console.error("dropbox_upload_unparseable", {
+        status: xhr.status,
+        headers: xhr.getAllResponseHeaders(),
+        body: xhr.responseText.slice(0, 500)
+      });
+      reject(new Error(
+        `Dropbox response unparseable. status=${xhr.status} ` +
+        `apiResultHeader=${apiResult ? "present" : "missing"} ` +
+        `bodyLen=${xhr.responseText.length}`
+      ));
     };
     xhr.onerror = () => reject(new Error("Network error uploading to Dropbox"));
     xhr.timeout = 300_000; // 5 minutes
