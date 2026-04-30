@@ -728,6 +728,16 @@ export async function getProject(id: string, viewerUserId?: string | null) {
   }
 }
 
+export async function getProjectUpdatedDate(id: string): Promise<{ updatedDate: string } | null> {
+  const result = await query(
+    `select greatest(updated_at, coalesce(last_activity_at, updated_at)) as "updatedDate"
+     from projects
+     where id = $1`,
+    [id]
+  );
+  return result.rows[0] ?? null;
+}
+
 export async function updateProject(args: {
   id: string;
   name: string;
