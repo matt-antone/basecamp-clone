@@ -1454,9 +1454,9 @@ export async function createFileMetadata(args: {
   filename: string;
   mimeType: string;
   sizeBytes: number;
-  dropboxFileId: string | null;
-  dropboxPath: string | null;
-  checksum: string | null;
+  dropboxFileId: string;
+  dropboxPath: string;
+  checksum: string;
   threadId?: string | null;
   commentId?: string | null;
   thumbnailUrl?: string | null;
@@ -1464,8 +1464,6 @@ export async function createFileMetadata(args: {
   bcAttachmentId?: string | null;
   /** When set (e.g. BC2 migration), row `created_at` uses this instant. */
   sourceCreatedAt?: Date | null;
-  status: "pending" | "ready";
-  blobUrl: string | null;
 }) {
   const sourceTs = args.sourceCreatedAt ?? null;
   const bcId = args.bcAttachmentId ?? null;
@@ -1482,18 +1480,17 @@ export async function createFileMetadata(args: {
     args.commentId ?? null,
     args.thumbnailUrl ?? null,
     bcId,
-    sourceTs,
-    args.status,
-    args.blobUrl
+    sourceTs
   ];
 
   try {
     const result = await query(
       `insert into project_files (
-        project_id, uploader_user_id, filename, mime_type, size_bytes, dropbox_file_id, dropbox_path, checksum, thread_id, comment_id, thumbnail_url, bc_attachment_id,
-        created_at, status, blob_url
+        project_id, uploader_user_id, filename, mime_type, size_bytes,
+        dropbox_file_id, dropbox_path, checksum,
+        thread_id, comment_id, thumbnail_url, bc_attachment_id, created_at
        )
-       values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, coalesce($13::timestamptz, now()), $14, $15)
+       values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, coalesce($13::timestamptz, now()))
        returning *`,
       values
     );
@@ -1505,33 +1502,14 @@ export async function createFileMetadata(args: {
       throw error;
     }
 
-    try {
-      const result = await query(
-        `insert into project_files (
-          project_id, uploader_user_id, filename, mime_type, size_bytes, dropbox_file_id, dropbox_path, checksum, thread_id, comment_id,
-          created_at
-         )
-         values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, coalesce($11::timestamptz, now()))
-         returning *`,
-        [...values.slice(0, 10), sourceTs]
-      );
-      const file = result.rows[0] ? normalizeProjectFileSizeRow(result.rows[0]) : null;
-      await touchProjectActivity(args.projectId, args.sourceCreatedAt ?? undefined);
-      return file;
-    } catch (legacyError) {
-      if (!isMissingProjectFileColumnError(legacyError)) {
-        throw legacyError;
-      }
-
-      if (args.threadId || args.commentId) {
-        throw new Error("Comment attachments require database migration 0007_comment_attachments.sql");
-      }
+    if (args.threadId || args.commentId) {
+      throw new Error("Comment attachments require database migration 0007_comment_attachments.sql");
     }
 
     const result = await query(
       `insert into project_files (
-        project_id, uploader_user_id, filename, mime_type, size_bytes, dropbox_file_id, dropbox_path, checksum,
-        created_at
+        project_id, uploader_user_id, filename, mime_type, size_bytes,
+        dropbox_file_id, dropbox_path, checksum, created_at
        )
        values ($1, $2, $3, $4, $5, $6, $7, $8, coalesce($9::timestamptz, now()))
        returning *`,
@@ -1564,48 +1542,6 @@ export async function setFileThumbnailUrl(args: {
     [args.projectId, args.fileId, args.thumbnailUrl]
   );
   return result.rows[0] ? normalizeProjectFileSizeRow(result.rows[0]) : null;
-}
-
-export async function markFileTransferInProgress(fileId: string): Promise<void> {
-  await query(
-    `update project_files
-     set status = 'in_progress'
-     where id = $1`,
-    [fileId]
-  );
-}
-
-export async function finalizeFileMetadataAfterTransfer(args: {
-  fileId: string;
-  dropboxFileId: string;
-  dropboxPath: string;
-  checksum: string;
-}): Promise<void> {
-  await query(
-    `update project_files
-     set status = 'ready',
-         dropbox_file_id = $2,
-         dropbox_path = $3,
-         checksum = $4,
-         blob_url = null,
-         transfer_error = null
-     where id = $1`,
-    [args.fileId, args.dropboxFileId, args.dropboxPath, args.checksum]
-  );
-}
-
-export async function markFileTransferFailed(args: {
-  fileId: string;
-  error: string;
-}): Promise<void> {
-  await query(
-    `update project_files
-     set status = 'failed',
-         transfer_error = $2,
-         blob_url = null
-     where id = $1`,
-    [args.fileId, args.error]
-  );
 }
 
 export async function upsertThumbnailJob(args: { projectFileId: string }) {
