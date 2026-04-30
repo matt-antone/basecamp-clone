@@ -7,6 +7,7 @@ import { DiscussionComposer } from "@/components/discussions/discussion-composer
 import { MarkdownHtml } from "@/components/discussions/markdown-html";
 import { InlineLoadingState, PageLoadingState } from "@/components/loading-shells";
 import { OneShotButton } from "@/components/one-shot-button";
+import { upload } from "@vercel/blob/client";
 import { authedJsonFetch, ensureAccessToken, fetchAuthSession } from "@/lib/browser-auth";
 import { triggerBrowserDownload } from "@/lib/browser-download";
 import { createClientResource } from "@/lib/client-resource";
@@ -476,42 +477,39 @@ async function uploadAttachmentForComment(args: {
 }) {
   const { token, onToken, projectId, threadId, commentId, file, onUploadProgress } = args;
   const resolvedToken = await ensureAccessToken(token, onToken);
-  const initResult = await authedJsonFetch({
+
+  // Step 1: browser → Vercel Blob directly (bypasses 4.5 MB function body limit).
+  onUploadProgress(0.1);
+  const blob = await upload(file.name, file, {
+    access: "public",
+    handleUploadUrl: `/projects/${projectId}/files/upload-init`,
+    headers: { Authorization: `Bearer ${resolvedToken}` },
+    onUploadProgress: ({ percentage }) => {
+      // Map 0-100% blob upload to 10-90% of our progress.
+      onUploadProgress(Math.max(0.1, Math.min(0.9, percentage / 100 * 0.8 + 0.1)));
+    }
+  });
+  onUploadProgress(0.9);
+
+  // Step 2: tell server to start the Dropbox transfer (small JSON, no body limit issue).
+  const { accessToken: nextToken } = await authedJsonFetch({
     accessToken: resolvedToken,
     init: {
       method: "POST",
       body: JSON.stringify({
+        blobUrl: blob.url,
         filename: file.name,
         sizeBytes: file.size,
-        mimeType: file.type || "application/octet-stream"
+        mimeType: file.type || "application/octet-stream",
+        threadId,
+        commentId
       })
     },
     onToken,
-    path: `/projects/${projectId}/files/upload-init`
+    path: `/projects/${projectId}/files/upload-complete`
   });
-  const upload = initResult.data && "upload" in initResult.data ? initResult.data.upload : null;
-  const sessionId =
-    upload && typeof upload === "object" && "sessionId" in upload ? String(upload.sessionId ?? "") : "";
-  const targetPath =
-    upload && typeof upload === "object" && "targetPath" in upload ? String(upload.targetPath ?? "") : "";
-  if (!sessionId || !targetPath) {
-    throw new Error("Unable to initialize attachment upload");
-  }
-
-  await postFormDataWithUploadProgress({
-    path: `/projects/${projectId}/files/upload-complete`,
-    token: initResult.accessToken,
-    body: (() => {
-      const formData = new FormData();
-      formData.append("file", file);
-      formData.append("sessionId", sessionId);
-      formData.append("targetPath", targetPath);
-      formData.append("threadId", threadId);
-      formData.append("commentId", commentId);
-      return formData;
-    })(),
-    onProgress: onUploadProgress
-  });
+  if (nextToken) onToken(nextToken);
+  onUploadProgress(1);
 }
 
 function formatAttachmentStage(attachment: PendingAttachment) {
@@ -520,43 +518,6 @@ function formatAttachmentStage(attachment: PendingAttachment) {
   if (attachment.stage === "uploading") return `${attachment.progress}%`;
   if (attachment.stage === "done") return "Uploaded";
   return "Failed";
-}
-
-async function postFormDataWithUploadProgress(args: {
-  path: string;
-  token: string;
-  body: FormData;
-  onProgress: (value: number) => void;
-}) {
-  return await new Promise<void>((resolve, reject) => {
-    const xhr = new XMLHttpRequest();
-    xhr.open("POST", args.path);
-    xhr.setRequestHeader("Authorization", `Bearer ${args.token}`);
-    xhr.upload.onprogress = (event) => {
-      if (!event.lengthComputable || event.total <= 0) return;
-      args.onProgress(Math.max(0, Math.min(1, event.loaded / event.total)));
-    };
-    xhr.onerror = () => reject(new Error("Unable to upload attachment"));
-    xhr.onload = () => {
-      let parsed: unknown = null;
-      try {
-        parsed = xhr.responseText ? JSON.parse(xhr.responseText) : null;
-      } catch {
-        parsed = null;
-      }
-      if (xhr.status >= 200 && xhr.status < 300) {
-        args.onProgress(1);
-        resolve();
-        return;
-      }
-      const message =
-        parsed && typeof parsed === "object" && "error" in parsed && typeof (parsed as { error?: unknown }).error === "string"
-          ? (parsed as { error: string }).error
-          : `Upload failed (${xhr.status})`;
-      reject(new Error(message));
-    };
-    xhr.send(args.body);
-  });
 }
 
 async function loadDiscussionBootstrap(params: {

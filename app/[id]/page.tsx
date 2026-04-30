@@ -8,14 +8,15 @@ import { OneShotButton } from "@/components/one-shot-button";
 import { ProjectDialogForm, type ProjectDialogValues } from "@/components/project-dialog-form";
 // import { ProjectTagList } from "@/components/project-tag-list";
 import { ProjectFilesPanel } from "@/components/projects/project-files-panel";
-import { authedFormDataFetch, authedJsonFetch, fetchAuthSession } from "@/lib/browser-auth";
+import { upload } from "@vercel/blob/client";
+import { authedJsonFetch, fetchAuthSession } from "@/lib/browser-auth";
 import { triggerBrowserDownload } from "@/lib/browser-download";
 import { createClientResource } from "@/lib/client-resource";
 import { calculateProjectExpensesTotalUsd, formatUsdInput, formatUsdMoney } from "@/lib/project-financials";
 import { renderMarkdown } from "@/lib/markdown";
 import { createProjectDialogValues, formatProjectDeadlineLocal, normalizeProjectColumn, parseProjectTags } from "@/lib/project-utils";
 import type { ClientRecord } from "@/lib/types/client-record";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 
 const MarkdownEditor = dynamic(() => import("@/components/markdown-editor"), {
@@ -75,6 +76,8 @@ type ProjectFile = {
   size_bytes: number;
   thumbnail_url?: string | null;
   created_at: string;
+  status: "pending" | "in_progress" | "ready" | "failed";
+  transfer_error: string | null;
 };
 
 type ViewerProfile = {
@@ -177,7 +180,7 @@ function ProjectPageContent({ projectId, initial }: { projectId: string; initial
     return data;
   }
 
-  async function load(accessToken: string, id: string) {
+  const load = useCallback(async (accessToken: string, id: string) => {
     const nextState = await loadProjectData(accessToken, id);
     setProject(nextState.project);
     setUserHours(nextState.userHours);
@@ -187,7 +190,7 @@ function ProjectPageContent({ projectId, initial }: { projectId: string; initial
     setClients(nextState.clients);
     setViewerProfile(nextState.viewerProfile);
     setStatus("Ready");
-  }
+  }, []);
 
   useEffect(() => {
     setProjectForm(createProjectDialogValues(project?.client_id ?? "", project));
@@ -213,6 +216,16 @@ function ProjectPageContent({ projectId, initial }: { projectId: string; initial
       )
     );
   }, [expenseLines]);
+
+  // Poll once after 5 s if any file is still transferring.
+  useEffect(() => {
+    const hasPending = files.some((f) => f.status === "pending" || f.status === "in_progress");
+    if (!hasPending || !token || !projectId) return;
+    const timer = setTimeout(() => {
+      load(token, projectId).catch(() => {});
+    }, 5000);
+    return () => clearTimeout(timer);
+  }, [files, token, projectId, load]);
 
   function getStarterLabel(thread: Thread) {
     const fullName = `${thread.starter_first_name ?? ""} ${thread.starter_last_name ?? ""}`.trim();
@@ -444,36 +457,30 @@ function ProjectPageContent({ projectId, initial }: { projectId: string; initial
     if (!token || !projectId || !selectedFile) return;
     setIsUploading(true);
     try {
-      const init = await authedFetch(token, `/projects/${projectId}/files/upload-init`, {
+      // Step 1: browser → Vercel Blob directly (bypasses 4.5 MB function body limit).
+      const blob = await upload(selectedFile.name, selectedFile, {
+        access: "public",
+        handleUploadUrl: `/projects/${projectId}/files/upload-init`,
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      // Step 2: tell server to start the Dropbox transfer (small JSON, no body limit issue).
+      await authedFetch(token, `/projects/${projectId}/files/upload-complete`, {
         method: "POST",
         body: JSON.stringify({
+          blobUrl: blob.url,
           filename: selectedFile.name,
           sizeBytes: selectedFile.size,
           mimeType: selectedFile.type || "application/octet-stream"
         })
       });
-      const upload = init && typeof init === "object" && "upload" in init ? init.upload : null;
-      const sessionId =
-        upload && typeof upload === "object" && "sessionId" in upload ? String(upload.sessionId ?? "") : "";
-      const targetPath =
-        upload && typeof upload === "object" && "targetPath" in upload ? String(upload.targetPath ?? "") : "";
-      if (!sessionId || !targetPath) {
-        throw new Error("Upload initialization failed");
-      }
-
-      const formData = new FormData();
-      formData.append("file", selectedFile);
-      formData.append("sessionId", sessionId);
-      formData.append("targetPath", targetPath);
-
-      await authedMultipartFetch(token, `/projects/${projectId}/files/upload-complete`, formData);
 
       setSelectedFile(null);
       if (fileInputRef.current) {
         fileInputRef.current.value = "";
       }
       await load(token, projectId);
-      setStatus(`Uploaded ${selectedFile.name}`);
+      setStatus(`Uploading ${selectedFile.name} — will appear when transfer completes.`);
     } finally {
       setIsUploading(false);
     }
@@ -502,20 +509,6 @@ function ProjectPageContent({ projectId, initial }: { projectId: string; initial
 
   function handleFileInputSelection(list: FileList | null) {
     setSelectedFile(list?.[0] ?? null);
-  }
-
-  async function authedMultipartFetch(accessToken: string, path: string, body: FormData) {
-    const { accessToken: nextToken, data } = await authedFormDataFetch({
-      accessToken,
-      body,
-      init: { method: "POST" },
-      onToken: setToken,
-      path
-    });
-    if (nextToken !== token) {
-      setToken(nextToken);
-    }
-    return data;
   }
 
   const projectTitle = project?.display_name ?? project?.name ?? "Project";

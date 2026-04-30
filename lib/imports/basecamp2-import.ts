@@ -263,7 +263,9 @@ export async function runBasecampImport(jobId: string, payload: BasecampImportPa
           sizeBytes: file.sizeBytes,
           checksum: file.checksum,
           dropboxFileId: file.dropboxFileId,
-          dropboxPath: file.dropboxPath
+          dropboxPath: file.dropboxPath,
+          status: "ready",
+          blobUrl: null
         }));
 
       await query(

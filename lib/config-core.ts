@@ -148,6 +148,13 @@ export const config = {
     }
     return value;
   },
+  blobReadWriteToken: () => {
+    const value = getOptionalEnv("BLOB_READ_WRITE_TOKEN");
+    if (!value) {
+      throw new Error("BLOB_READ_WRITE_TOKEN is required for file uploads");
+    }
+    return value;
+  },
   thumbnailWorkerUrl: () => normalizeThumbnailWorkerUrl(getOptionalEnv("THUMBNAIL_WORKER_URL")),
   thumbnailWorkerToken: () => getOptionalEnv("THUMBNAIL_WORKER_TOKEN"),
   thumbnailWorkerTimeoutMs: () => getNumberEnv("THUMBNAIL_WORKER_TIMEOUT_MS", 15000),

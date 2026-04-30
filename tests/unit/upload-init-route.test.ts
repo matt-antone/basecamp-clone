@@ -3,7 +3,6 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const requireUserMock = vi.fn();
 const getProjectMock = vi.fn();
 const assertClientNotArchivedForMutationMock = vi.fn();
-const uploadInitMock = vi.fn();
 
 vi.mock("@/lib/auth", () => ({
   requireUser: requireUserMock
@@ -15,9 +14,7 @@ vi.mock("@/lib/repositories", () => ({
 }));
 
 vi.mock("@/lib/storage/dropbox-adapter", () => ({
-  DropboxStorageAdapter: class {
-    uploadInit = uploadInitMock;
-  },
+  DropboxStorageAdapter: class {},
   isTeamSelectUserRequiredError: () => false
 }));
 
@@ -27,7 +24,6 @@ describe("POST /projects/[id]/files/upload-init", () => {
     requireUserMock.mockReset();
     getProjectMock.mockReset();
     assertClientNotArchivedForMutationMock.mockReset();
-    uploadInitMock.mockReset();
   });
 
   it("returns 409 when the client is archived", async () => {
@@ -68,6 +64,5 @@ describe("POST /projects/[id]/files/upload-init", () => {
         archived: "Client is archived. Restore it before uploading files."
       })
     );
-    expect(uploadInitMock).not.toHaveBeenCalled();
   });
 });
