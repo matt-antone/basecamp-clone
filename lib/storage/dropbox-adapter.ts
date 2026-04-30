@@ -95,6 +95,52 @@ export class DropboxStorageAdapter implements StorageAdapter {
     };
   }
 
+  async getTemporaryUploadLink(args: { targetPath: string }): Promise<{ uploadUrl: string }> {
+    const client = await this.getClient();
+    const response = await client.filesGetTemporaryUploadLink({
+      commit_info: {
+        path: args.targetPath,
+        mode: { ".tag": "add" },
+        autorename: true,
+        mute: true
+      },
+      duration: 14400 // 4 hours, the documented Dropbox max for this endpoint
+    });
+    return { uploadUrl: response.result.link };
+  }
+
+  async getFileMetadata(args: { dropboxFileId: string }): Promise<{
+    fileId: string;
+    pathDisplay: string;
+    contentHash: string;
+    size: number;
+    serverModified: string;
+  }> {
+    const client = await this.getClient();
+    const response = await client.filesGetMetadata({ path: args.dropboxFileId });
+    const entry = response.result as {
+      ".tag": string;
+      id?: string;
+      path_display?: string;
+      content_hash?: string;
+      size?: number;
+      server_modified?: string;
+    };
+    if (entry[".tag"] !== "file") {
+      throw new Error(`Dropbox metadata for ${args.dropboxFileId} is not a file (got .tag=${entry[".tag"]})`);
+    }
+    if (!entry.id || !entry.path_display || !entry.content_hash || typeof entry.size !== "number" || !entry.server_modified) {
+      throw new Error(`Dropbox metadata for ${args.dropboxFileId} is missing required fields`);
+    }
+    return {
+      fileId: entry.id,
+      pathDisplay: entry.path_display,
+      contentHash: entry.content_hash,
+      size: entry.size,
+      serverModified: entry.server_modified
+    };
+  }
+
   async createTemporaryDownloadLink(path: string) {
     const client = await this.getClient();
     const result = await client.filesGetTemporaryLink({ path });

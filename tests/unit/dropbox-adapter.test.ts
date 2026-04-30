@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { DropboxStorageAdapter } from "@/lib/storage/dropbox-adapter";
+// Note: additional describe blocks below also use dynamic import to isolate module state
 
 describe("DropboxStorageAdapter", () => {
   beforeEach(() => {
@@ -137,5 +138,86 @@ describe("DropboxStorageAdapter", () => {
     expect(filesGetMetadataMock).toHaveBeenCalledWith({
       path: "/Projects/BRGS/_Archive/BRGS-0001-Acme Website Refresh"
     });
+  });
+});
+
+describe("DropboxStorageAdapter.getTemporaryUploadLink", () => {
+  it("calls SDK with the expected commit_info and returns the link", async () => {
+    const filesGetTemporaryUploadLink = vi.fn().mockResolvedValue({
+      result: { link: "https://content.dropboxapi.com/apitul/x/abc" }
+    });
+    const fakeClient = { filesGetTemporaryUploadLink, usersGetCurrentAccount: vi.fn().mockResolvedValue({
+      result: { root_info: { root_namespace_id: "1", home_namespace_id: "1" } }
+    }) };
+
+    const { DropboxStorageAdapter } = await import("@/lib/storage/dropbox-adapter");
+    const adapter = new DropboxStorageAdapter();
+    // @ts-expect-error – inject fake client for the test
+    adapter.baseClient = fakeClient;
+
+    const result = await adapter.getTemporaryUploadLink({
+      targetPath: "/Projects/ACME/ACME-0001-Brief/uploads/cover.jpg"
+    });
+
+    expect(filesGetTemporaryUploadLink).toHaveBeenCalledWith({
+      commit_info: {
+        path: "/Projects/ACME/ACME-0001-Brief/uploads/cover.jpg",
+        mode: { ".tag": "add" },
+        autorename: true,
+        mute: true
+      },
+      duration: 14400
+    });
+    expect(result).toEqual({ uploadUrl: "https://content.dropboxapi.com/apitul/x/abc" });
+  });
+});
+
+describe("DropboxStorageAdapter.getFileMetadata", () => {
+  it("looks up by id: prefix and returns normalized fields", async () => {
+    const filesGetMetadata = vi.fn().mockResolvedValue({
+      result: {
+        ".tag": "file",
+        id: "id:abc123",
+        path_display: "/Projects/ACME/ACME-0001-Brief/uploads/cover.jpg",
+        content_hash: "deadbeef",
+        size: 1234,
+        server_modified: "2026-04-30T17:00:00Z"
+      }
+    });
+    const fakeClient = { filesGetMetadata, usersGetCurrentAccount: vi.fn().mockResolvedValue({
+      result: { root_info: { root_namespace_id: "1", home_namespace_id: "1" } }
+    }) };
+
+    const { DropboxStorageAdapter } = await import("@/lib/storage/dropbox-adapter");
+    const adapter = new DropboxStorageAdapter();
+    // @ts-expect-error
+    adapter.baseClient = fakeClient;
+
+    const result = await adapter.getFileMetadata({ dropboxFileId: "id:abc123" });
+
+    expect(filesGetMetadata).toHaveBeenCalledWith({ path: "id:abc123" });
+    expect(result).toEqual({
+      fileId: "id:abc123",
+      pathDisplay: "/Projects/ACME/ACME-0001-Brief/uploads/cover.jpg",
+      contentHash: "deadbeef",
+      size: 1234,
+      serverModified: "2026-04-30T17:00:00Z"
+    });
+  });
+
+  it("throws when Dropbox returns a non-file metadata entry", async () => {
+    const filesGetMetadata = vi.fn().mockResolvedValue({
+      result: { ".tag": "folder", id: "id:xyz", path_display: "/Projects/foo" }
+    });
+    const fakeClient = { filesGetMetadata, usersGetCurrentAccount: vi.fn().mockResolvedValue({
+      result: { root_info: { root_namespace_id: "1", home_namespace_id: "1" } }
+    }) };
+
+    const { DropboxStorageAdapter } = await import("@/lib/storage/dropbox-adapter");
+    const adapter = new DropboxStorageAdapter();
+    // @ts-expect-error
+    adapter.baseClient = fakeClient;
+
+    await expect(adapter.getFileMetadata({ dropboxFileId: "id:xyz" })).rejects.toThrow(/not a file/);
   });
 });
