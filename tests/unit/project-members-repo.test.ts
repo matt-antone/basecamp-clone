@@ -96,3 +96,23 @@ describe("listProjectMemberRecipients", () => {
     expect(params).toEqual(["p1", "u1"]);
   });
 });
+
+describe("listActiveUsers", () => {
+  it("excludes legacy and null-email users; orders by name", async () => {
+    queryMock.mockResolvedValueOnce({
+      rows: [
+        { id: "u1", email: "a@x.com", first_name: "Alex", last_name: null }
+      ]
+    });
+    const { listActiveUsers } = await import("@/lib/repositories");
+    const result = await listActiveUsers();
+    expect(result).toEqual([
+      { id: "u1", email: "a@x.com", first_name: "Alex", last_name: null }
+    ]);
+    const [sql] = queryMock.mock.calls[0];
+    expect(sql).toMatch(/from user_profiles/i);
+    expect(sql).toMatch(/is_legacy = false/i);
+    expect(sql).toMatch(/email is not null/i);
+    expect(sql).toMatch(/order by/i);
+  });
+});

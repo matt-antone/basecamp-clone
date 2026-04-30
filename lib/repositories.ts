@@ -67,6 +67,24 @@ export async function getUserProfileById(id: string) {
   return result.rows[0] ?? null;
 }
 
+export type ActiveUser = {
+  id: string;
+  email: string;
+  first_name: string | null;
+  last_name: string | null;
+};
+
+export async function listActiveUsers(): Promise<ActiveUser[]> {
+  const result = await query<ActiveUser>(
+    `select id, email, first_name, last_name
+       from user_profiles
+      where is_legacy = false
+        and email is not null
+      order by coalesce(first_name, ''), coalesce(last_name, '')`
+  );
+  return result.rows;
+}
+
 export async function createUserProfile(profile: UserProfile) {
   const result = await query(
     `insert into user_profiles (id, email, first_name, last_name, avatar_url, job_title, timezone, bio)
