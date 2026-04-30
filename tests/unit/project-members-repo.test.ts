@@ -76,3 +76,23 @@ describe("listProjectMembers", () => {
     );
   });
 });
+
+describe("listProjectMemberRecipients", () => {
+  it("excludes the actor and legacy users; returns email-shaped rows", async () => {
+    queryMock.mockResolvedValueOnce({
+      rows: [
+        { id: "u2", email: "b@x.com", first_name: "Bee", last_name: null }
+      ]
+    });
+    const { listProjectMemberRecipients } = await import("@/lib/repositories");
+    const recipients = await listProjectMemberRecipients("p1", "u1");
+    expect(recipients).toEqual([
+      { id: "u2", email: "b@x.com", firstName: "Bee", lastName: null }
+    ]);
+    const [sql, params] = queryMock.mock.calls[0];
+    expect(sql).toMatch(/from project_members/i);
+    expect(sql).toMatch(/up\.is_legacy = false/i);
+    expect(sql).toMatch(/pm\.user_id <> \$2/i);
+    expect(params).toEqual(["p1", "u1"]);
+  });
+});

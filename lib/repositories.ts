@@ -1326,6 +1326,37 @@ export async function listProjectMembers(projectId: string): Promise<ProjectMemb
   return result.rows as ProjectMember[];
 }
 
+export type NotificationRecipientRow = {
+  id: string;
+  email: string;
+  firstName: string | null;
+  lastName: string | null;
+};
+
+export async function listProjectMemberRecipients(
+  projectId: string,
+  excludeUserId: string
+): Promise<NotificationRecipientRow[]> {
+  const result = await query(
+    `select up.id, up.email, up.first_name, up.last_name
+       from project_members pm
+       join user_profiles up on up.id = pm.user_id
+      where pm.project_id = $1
+        and pm.user_id <> $2
+        and up.is_legacy = false
+        and up.email is not null`,
+    [projectId, excludeUserId]
+  );
+  return result.rows.map(
+    (row: { id: string; email: string; first_name: string | null; last_name: string | null }) => ({
+      id: row.id,
+      email: row.email,
+      firstName: row.first_name,
+      lastName: row.last_name
+    })
+  );
+}
+
 export async function listThreads(projectId: string) {
   const result = await query(
     `select
