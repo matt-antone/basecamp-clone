@@ -1,44 +1,38 @@
-import { createHash, randomUUID } from "node:crypto";
-import { after } from "next/server";
-import { del } from "@vercel/blob";
+import { z } from "zod";
 import { requireUser } from "@/lib/auth";
-import { enqueueThumbnailJobAndNotifyBestEffort } from "@/lib/thumbnail-enqueue-after-save";
-import { badRequest, conflict, notFound, ok, serverError, unauthorized } from "@/lib/http";
-import { getProjectStorageDir } from "@/lib/project-storage";
 import {
   assertClientNotArchivedForMutation,
   createFileMetadata,
-  finalizeFileMetadataAfterTransfer,
   getComment,
   getProject,
-  getThread,
-  markFileTransferFailed,
-  markFileTransferInProgress
+  getThread
 } from "@/lib/repositories";
-import {
-  DropboxStorageAdapter,
-  getDropboxErrorSummary
-} from "@/lib/storage/dropbox-adapter";
-import { z } from "zod";
+import { enqueueThumbnailJobAndNotifyBestEffort } from "@/lib/thumbnail-enqueue-after-save";
+import { badRequest, conflict, forbidden, notFound, ok, serverError, unauthorized } from "@/lib/http";
+import { getProjectStorageDir } from "@/lib/project-storage";
+import { DropboxStorageAdapter } from "@/lib/storage/dropbox-adapter";
 
-const uploadCompleteSchema = z.object({
-  blobUrl: z.string().url(),
-  filename: z.string().min(1),
-  mimeType: z.string().min(1),
-  sizeBytes: z.number().int().nonnegative(),
+const completeSchema = z.object({
+  dropboxFileId: z.string().min(1).max(256),
+  requestId: z.string().min(1).max(128),
   threadId: z.string().uuid().optional(),
   commentId: z.string().uuid().optional()
 }).superRefine((value, ctx) => {
   if (value.commentId && !value.threadId) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
-      message: "threadId is required when commentId is provided",
-      path: ["threadId"]
+      message: "commentId requires threadId"
     });
   }
 });
 
 const CLIENT_MUTATION_BLOCK_PATTERN = /client is archived|client archive is in progress/i;
+const DROPBOX_PATH_NOT_FOUND_PATTERN = /path_not_found|not_found|path\/not_found/i;
+
+function basename(path: string): string {
+  const idx = path.lastIndexOf("/");
+  return idx === -1 ? path : path.slice(idx + 1);
+}
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -55,21 +49,12 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       inProgress: "Client archive is in progress. File uploads are temporarily disabled."
     });
 
-    let payload: z.infer<typeof uploadCompleteSchema>;
-    try {
-      payload = uploadCompleteSchema.parse(await request.json());
-    } catch (parseError) {
-      if (parseError instanceof z.ZodError) {
-        return badRequest(parseError.message);
-      }
-      return badRequest("Invalid JSON body");
+    const body = await request.json().catch(() => null);
+    const parsed = completeSchema.safeParse(body);
+    if (!parsed.success) {
+      return badRequest(parsed.error.message);
     }
-
-    // SSRF protection: enforce Vercel Blob hostname allowlist
-    const parsedBlobUrl = new URL(payload.blobUrl);
-    if (!parsedBlobUrl.hostname.endsWith(".public.blob.vercel-storage.com")) {
-      return badRequest("blobUrl must be a Vercel Blob URL");
-    }
+    const payload = parsed.data;
 
     if (payload.threadId) {
       const thread = await getThread(projectId, payload.threadId);
@@ -77,7 +62,6 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         return notFound("Thread not found");
       }
     }
-
     if (payload.commentId && payload.threadId) {
       const comment = await getComment(projectId, payload.threadId, payload.commentId);
       if (!comment) {
@@ -85,92 +69,55 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       }
     }
 
-    // `thread_id` / `comment_id` are null for project-level uploads (project Files tab) and for
-    // some imports. Comment attachments send both ids after the comment exists (see discussion page).
+    const adapter = new DropboxStorageAdapter();
+    let metadata;
+    try {
+      metadata = await adapter.getFileMetadata({ dropboxFileId: payload.dropboxFileId });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (DROPBOX_PATH_NOT_FOUND_PATTERN.test(message)) {
+        return notFound("Uploaded file not found in Dropbox");
+      }
+      throw error;
+    }
+
+    const expectedPrefix = `${getProjectStorageDir(project)}/uploads/`;
+    if (!metadata.pathDisplay.startsWith(expectedPrefix)) {
+      console.warn("upload_complete_path_attribution_blocked", {
+        projectId,
+        dropboxFileId: payload.dropboxFileId,
+        pathDisplay: metadata.pathDisplay,
+        expectedPrefix
+      });
+      return forbidden("Uploaded file is outside the project's storage area");
+    }
+
     const file = await createFileMetadata({
       projectId,
       uploaderUserId: user.id,
-      filename: payload.filename,
-      mimeType: payload.mimeType,
-      sizeBytes: payload.sizeBytes,
-      dropboxFileId: null,
-      dropboxPath: null,
-      checksum: null,
+      filename: basename(metadata.pathDisplay),
+      mimeType: request.headers.get("x-original-mime-type") ?? "application/octet-stream",
+      sizeBytes: metadata.size,
+      dropboxFileId: metadata.fileId,
+      dropboxPath: metadata.pathDisplay,
+      checksum: metadata.contentHash,
       threadId: payload.threadId ?? null,
-      commentId: payload.commentId ?? null,
-      status: "pending",
-      blobUrl: payload.blobUrl
+      commentId: payload.commentId ?? null
     });
 
     if (!file) {
-      throw new Error("Failed to create file metadata");
+      return serverError("Failed to persist file metadata");
     }
 
-    const requestId = request.headers.get("x-request-id")?.trim() || randomUUID();
-
-    after(async () => {
-      try {
-        await markFileTransferInProgress(file.id);
-
-        const blobResponse = await fetch(payload.blobUrl);
-        if (!blobResponse.ok) {
-          throw new Error(`Failed to fetch blob: ${blobResponse.status}`);
-        }
-        const content = Buffer.from(await blobResponse.arrayBuffer());
-        const checksum = createHash("sha256").update(content).digest("hex");
-
-        const adapter = new DropboxStorageAdapter();
-        const projectStorageDir = getProjectStorageDir(project);
-        const targetPath = `${projectStorageDir}/uploads/${payload.filename}`;
-
-        const completed = await adapter.uploadComplete({
-          sessionId: randomUUID(),
-          targetPath,
-          filename: payload.filename,
-          content,
-          mimeType: payload.mimeType
-        });
-
-        await finalizeFileMetadataAfterTransfer({
-          fileId: file.id,
-          dropboxFileId: completed.fileId,
-          dropboxPath: completed.path,
-          checksum
-        });
-
-        const enrichedRecord = {
-          ...file,
-          dropbox_file_id: completed.fileId,
-          dropbox_path: completed.path,
-          checksum,
-          status: "ready",
-          blob_url: null
-        };
-
-        await enqueueThumbnailJobAndNotifyBestEffort({
-          projectId,
-          fileRecord: enrichedRecord as Record<string, unknown>,
-          requestId,
-          projectArchived: Boolean(project.archived)
-        });
-      } catch (error) {
-        const summary = getDropboxErrorSummary(error);
-        await markFileTransferFailed({ fileId: file.id, error: summary });
-        console.error("upload_transfer_failed", { fileId: file.id, requestId, summary });
-      } finally {
-        try {
-          await del(payload.blobUrl);
-        } catch (cleanupError) {
-          console.error("blob_cleanup_failed", { blobUrl: payload.blobUrl, cleanupError });
-        }
-      }
+    await enqueueThumbnailJobAndNotifyBestEffort({
+      projectId,
+      fileRecord: file as unknown as Record<string, unknown>,
+      requestId: payload.requestId,
+      projectArchived: Boolean(project.archived)
     });
 
-    return ok({ file }, 202);
+    return ok({ file });
   } catch (error) {
-    if (error instanceof z.ZodError) {
-      return badRequest(error.message);
-    }
     if (error instanceof Error && /auth|token|workspace/i.test(error.message)) {
       return unauthorized(error.message);
     }
