@@ -28,6 +28,7 @@ const completeSchema = z.object({
 
 const CLIENT_MUTATION_BLOCK_PATTERN = /client is archived|client archive is in progress/i;
 const DROPBOX_PATH_NOT_FOUND_PATTERN = /path_not_found|path\/not_found/i;
+const MIME_TYPE_PATTERN = /^[a-zA-Z0-9!#$&^_.+-]{1,127}\/[a-zA-Z0-9!#$&^_.+-]{1,127}(?:\s*;\s*[a-zA-Z0-9!#$&^_.+-]+=("[\x20-\x7E]*"|[a-zA-Z0-9!#$&^_.+-]+))?$/;
 
 function basename(path: string): string {
   const idx = path.lastIndexOf("/");
@@ -92,13 +93,17 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       return forbidden("Uploaded file is outside the project's storage area");
     }
 
-    const rawMimeType = request.headers.get("x-original-mime-type")?.slice(0, 255) ?? "application/octet-stream";
+    const rawMimeHeader = request.headers.get("x-original-mime-type");
+    if (rawMimeHeader !== null && !MIME_TYPE_PATTERN.test(rawMimeHeader.slice(0, 255))) {
+      return badRequest("Invalid x-original-mime-type header");
+    }
+    const mimeType = rawMimeHeader?.slice(0, 255) ?? "application/octet-stream";
 
     const file = await createFileMetadata({
       projectId,
       uploaderUserId: user.id,
       filename: basename(metadata.pathDisplay),
-      mimeType: rawMimeType,
+      mimeType,
       sizeBytes: metadata.size,
       dropboxFileId: metadata.fileId,
       dropboxPath: metadata.pathDisplay,
