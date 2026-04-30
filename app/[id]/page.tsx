@@ -444,6 +444,7 @@ function ProjectPageContent({ projectId, initial }: { projectId: string; initial
   async function uploadSelectedFile() {
     if (!token || !projectId || !selectedFile) return;
     setIsUploading(true);
+    setUploadError(null);
     try {
       // 1. Mint a Dropbox temporary upload link.
       const initRes = await authedFetch(token, `/projects/${projectId}/files/upload-init`, {
@@ -731,7 +732,17 @@ function ProjectPageContent({ projectId, initial }: { projectId: string; initial
       </section>
 
       {uploadError && (
-        <p role="alert" className="uploadErrorBanner">{uploadError}</p>
+        <p role="alert" className="uploadErrorBanner">
+          <span>{uploadError}</span>
+          <button
+            type="button"
+            onClick={() => setUploadError(null)}
+            className="uploadErrorBannerDismiss"
+            aria-label="Dismiss upload error"
+          >
+            ×
+          </button>
+        </p>
       )}
       <ProjectFilesPanel
         projectId={projectId}
