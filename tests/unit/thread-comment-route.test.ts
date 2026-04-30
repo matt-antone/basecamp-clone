@@ -5,7 +5,7 @@ const getProjectMock = vi.fn();
 const getThreadMock = vi.fn();
 const createCommentMock = vi.fn();
 const getUserProfileByIdMock = vi.fn();
-const listNotificationRecipientsMock = vi.fn();
+const listProjectMemberRecipientsMock = vi.fn();
 const assertClientNotArchivedForMutationMock = vi.fn();
 const sendCommentCreatedEmailMock = vi.fn();
 
@@ -19,7 +19,7 @@ vi.mock("@/lib/repositories", () => ({
   getThread: getThreadMock,
   createComment: createCommentMock,
   getUserProfileById: getUserProfileByIdMock,
-  listNotificationRecipients: listNotificationRecipientsMock
+  listProjectMemberRecipients: listProjectMemberRecipientsMock
 }));
 
 vi.mock("@/lib/mailer", async () => {
@@ -38,7 +38,7 @@ describe("POST /projects/[id]/threads/[threadId]/comments", () => {
     getThreadMock.mockReset();
     createCommentMock.mockReset();
     getUserProfileByIdMock.mockReset();
-    listNotificationRecipientsMock.mockReset();
+    listProjectMemberRecipientsMock.mockReset();
     assertClientNotArchivedForMutationMock.mockReset();
     sendCommentCreatedEmailMock.mockReset();
   });
@@ -57,7 +57,7 @@ describe("POST /projects/[id]/threads/[threadId]/comments", () => {
       first_name: "Alex",
       last_name: "Author"
     });
-    listNotificationRecipientsMock.mockResolvedValue([
+    listProjectMemberRecipientsMock.mockResolvedValue([
       { id: "user-2", email: "jamie@example.com", firstName: "Jamie", lastName: "Teammate" }
     ]);
     sendCommentCreatedEmailMock.mockResolvedValue({ skipped: false, recipientCount: 1 });
@@ -78,7 +78,7 @@ describe("POST /projects/[id]/threads/[threadId]/comments", () => {
     );
 
     expect(response.status).toBe(201);
-    expect(listNotificationRecipientsMock).toHaveBeenCalledWith();
+    expect(listProjectMemberRecipientsMock).toHaveBeenCalledWith("project-1", "user-1");
     expect(sendCommentCreatedEmailMock).toHaveBeenCalledWith(
       expect.objectContaining({
         actor: { name: "Alex Author", email: "author@example.com" },
@@ -108,7 +108,7 @@ describe("POST /projects/[id]/threads/[threadId]/comments", () => {
       first_name: "Alex",
       last_name: "Author"
     });
-    listNotificationRecipientsMock.mockResolvedValue([
+    listProjectMemberRecipientsMock.mockResolvedValue([
       { id: "user-2", email: "jamie@example.com", firstName: "Jamie", lastName: "Teammate" }
     ]);
     sendCommentCreatedEmailMock.mockRejectedValue(new Error("SMTP offline"));
@@ -157,7 +157,7 @@ describe("POST /projects/[id]/threads/[threadId]/comments", () => {
       first_name: "Alex",
       last_name: "Author"
     });
-    listNotificationRecipientsMock.mockResolvedValue([]);
+    listProjectMemberRecipientsMock.mockResolvedValue([]);
 
     const { POST } = await import("@/app/projects/[id]/threads/[threadId]/comments/route");
     const response = await POST(
