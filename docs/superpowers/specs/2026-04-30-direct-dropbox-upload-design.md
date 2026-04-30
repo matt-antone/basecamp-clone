@@ -281,6 +281,27 @@ before persisting. Failures map to 403. This is the security boundary that repla
 6. Apply migration in dev → `pnpm tsc --noEmit` → `pnpm vitest run` → `pnpm fallow dead-code` → manual smoke checklist → push PR.
 7. On merge to `main`: apply migration in production **before** promoting the app deploy (or together with the deploy if the migration runner is gated by deploy in this project's pipeline).
 
+## Pre-deploy operational checklist
+
+The revert migration `0025_revert_project_files_transfer_status.sql` re-imposes `NOT NULL` on `project_files.dropbox_file_id`, `dropbox_path`, and `checksum`. Production has been running PR #19 (Vercel Blob) and may have rows left in `pending` or `in_progress` state with NULL Dropbox columns. Those rows will fail the migration with a `not-null constraint violation` and the migration will roll back.
+
+**Before applying `0025` to any environment, run this probe:**
+
+```sql
+select count(*) as null_rows
+from project_files
+where dropbox_file_id is null
+   or dropbox_path is null
+   or checksum is null;
+```
+
+- **If the count is `0`:** apply the migration normally.
+- **If the count is non-zero:** investigate per-row. Each row represents an upload that started under the Vercel Blob flow but never completed.
+  - Rows `status = 'failed'` with no Dropbox metadata: safe to delete (the user already saw an error and re-tried). `delete from project_files where status = 'failed' and dropbox_file_id is null;`
+  - Rows `status = 'pending'` or `'in_progress'`: confirm with the uploading user; either delete or wait briefly for completion before retrying. A short upload freeze (~5 min) before the migration window is the safest path.
+
+After cleanup, re-run the probe to confirm `null_rows = 0`, then apply the migration.
+
 ## Risks
 
 - **Dropbox CORS surface change.** Dropbox content endpoints have supported CORS for years on `*.content.dropboxapi.com`, but if a corporate proxy or browser extension blocks third-party uploads, users will see PUT failures. **Mitigation:** error matrix surfaces this clearly; documented as a known limitation.

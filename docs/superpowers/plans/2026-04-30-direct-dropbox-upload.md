@@ -1442,6 +1442,8 @@ Anything else: stop, fix, repeat.
 
 - [ ] **Step 5: Manual smoke checklist (against Netlify preview deploy)**
 
+0. **Pre-deploy:** Confirm the production-environment SQL probe `select count(*) from project_files where dropbox_file_id is null or dropbox_path is null or checksum is null` returns `0`. If non-zero, follow the cleanup runbook in the spec ("Pre-deploy operational checklist") before applying migration `0025`.
+
 Push the branch, let Netlify build a preview, then exercise:
 
 1. Pick an 8 MB iStock JPG → file appears in the project files list with thumbnail.
