@@ -9,6 +9,10 @@ create index if not exists idx_project_members_user_id on project_members(user_i
 
 alter table discussion_threads add column if not exists edited_at timestamptz;
 
+-- Backfill: seed project_members from existing activity.
+-- Scoped to active projects only (projects.archived = false and clients.archived_at is null)
+-- to avoid populating member lists for projects that are no longer in use.
+-- Safe to re-run: ON CONFLICT DO NOTHING.
 with active_projects as (
   select p.id, p.created_by
   from projects p

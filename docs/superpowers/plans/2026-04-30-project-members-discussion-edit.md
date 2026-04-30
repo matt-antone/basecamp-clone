@@ -50,6 +50,8 @@ The same backup discipline is repeated for staging and prod promotions.
 
 - [ ] **Step 1: Write the migration.**
 
+The actual table names in this repo are `discussion_threads` and `discussion_comments` (confirm in `supabase/migrations/0001_init.sql`). Use those names verbatim:
+
 ```sql
 -- 0026_project_members.sql
 create table if not exists project_members (
@@ -60,8 +62,12 @@ create table if not exists project_members (
 );
 create index if not exists idx_project_members_user_id on project_members(user_id);
 
-alter table threads add column if not exists edited_at timestamptz;
+alter table discussion_threads add column if not exists edited_at timestamptz;
 
+-- Backfill: seed project_members from existing activity.
+-- Scoped to active projects only (projects.archived = false and clients.archived_at is null)
+-- to avoid populating member lists for projects that are no longer in use.
+-- Safe to re-run: ON CONFLICT DO NOTHING.
 with active_projects as (
   select p.id, p.created_by
   from projects p
@@ -72,12 +78,12 @@ insert into project_members (project_id, user_id)
 select id, created_by from active_projects
 union
 select t.project_id, t.author_user_id
-  from threads t
+  from discussion_threads t
   join active_projects ap on ap.id = t.project_id
 union
 select t.project_id, c.author_user_id
-  from comments c
-  join threads t on t.id = c.thread_id
+  from discussion_comments c
+  join discussion_threads t on t.id = c.thread_id
   join active_projects ap on ap.id = t.project_id
 on conflict do nothing;
 ```
@@ -86,7 +92,7 @@ on conflict do nothing;
 
 Run:
 ```bash
-psql "$DATABASE_URL" -c "\d comments"
+psql "$DATABASE_URL" -c "\d discussion_comments"
 ```
 Expected: a column linking comments to threads. If the column is named `thread_id` the migration is correct as written. If it's named differently (e.g., `discussion_id`), update the join in the backfill and re-save the migration.
 
@@ -1207,7 +1213,7 @@ describe("editThread", () => {
     const result = await editThread({ projectId: "p1", threadId: "t1", title: "New", bodyMarkdown: "Hi" });
     expect(result.title).toBe("New");
     const [sql, params] = queryMock.mock.calls[0];
-    expect(sql).toMatch(/update threads set/i);
+    expect(sql).toMatch(/update discussion_threads set/i);
     expect(sql).toMatch(/edited_at = now\(\)/i);
     expect(params).toEqual(["New", "Hi", expect.any(String), "t1", "p1"]);
   });
@@ -1231,7 +1237,7 @@ export async function editThread(args: {
 }) {
   const bodyHtml = await renderMarkdownToHtml(args.bodyMarkdown);
   const result = await query(
-    `update threads
+    `update discussion_threads
         set title = $1,
             body_markdown = $2,
             body_html = $3,
