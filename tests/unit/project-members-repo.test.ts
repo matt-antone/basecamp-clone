@@ -20,7 +20,7 @@ describe("addProjectMember", () => {
     const { addProjectMember } = await import("@/lib/repositories");
     await addProjectMember("p1", "u1");
     expect(queryMock).toHaveBeenCalledWith(
-      expect.stringMatching(/insert into project_members.*on conflict do nothing/is),
+      expect.stringMatching(/insert into project_members.*on conflict.*do nothing/is),
       ["p1", "u1"]
     );
   });

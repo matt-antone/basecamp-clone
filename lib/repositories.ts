@@ -1284,6 +1284,13 @@ export async function setProjectStatus(id: string, status: ProjectStatus) {
   return result.rows[0] ?? null;
 }
 
+export async function addProjectMember(projectId: string, userId: string) {
+  await query(
+    "insert into project_members (project_id, user_id) values ($1, $2) on conflict (project_id, user_id) do nothing",
+    [projectId, userId]
+  );
+}
+
 export async function listThreads(projectId: string) {
   const result = await query(
     `select
@@ -1693,9 +1700,3 @@ function isMissingProjectFileColumnError(error: unknown) {
   );
 }
 
-export async function addProjectMember(projectId: string, userId: string) {
-  await query(
-    "insert into project_members (project_id, user_id) values ($1, $2) on conflict do nothing",
-    [projectId, userId]
-  );
-}
