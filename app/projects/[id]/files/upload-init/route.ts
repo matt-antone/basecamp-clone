@@ -1,9 +1,7 @@
 import { handleUpload, type HandleUploadBody } from "@vercel/blob/client";
 import { requireUser } from "@/lib/auth";
-import { badRequest, conflict, notFound, serverError, unauthorized } from "@/lib/http";
+import { conflict, notFound, serverError, unauthorized } from "@/lib/http";
 import { assertClientNotArchivedForMutation, getProject } from "@/lib/repositories";
-import { isTeamSelectUserRequiredError } from "@/lib/storage/dropbox-adapter";
-import { ZodError } from "zod";
 
 const CLIENT_MUTATION_BLOCK_PATTERN = /client is archived|client archive is in progress/i;
 
@@ -41,12 +39,6 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     }
     if (error instanceof Error && CLIENT_MUTATION_BLOCK_PATTERN.test(error.message)) {
       return conflict(error.message);
-    }
-    if (error instanceof ZodError) {
-      return badRequest(error.message);
-    }
-    if (isTeamSelectUserRequiredError(error)) {
-      return serverError("Dropbox team token requires DROPBOX_SELECT_USER (team member id) or DROPBOX_SELECT_ADMIN.");
     }
     return serverError();
   }
