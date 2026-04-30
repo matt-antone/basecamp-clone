@@ -54,3 +54,52 @@ describe("GET /projects/[id]/members", () => {
     expect(res.status).toBe(401);
   });
 });
+
+describe("POST /projects/[id]/members", () => {
+  it("adds a member and returns 201", async () => {
+    requireUserMock.mockResolvedValue({ id: "u1" });
+    getProjectMock.mockResolvedValue({ id: "p1" });
+    addProjectMemberMock.mockResolvedValue(undefined);
+    const { POST } = await import("@/app/projects/[id]/members/route");
+    const res = await POST(
+      new Request("http://localhost/projects/p1/members", {
+        method: "POST",
+        body: JSON.stringify({ userId: "u2" }),
+        headers: { "content-type": "application/json" }
+      }),
+      { params: Promise.resolve({ id: "p1" }) }
+    );
+    expect(res.status).toBe(201);
+    expect(addProjectMemberMock).toHaveBeenCalledWith("p1", "u2");
+  });
+
+  it("400 on invalid payload", async () => {
+    requireUserMock.mockResolvedValue({ id: "u1" });
+    getProjectMock.mockResolvedValue({ id: "p1" });
+    const { POST } = await import("@/app/projects/[id]/members/route");
+    const res = await POST(
+      new Request("http://localhost/projects/p1/members", {
+        method: "POST",
+        body: JSON.stringify({}),
+        headers: { "content-type": "application/json" }
+      }),
+      { params: Promise.resolve({ id: "p1" }) }
+    );
+    expect(res.status).toBe(400);
+  });
+
+  it("404 when project not found", async () => {
+    requireUserMock.mockResolvedValue({ id: "u1" });
+    getProjectMock.mockResolvedValue(null);
+    const { POST } = await import("@/app/projects/[id]/members/route");
+    const res = await POST(
+      new Request("http://localhost/projects/p1/members", {
+        method: "POST",
+        body: JSON.stringify({ userId: "u2" }),
+        headers: { "content-type": "application/json" }
+      }),
+      { params: Promise.resolve({ id: "p1" }) }
+    );
+    expect(res.status).toBe(404);
+  });
+});
