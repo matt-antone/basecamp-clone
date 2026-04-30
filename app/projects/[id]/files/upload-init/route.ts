@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { requireUser } from "@/lib/auth";
-import { badRequest, conflict, notFound, serverError, unauthorized } from "@/lib/http";
+import { badRequest, conflict, notFound, ok, serverError, unauthorized } from "@/lib/http";
 import { assertClientNotArchivedForMutation, getProject } from "@/lib/repositories";
 import { getProjectStorageDir } from "@/lib/project-storage";
 import { DropboxStorageAdapter } from "@/lib/storage/dropbox-adapter";
@@ -9,7 +9,10 @@ import { DropboxStorageAdapter } from "@/lib/storage/dropbox-adapter";
 const MAX_UPLOAD_BYTES = 150 * 1024 * 1024;
 
 const initSchema = z.object({
-  filename: z.string().min(1).max(255),
+  filename: z.string().min(1).max(255).refine(
+    (f) => !f.includes("/") && !f.includes("\\") && !f.startsWith("."),
+    { message: "filename must not contain path separators" }
+  ),
   mimeType: z.string().min(1).max(255),
   sizeBytes: z.number().int().positive().max(MAX_UPLOAD_BYTES)
 });
@@ -41,7 +44,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const adapter = new DropboxStorageAdapter();
     const { uploadUrl } = await adapter.getTemporaryUploadLink({ targetPath });
 
-    return Response.json({
+    return ok({
       uploadUrl,
       targetPath,
       requestId: randomUUID()

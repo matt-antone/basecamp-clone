@@ -119,4 +119,17 @@ describe("POST /projects/[id]/files/upload-init", () => {
     );
     expect(res.status).toBe(500);
   });
+
+  it("returns 400 when filename contains a path separator", async () => {
+    requireUserMock.mockResolvedValue({ id: "user-1" });
+    getProjectMock.mockResolvedValue(PROJECT);
+    assertClientNotArchivedForMutationMock.mockResolvedValue(undefined);
+    const { POST } = await import("@/app/projects/[id]/files/upload-init/route");
+    const res = await POST(
+      makeRequest({ filename: "../etc/passwd", mimeType: "text/plain", sizeBytes: 1 }),
+      { params: Promise.resolve({ id: "project-1" }) }
+    );
+    expect(res.status).toBe(400);
+    expect(getTemporaryUploadLinkMock).not.toHaveBeenCalled();
+  });
 });
