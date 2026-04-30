@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { Dropbox } from "dropbox";
 import { DropboxStorageAdapter } from "@/lib/storage/dropbox-adapter";
 // Note: additional describe blocks below also use dynamic import to isolate module state
 
@@ -146,14 +147,10 @@ describe("DropboxStorageAdapter.getTemporaryUploadLink", () => {
     const filesGetTemporaryUploadLink = vi.fn().mockResolvedValue({
       result: { link: "https://content.dropboxapi.com/apitul/x/abc" }
     });
-    const fakeClient = { filesGetTemporaryUploadLink, usersGetCurrentAccount: vi.fn().mockResolvedValue({
-      result: { root_info: { root_namespace_id: "1", home_namespace_id: "1" } }
-    }) };
 
     const { DropboxStorageAdapter } = await import("@/lib/storage/dropbox-adapter");
     const adapter = new DropboxStorageAdapter();
-    // @ts-expect-error – inject fake client for the test
-    adapter.baseClient = fakeClient;
+    adapter.getClient = async () => ({ filesGetTemporaryUploadLink }) as unknown as Dropbox;
 
     const result = await adapter.getTemporaryUploadLink({
       targetPath: "/Projects/ACME/ACME-0001-Brief/uploads/cover.jpg"
@@ -184,14 +181,10 @@ describe("DropboxStorageAdapter.getFileMetadata", () => {
         server_modified: "2026-04-30T17:00:00Z"
       }
     });
-    const fakeClient = { filesGetMetadata, usersGetCurrentAccount: vi.fn().mockResolvedValue({
-      result: { root_info: { root_namespace_id: "1", home_namespace_id: "1" } }
-    }) };
 
     const { DropboxStorageAdapter } = await import("@/lib/storage/dropbox-adapter");
     const adapter = new DropboxStorageAdapter();
-    // @ts-expect-error
-    adapter.baseClient = fakeClient;
+    adapter.getClient = async () => ({ filesGetMetadata }) as unknown as Dropbox;
 
     const result = await adapter.getFileMetadata({ dropboxFileId: "id:abc123" });
 
@@ -209,15 +202,31 @@ describe("DropboxStorageAdapter.getFileMetadata", () => {
     const filesGetMetadata = vi.fn().mockResolvedValue({
       result: { ".tag": "folder", id: "id:xyz", path_display: "/Projects/foo" }
     });
-    const fakeClient = { filesGetMetadata, usersGetCurrentAccount: vi.fn().mockResolvedValue({
-      result: { root_info: { root_namespace_id: "1", home_namespace_id: "1" } }
-    }) };
 
     const { DropboxStorageAdapter } = await import("@/lib/storage/dropbox-adapter");
     const adapter = new DropboxStorageAdapter();
-    // @ts-expect-error
-    adapter.baseClient = fakeClient;
+    adapter.getClient = async () => ({ filesGetMetadata }) as unknown as Dropbox;
 
     await expect(adapter.getFileMetadata({ dropboxFileId: "id:xyz" })).rejects.toThrow(/not a file/);
+  });
+
+  it("throws when Dropbox returns a file entry with missing required fields", async () => {
+    const filesGetMetadata = vi.fn().mockResolvedValue({
+      result: {
+        ".tag": "file",
+        id: "id:abc",
+        // path_display intentionally omitted
+        content_hash: "h",
+        size: 1,
+        server_modified: "2026-04-30T17:00:00Z"
+      }
+    });
+
+    const { DropboxStorageAdapter } = await import("@/lib/storage/dropbox-adapter");
+    const adapter = new DropboxStorageAdapter();
+    adapter.getClient = async () => ({ filesGetMetadata }) as unknown as Dropbox;
+
+    await expect(adapter.getFileMetadata({ dropboxFileId: "id:abc" }))
+      .rejects.toThrow(/missing required fields/);
   });
 });
