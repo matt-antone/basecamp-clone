@@ -113,8 +113,23 @@ describe("POST /projects/[id]/files/upload-init", () => {
     assertClientNotArchivedForMutationMock.mockResolvedValue(undefined);
     getTemporaryUploadLinkMock.mockRejectedValue(new Error("dropbox down"));
     const { POST } = await import("@/app/projects/[id]/files/upload-init/route");
-    const res = await POST(
-      makeRequest({ filename: "x.jpg", mimeType: "image/jpeg", sizeBytes: 1 }),
+    const response = await POST(
+      new Request("http://localhost/projects/project-1/files/upload-init", {
+        method: "POST",
+        headers: {
+          authorization: "Bearer token",
+          "content-type": "application/json"
+        },
+        body: JSON.stringify({
+          type: "blob.generate-client-token",
+          payload: {
+            pathname: "brief.pdf",
+            callbackUrl: "http://localhost/upload-init",
+            clientPayload: null,
+            multipart: false
+          }
+        })
+      }),
       { params: Promise.resolve({ id: "project-1" }) }
     );
     expect(res.status).toBe(500);
