@@ -510,14 +510,22 @@ async function uploadAttachmentForComment(args: {
       }
     };
     xhr.onload = () => {
-      if (xhr.status >= 200 && xhr.status < 300) {
-        try {
-          resolve(JSON.parse(xhr.responseText));
-        } catch {
-          reject(new Error("Dropbox response was not JSON"));
-        }
-      } else {
-        reject(new Error(`Dropbox upload failed (${xhr.status})`));
+      if (xhr.status < 200 || xhr.status >= 300) {
+        reject(new Error(`Dropbox upload failed (${xhr.status}): ${xhr.responseText.slice(0, 200)}`));
+        return;
+      }
+      // Dropbox content-upload endpoints return FileMetadata in the
+      // Dropbox-API-Result response header, NOT the response body.
+      // See https://www.dropbox.com/developers/documentation/http/documentation#formats
+      const apiResult = xhr.getResponseHeader("Dropbox-API-Result");
+      if (!apiResult) {
+        reject(new Error("Dropbox response missing Dropbox-API-Result header"));
+        return;
+      }
+      try {
+        resolve(JSON.parse(apiResult));
+      } catch {
+        reject(new Error(`Dropbox-API-Result not JSON: ${apiResult.slice(0, 200)}`));
       }
     };
     xhr.onerror = () => reject(new Error("Network error uploading to Dropbox"));
