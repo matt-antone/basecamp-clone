@@ -2870,6 +2870,40 @@ li.active {
   color: var(--text-muted);
 }
 
+.fileThumbTransferring {
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+}
+
+.fileThumbFailed {
+  background: color-mix(in srgb, var(--danger, #c0392b) 8%, transparent);
+  color: var(--danger, #c0392b);
+  cursor: help;
+}
+
+@keyframes fileThumbSpin {
+  to { transform: rotate(360deg); }
+}
+
+.fileThumbSpinner {
+  display: block;
+  width: 18px;
+  height: 18px;
+  border: 2px solid color-mix(in srgb, var(--accent) 30%, transparent);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: fileThumbSpin 0.8s linear infinite;
+}
+
+.fileStatusTransferring {
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.fileStatusFailed {
+  color: var(--danger, #c0392b);
+  cursor: help;
+}
+
 .fileThumbMeta {
   display: grid;
   gap: 2px;
