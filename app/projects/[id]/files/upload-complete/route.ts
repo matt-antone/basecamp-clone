@@ -65,6 +65,12 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       return badRequest("Invalid JSON body");
     }
 
+    // SSRF protection: enforce Vercel Blob hostname allowlist
+    const parsedBlobUrl = new URL(payload.blobUrl);
+    if (!parsedBlobUrl.hostname.endsWith(".public.blob.vercel-storage.com")) {
+      return badRequest("blobUrl must be a Vercel Blob URL");
+    }
+
     if (payload.threadId) {
       const thread = await getThread(projectId, payload.threadId);
       if (!thread) {

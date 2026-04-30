@@ -76,7 +76,7 @@ vi.mock("next/server", async (importOriginal) => {
   };
 });
 
-const BLOB_URL = "https://blob.vercel-storage.com/test/report.pdf";
+const BLOB_URL = "https://example.public.blob.vercel-storage.com/test/report.pdf";
 
 function makeFetchMock(content = Buffer.from("pdf")) {
   return vi.fn().mockResolvedValue({
@@ -605,5 +605,38 @@ describe("POST /projects/[id]/files/upload-complete", () => {
     } finally {
       consoleErrorSpy.mockRestore();
     }
+  });
+
+  it("rejects blobUrl that is not a Vercel Blob URL (SSRF protection)", async () => {
+    requireUserMock.mockResolvedValue({ id: "user-1", email: "person@example.com" });
+    getProjectMock.mockResolvedValue({
+      id: "project-1",
+      storage_project_dir: "/Projects/BRGS/BRGS-0001-Site Refresh"
+    });
+
+    const { POST } = await import("@/app/projects/[id]/files/upload-complete/route");
+    const response = await POST(
+      new Request("http://localhost/projects/project-1/files/upload-complete", {
+        method: "POST",
+        headers: {
+          authorization: "Bearer token",
+          "content-type": "application/json"
+        },
+        body: JSON.stringify({
+          blobUrl: "http://169.254.169.254/latest/meta-data/",
+          filename: "report.pdf",
+          mimeType: "application/pdf",
+          sizeBytes: 1234
+        })
+      }),
+      { params: Promise.resolve({ id: "project-1" }) }
+    );
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toMatchObject({
+      error: expect.stringContaining("Vercel Blob URL")
+    });
+    expect(createFileMetadataMock).not.toHaveBeenCalled();
+    expect(uploadCompleteMock).not.toHaveBeenCalled();
   });
 });
