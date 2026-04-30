@@ -134,6 +134,7 @@ export default function ProjectPage() {
 function ProjectPageContent({ projectId, initial }: { projectId: string; initial: ProjectPageBootstrap }) {
   const [token, setToken] = useState(initial.token);
   const [, setStatus] = useState(initial.status);
+  const [uploadError, setUploadError] = useState<string | null>(null);
 
   const [project, setProject] = useState<Project | null>(initial.project);
   const [userHours, setUserHours] = useState<ProjectUserHoursEntry[]>(initial.userHours);
@@ -464,15 +465,39 @@ function ProjectPageContent({ projectId, initial }: { projectId: string; initial
         xhr.open("POST", uploadUrl);
         xhr.setRequestHeader("Content-Type", "application/octet-stream");
         xhr.onload = () => {
+          // 4xx/5xx: real HTTP failure
           if (xhr.status < 200 || xhr.status >= 300) {
-            const body = xhr.responseText.slice(0, 200);
+            const body = xhr.responseText.slice(0, 300);
             if (/conflict|already exists|path\/conflict/i.test(body)) {
               reject(new Error(
                 "A file with this name already exists in this project. Rename the file and try again."
               ));
               return;
             }
-            reject(new Error(`Dropbox upload failed (${xhr.status}): ${body}`));
+            reject(new Error(`Upload failed (${xhr.status}): ${body}`));
+            return;
+          }
+          // 2xx: parse body and verify it looks like a successful upload response.
+          let parsed: { "content-hash"?: string; ".tag"?: string; reason?: { ".tag"?: string } } | null = null;
+          try {
+            parsed = xhr.responseText ? JSON.parse(xhr.responseText) : null;
+          } catch {
+            parsed = null;
+          }
+          // Dropbox sometimes returns 200 with an embedded WriteError shape on commit conflicts.
+          if (parsed && parsed[".tag"] === "path") {
+            const reasonTag = parsed.reason?.[".tag"] ?? "unknown";
+            if (/conflict/i.test(reasonTag)) {
+              reject(new Error(
+                "A file with this name already exists in this project. Rename the file and try again."
+              ));
+              return;
+            }
+            reject(new Error(`Upload rejected by Dropbox: ${reasonTag}`));
+            return;
+          }
+          if (!parsed || !parsed["content-hash"]) {
+            reject(new Error("Upload completed but server response was unexpected."));
             return;
           }
           resolve();
@@ -493,12 +518,13 @@ function ProjectPageContent({ projectId, initial }: { projectId: string; initial
         })
       });
 
+      setUploadError(null);
       setSelectedFile(null);
       if (fileInputRef.current) fileInputRef.current.value = "";
       await load(token, projectId);
     } catch (err) {
       console.error("upload_failed", err);
-      setStatus(err instanceof Error ? err.message : "Upload failed");
+      setUploadError(err instanceof Error ? err.message : "Upload failed");
     } finally {
       setIsUploading(false);
     }
@@ -704,6 +730,9 @@ function ProjectPageContent({ projectId, initial }: { projectId: string; initial
         </ul>
       </section>
 
+      {uploadError && (
+        <p role="alert" className="uploadErrorBanner">{uploadError}</p>
+      )}
       <ProjectFilesPanel
         projectId={projectId}
         token={token}
@@ -722,6 +751,7 @@ function ProjectPageContent({ projectId, initial }: { projectId: string; initial
           if (fileInputRef.current) {
             fileInputRef.current.value = "";
           }
+          setUploadError(null);
         }}
         onDownloadFile={(fileId) => downloadFile(fileId).catch((error) => setStatus(error.message))}
         getFileBadgeLabel={getFileBadgeLabel}
