@@ -27,7 +27,7 @@ const completeSchema = z.object({
 });
 
 const CLIENT_MUTATION_BLOCK_PATTERN = /client is archived|client archive is in progress/i;
-const DROPBOX_PATH_NOT_FOUND_PATTERN = /path_not_found|not_found|path\/not_found/i;
+const DROPBOX_PATH_NOT_FOUND_PATTERN = /path_not_found|path\/not_found/i;
 
 function basename(path: string): string {
   const idx = path.lastIndexOf("/");
@@ -92,11 +92,13 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       return forbidden("Uploaded file is outside the project's storage area");
     }
 
+    const rawMimeType = request.headers.get("x-original-mime-type")?.slice(0, 255) ?? "application/octet-stream";
+
     const file = await createFileMetadata({
       projectId,
       uploaderUserId: user.id,
       filename: basename(metadata.pathDisplay),
-      mimeType: request.headers.get("x-original-mime-type") ?? "application/octet-stream",
+      mimeType: rawMimeType,
       sizeBytes: metadata.size,
       dropboxFileId: metadata.fileId,
       dropboxPath: metadata.pathDisplay,

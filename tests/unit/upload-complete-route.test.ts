@@ -84,6 +84,25 @@ describe("POST /projects/[id]/files/upload-complete", () => {
     expect(enqueueThumbnailJobAndNotifyBestEffortMock).toHaveBeenCalled();
   });
 
+  it("falls back to application/octet-stream when x-original-mime-type header is missing", async () => {
+    getFileMetadataMock.mockResolvedValue({
+      fileId: "id:abc", pathDisplay: `${STORAGE_DIR}/uploads/no-mime.bin`,
+      contentHash: "h", size: 1, serverModified: "2026-04-30T17:00:00Z"
+    });
+    createFileMetadataMock.mockResolvedValue({ id: "row-2" });
+
+    const { POST } = await import("@/app/projects/[id]/files/upload-complete/route");
+    const res = await POST(
+      makeRequest({ dropboxFileId: "id:abc", requestId: "r" }),
+      { params: Promise.resolve({ id: "project-1" }) }
+    );
+
+    expect(res.status).toBe(200);
+    expect(createFileMetadataMock).toHaveBeenCalledWith(expect.objectContaining({
+      mimeType: "application/octet-stream"
+    }));
+  });
+
   it("validates threadId and commentId together for comment attachments", async () => {
     getThreadMock.mockResolvedValue({ id: "thread-1" });
     getCommentMock.mockResolvedValue({ id: "comment-1" });
