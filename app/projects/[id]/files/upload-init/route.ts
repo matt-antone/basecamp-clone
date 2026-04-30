@@ -7,28 +7,52 @@ const CLIENT_MUTATION_BLOCK_PATTERN = /client is archived|client archive is in p
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const user = await requireUser(request);
-    const { id } = await params;
-    const project = await getProject(id);
-    if (!project) {
-      return notFound("Project not found");
-    }
-    await assertClientNotArchivedForMutation(project.client_id, {
-      archived: "Client is archived. Restore it before uploading files.",
-      inProgress: "Client archive is in progress. File uploads are temporarily disabled."
-    });
-
     const body = (await request.json()) as HandleUploadBody;
+    const { id } = await params;
 
+    if (body.type === "blob.generate-client-token") {
+      // Browser-initiated request: enforce user auth + project + archive guards
+      // before issuing a Blob token. The blob.upload-completed webhook below
+      // is server-to-server from Vercel Blob and authenticated by its body
+      // signature (handleUpload validates internally against BLOB_READ_WRITE_TOKEN),
+      // so we deliberately do not require the app's bearer token there.
+      const user = await requireUser(request);
+      const project = await getProject(id);
+      if (!project) {
+        return notFound("Project not found");
+      }
+      await assertClientNotArchivedForMutation(project.client_id, {
+        archived: "Client is archived. Restore it before uploading files.",
+        inProgress: "Client archive is in progress. File uploads are temporarily disabled."
+      });
+
+      // Capture identity in tokenPayload so audit logs can correlate the upload.
+      const tokenPayload = JSON.stringify({ projectId: id, uploaderUserId: user.id });
+
+      const json = await handleUpload({
+        body,
+        request,
+        onBeforeGenerateToken: async (_pathname, _clientPayload, _multipart) => ({
+          addRandomSuffix: true,
+          allowedContentTypes: undefined,
+          tokenPayload
+        }),
+        // No-op: persistence happens in /upload-complete. handleUpload requires this callback.
+        onUploadCompleted: async () => {}
+      });
+
+      return Response.json(json);
+    }
+
+    // body.type === "blob.upload-completed" — webhook from Vercel Blob.
+    // No user auth here; handleUpload validates the body signature.
     const json = await handleUpload({
       body,
       request,
-      onBeforeGenerateToken: async (pathname, _clientPayload, _multipart) => ({
-        addRandomSuffix: true,
-        allowedContentTypes: undefined,
-        tokenPayload: JSON.stringify({ projectId: id, uploaderUserId: user.id, pathname })
-      }),
-      // No-op: persistence happens in /upload-complete (Task 5). handleUpload requires this callback.
+      onBeforeGenerateToken: async () => {
+        // Not reachable for upload-completed; satisfies the type.
+        throw new Error("unexpected onBeforeGenerateToken on upload-completed callback");
+      },
       onUploadCompleted: async () => {}
     });
 
