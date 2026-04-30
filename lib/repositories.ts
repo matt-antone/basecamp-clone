@@ -635,6 +635,8 @@ export async function createProject(args: {
       values
     );
     const created = result.rows[0];
+    // Non-atomic: project row is committed before this insert.
+    // If this throws, the project exists without the creator in project_members.
     await addProjectMember(created.id, args.createdBy);
     return created;
   } catch (error) {
@@ -674,6 +676,8 @@ export async function createProject(args: {
       [...values.slice(0, 9), requestor]
     );
     const created = fallback.rows[0];
+    // Non-atomic: project row is committed before this insert.
+    // If this throws, the project exists without the creator in project_members.
     await addProjectMember(created.id, args.createdBy);
     return created;
   }

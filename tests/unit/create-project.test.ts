@@ -92,4 +92,41 @@ describe("createProject", () => {
     expect(memberSql).toMatch(/insert into project_members/i);
     expect(memberParams).toEqual(["project-77", "user-77"]);
   });
+
+  it("inserts the creator into project_members on the fallback path", async () => {
+    queryMock
+      .mockResolvedValueOnce({
+        rows: [{ id: "client-2", name: "Old Corp", code: "OLDC" }]
+      })
+      .mockRejectedValueOnce(new Error('column "deadline" does not exist'))
+      .mockResolvedValueOnce({
+        rows: [
+          {
+            id: "project-99",
+            project_code: "OLDC-0001",
+            client_slug: "Old-Corp",
+            project_slug: "legacy",
+            storage_project_dir: "/projects/OLDC/OLDC-0001-Legacy"
+          }
+        ]
+      })
+      .mockResolvedValueOnce({ rowCount: 1, rows: [] });
+
+    const { createProject } = await import("@/lib/repositories");
+
+    await createProject({
+      name: "Legacy",
+      description: "Old project",
+      createdBy: "user-99",
+      clientId: "client-2",
+      tags: [],
+      deadline: null,
+      requestor: null
+    });
+
+    expect(queryMock).toHaveBeenCalledTimes(4);
+    const [memberSql, memberParams] = queryMock.mock.calls[3];
+    expect(memberSql).toMatch(/insert into project_members/i);
+    expect(memberParams).toEqual(["project-99", "user-99"]);
+  });
 });
