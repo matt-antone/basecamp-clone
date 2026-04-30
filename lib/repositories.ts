@@ -85,6 +85,18 @@ export async function listActiveUsers(): Promise<ActiveUser[]> {
   return result.rows;
 }
 
+export async function getActiveUserById(userId: string): Promise<ActiveUser | null> {
+  const result = await query<ActiveUser>(
+    `select id, email, first_name, last_name
+       from user_profiles
+      where id = $1
+        and is_legacy = false
+        and email is not null`,
+    [userId]
+  );
+  return result.rows[0] ?? null;
+}
+
 export async function createUserProfile(profile: UserProfile) {
   const result = await query(
     `insert into user_profiles (id, email, first_name, last_name, avatar_url, job_title, timezone, bio)

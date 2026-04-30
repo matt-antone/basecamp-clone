@@ -19,6 +19,7 @@ beforeEach(() => {
   process.env.APP_URL = "https://pm.example.com";
   vi.spyOn(db, "getProjectForNotification").mockResolvedValue(project);
   vi.spyOn(db, "listNotificationRecipients").mockResolvedValue(recipients);
+  vi.spyOn(db, "listProjectMemberRecipients").mockResolvedValue(recipients);
   vi.spyOn(db, "getProfile").mockResolvedValue({ client_id: "agent-1", name: "HAL 9000" } as any);
   vi.spyOn(db, "getThreadForNotification").mockResolvedValue({ id: "t-1", title: "Kickoff", project_id: "p-1" });
 });
@@ -115,7 +116,7 @@ describe("notifyBestEffort — event routing", () => {
 
 describe("notifyBestEffort — edge cases", () => {
   it("skips send and does not throw when recipient list is empty", async () => {
-    vi.spyOn(db, "listNotificationRecipients").mockResolvedValue([]);
+    vi.spyOn(db, "listProjectMemberRecipients").mockResolvedValue([]);
     const spy = vi.spyOn(mailer, "sendThreadCreatedEmail");
     const { notifyBestEffort } = await import("../../supabase/functions/basecamp-mcp/notify.ts");
     notifyBestEffort(mockSupabase, agent, {

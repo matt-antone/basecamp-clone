@@ -5,18 +5,20 @@ const getProjectMock = vi.fn();
 const listProjectMembersMock = vi.fn();
 const addProjectMemberMock = vi.fn();
 const removeProjectMemberMock = vi.fn();
+const getActiveUserByIdMock = vi.fn();
 
 vi.mock("@/lib/auth", () => ({ requireUser: requireUserMock }));
 vi.mock("@/lib/repositories", () => ({
   getProject: getProjectMock,
   listProjectMembers: listProjectMembersMock,
   addProjectMember: addProjectMemberMock,
-  removeProjectMember: removeProjectMemberMock
+  removeProjectMember: removeProjectMemberMock,
+  getActiveUserById: getActiveUserByIdMock,
 }));
 
 beforeEach(() => {
   vi.resetModules();
-  [requireUserMock, getProjectMock, listProjectMembersMock, addProjectMemberMock, removeProjectMemberMock].forEach((m) => m.mockReset());
+  [requireUserMock, getProjectMock, listProjectMembersMock, addProjectMemberMock, removeProjectMemberMock, getActiveUserByIdMock].forEach((m) => m.mockReset());
 });
 
 describe("GET /projects/[id]/members", () => {
@@ -59,6 +61,7 @@ describe("POST /projects/[id]/members", () => {
   it("adds a member and returns 201", async () => {
     requireUserMock.mockResolvedValue({ id: "u1" });
     getProjectMock.mockResolvedValue({ id: "p1" });
+    getActiveUserByIdMock.mockResolvedValue({ id: "u2", email: "b@x.com", first_name: null, last_name: null });
     addProjectMemberMock.mockResolvedValue(undefined);
     const { POST } = await import("@/app/projects/[id]/members/route");
     const res = await POST(
@@ -115,5 +118,22 @@ describe("POST /projects/[id]/members", () => {
       { params: Promise.resolve({ id: "p1" }) }
     );
     expect(res.status).toBe(401);
+  });
+
+  it("returns 400 when userId is not an active user", async () => {
+    requireUserMock.mockResolvedValue({ id: "u1" });
+    getProjectMock.mockResolvedValue({ id: "p1" });
+    getActiveUserByIdMock.mockResolvedValue(null);
+    const { POST } = await import("@/app/projects/[id]/members/route");
+    const res = await POST(
+      new Request("http://localhost/projects/p1/members", {
+        method: "POST",
+        body: JSON.stringify({ userId: "ghost" }),
+        headers: { "content-type": "application/json" }
+      }),
+      { params: Promise.resolve({ id: "p1" }) }
+    );
+    expect(res.status).toBe(400);
+    expect(addProjectMemberMock).not.toHaveBeenCalled();
   });
 });
