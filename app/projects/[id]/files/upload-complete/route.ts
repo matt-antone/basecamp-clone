@@ -102,6 +102,20 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       return forbidden("Uploaded file is outside the project's storage area");
     }
 
+    const RECENT_UPLOAD_MS = 5 * 60 * 1000; // 5 minutes
+    const serverModifiedMs = Date.parse(metadata.serverModified);
+    if (Number.isNaN(serverModifiedMs) || Date.now() - serverModifiedMs > RECENT_UPLOAD_MS) {
+      console.warn("upload_complete_stale_file", {
+        projectId,
+        targetPath: payload.targetPath,
+        serverModified: metadata.serverModified,
+        nowIso: new Date().toISOString()
+      });
+      return badRequest(
+        "Upload could not be confirmed. The file at the target path was last modified more than 5 minutes ago — likely a stale upload from a previous attempt. Please try again with a different name."
+      );
+    }
+
     const rawMimeHeader = request.headers.get("x-original-mime-type");
     if (rawMimeHeader !== null && !MIME_TYPE_PATTERN.test(rawMimeHeader.slice(0, 255))) {
       return badRequest("Invalid x-original-mime-type header");

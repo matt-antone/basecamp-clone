@@ -58,7 +58,7 @@ describe("POST /projects/[id]/files/upload-complete", () => {
   it("creates the row and returns it on success", async () => {
     getFileMetadataMock.mockResolvedValue({
       fileId: "id:abc", pathDisplay: TARGET_PATH,
-      contentHash: "deadbeef", size: 1234, serverModified: "2026-04-30T17:00:00Z"
+      contentHash: "deadbeef", size: 1234, serverModified: new Date().toISOString()
     });
     createFileMetadataMock.mockResolvedValue({ id: "row-1", filename: "cover.jpg" });
 
@@ -90,7 +90,7 @@ describe("POST /projects/[id]/files/upload-complete", () => {
     const noMimePath = `${STORAGE_DIR}/uploads/no-mime.bin`;
     getFileMetadataMock.mockResolvedValue({
       fileId: "id:abc", pathDisplay: noMimePath,
-      contentHash: "h", size: 1, serverModified: "2026-04-30T17:00:00Z"
+      contentHash: "h", size: 1, serverModified: new Date().toISOString()
     });
     createFileMetadataMock.mockResolvedValue({ id: "row-2" });
 
@@ -110,7 +110,7 @@ describe("POST /projects/[id]/files/upload-complete", () => {
     const xPath = `${STORAGE_DIR}/uploads/x.jpg`;
     getFileMetadataMock.mockResolvedValue({
       fileId: "id:abc", pathDisplay: xPath,
-      contentHash: "h", size: 1, serverModified: "2026-04-30T17:00:00Z"
+      contentHash: "h", size: 1, serverModified: new Date().toISOString()
     });
     const { POST } = await import("@/app/projects/[id]/files/upload-complete/route");
     // The WHATWG Headers API rejects CRLF values before they reach the handler.
@@ -129,7 +129,7 @@ describe("POST /projects/[id]/files/upload-complete", () => {
     const htmlPath = `${STORAGE_DIR}/uploads/x.html`;
     getFileMetadataMock.mockResolvedValue({
       fileId: "id:abc", pathDisplay: htmlPath,
-      contentHash: "h", size: 1, serverModified: "2026-04-30T17:00:00Z"
+      contentHash: "h", size: 1, serverModified: new Date().toISOString()
     });
     createFileMetadataMock.mockResolvedValue({ id: "row-3" });
     const { POST } = await import("@/app/projects/[id]/files/upload-complete/route");
@@ -166,7 +166,7 @@ describe("POST /projects/[id]/files/upload-complete", () => {
     getCommentMock.mockResolvedValue({ id: "comment-1" });
     getFileMetadataMock.mockResolvedValue({
       fileId: "id:abc", pathDisplay: attachPath,
-      contentHash: "h", size: 1, serverModified: "2026-04-30T17:00:00Z"
+      contentHash: "h", size: 1, serverModified: new Date().toISOString()
     });
     createFileMetadataMock.mockResolvedValue({ id: "row-1" });
 
@@ -230,5 +230,23 @@ describe("POST /projects/[id]/files/upload-complete", () => {
     const { POST } = await import("@/app/projects/[id]/files/upload-complete/route");
     const res = await POST(makeRequest({ targetPath: TARGET_PATH, requestId: "r" }), { params: Promise.resolve({ id: "project-1" }) });
     expect(res.status).toBe(409);
+  });
+
+  it("returns 400 when the file at targetPath is older than 5 minutes (stale upload)", async () => {
+    const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000).toISOString();
+    getFileMetadataMock.mockResolvedValue({
+      fileId: "id:abc",
+      pathDisplay: `${STORAGE_DIR}/uploads/old.jpg`,
+      contentHash: "h",
+      size: 1,
+      serverModified: tenMinutesAgo
+    });
+    const { POST } = await import("@/app/projects/[id]/files/upload-complete/route");
+    const res = await POST(
+      makeRequest({ targetPath: `${STORAGE_DIR}/uploads/old.jpg`, requestId: "r" }),
+      { params: Promise.resolve({ id: "project-1" }) }
+    );
+    expect(res.status).toBe(400);
+    expect(createFileMetadataMock).not.toHaveBeenCalled();
   });
 });
