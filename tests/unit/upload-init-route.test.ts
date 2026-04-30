@@ -46,9 +46,13 @@ describe("POST /projects/[id]/files/upload-init", () => {
           "content-type": "application/json"
         },
         body: JSON.stringify({
-          filename: "brief.pdf",
-          sizeBytes: 1234,
-          mimeType: "application/pdf"
+          type: "blob.generate-client-token",
+          payload: {
+            pathname: "brief.pdf",
+            callbackUrl: "http://localhost/upload-init",
+            clientPayload: null,
+            multipart: false
+          }
         })
       }),
       { params: Promise.resolve({ id: "project-1" }) }
