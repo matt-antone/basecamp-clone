@@ -1330,7 +1330,12 @@ export async function listProjectMemberRecipients(
   projectId: string,
   excludeUserId: string
 ): Promise<NotificationRecipient[]> {
-  const result = await query(
+  const result = await query<{
+    id: string;
+    email: string;
+    first_name: string | null;
+    last_name: string | null;
+  }>(
     `select up.id, up.email, up.first_name, up.last_name
        from project_members pm
        join user_profiles up on up.id = pm.user_id
@@ -1340,14 +1345,12 @@ export async function listProjectMemberRecipients(
         and up.email is not null`,
     [projectId, excludeUserId]
   );
-  return result.rows.map(
-    (row: { id: string; email: string; first_name: string | null; last_name: string | null }) => ({
-      id: row.id,
-      email: row.email,
-      firstName: row.first_name,
-      lastName: row.last_name
-    })
-  );
+  return result.rows.map((row) => ({
+    id: row.id,
+    email: row.email,
+    firstName: row.first_name,
+    lastName: row.last_name
+  }));
 }
 
 export async function listThreads(projectId: string) {
