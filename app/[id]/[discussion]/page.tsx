@@ -480,7 +480,7 @@ async function uploadAttachmentForComment(args: {
   onUploadProgress(0.1);
 
   // 1. Mint upload link.
-  const { accessToken: initNextToken, data: initData } = await authedJsonFetch({
+  const { data: initData } = await authedJsonFetch({
     accessToken: resolvedToken,
     init: {
       method: "POST",
@@ -493,7 +493,6 @@ async function uploadAttachmentForComment(args: {
     onToken,
     path: `/projects/${projectId}/files/upload-init`
   });
-  if (initNextToken) onToken(initNextToken);
   const { uploadUrl, requestId } = initData as { uploadUrl: string; requestId: string };
 
   // 2. POST bytes directly to Dropbox via XHR (Fetch lacks upload-progress events).
@@ -530,7 +529,7 @@ async function uploadAttachmentForComment(args: {
   onUploadProgress(0.9);
 
   // 3. Finalize on the server via Dropbox metadata lookup.
-  const { accessToken: completeNextToken } = await authedJsonFetch({
+  await authedJsonFetch({
     accessToken: resolvedToken,
     init: {
       method: "POST",
@@ -545,7 +544,6 @@ async function uploadAttachmentForComment(args: {
     onToken,
     path: `/projects/${projectId}/files/upload-complete`
   });
-  if (completeNextToken) onToken(completeNextToken);
 
   onUploadProgress(1);
 }
