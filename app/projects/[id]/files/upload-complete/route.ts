@@ -17,8 +17,7 @@ import {
 } from "@/lib/repositories";
 import {
   DropboxStorageAdapter,
-  getDropboxErrorSummary,
-  isTeamSelectUserRequiredError
+  getDropboxErrorSummary
 } from "@/lib/storage/dropbox-adapter";
 import { z } from "zod";
 
@@ -39,8 +38,6 @@ const uploadCompleteSchema = z.object({
   }
 });
 
-const DROPBOX_AUTH_ERROR_PATTERN =
-  /auth|token|workspace|invalid_access_token|expired_access_token|invalid_grant|not_authed|missing_scope/i;
 const CLIENT_MUTATION_BLOCK_PATTERN = /client is archived|client archive is in progress/i;
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -168,17 +165,13 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     if (error instanceof z.ZodError) {
       return badRequest(error.message);
     }
-    if (isTeamSelectUserRequiredError(error)) {
-      return serverError("Dropbox team token requires DROPBOX_SELECT_USER (team member id) or DROPBOX_SELECT_ADMIN.");
-    }
-    const errorSummary = getDropboxErrorSummary(error);
-    if (DROPBOX_AUTH_ERROR_PATTERN.test(errorSummary)) {
-      return unauthorized(errorSummary);
+    if (error instanceof Error && /auth|token|workspace/i.test(error.message)) {
+      return unauthorized(error.message);
     }
     if (error instanceof Error && CLIENT_MUTATION_BLOCK_PATTERN.test(error.message)) {
       return conflict(error.message);
     }
-    console.error("upload_complete_failed", { errorSummary, error });
-    return serverError(errorSummary || (error instanceof Error ? error.message : "Upload failed"));
+    console.error("upload_complete_failed", { error });
+    return serverError(error instanceof Error ? error.message : "Upload failed");
   }
 }

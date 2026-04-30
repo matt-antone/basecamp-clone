@@ -1443,6 +1443,11 @@ export async function listFiles(projectId: string) {
   return result.rows.map((row) => normalizeProjectFileSizeRow(row));
 }
 
+/**
+ * Insert a project_files row. Returns the inserted row, or null only if the
+ * insert was rejected (no row exists in the database). Callers can rely on:
+ * if the return is non-null, the row is persisted.
+ */
 export async function createFileMetadata(args: {
   projectId: string;
   uploaderUserId: string;
