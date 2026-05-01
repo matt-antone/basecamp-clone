@@ -21,6 +21,7 @@ import {
 import { renderMarkdown } from "@/lib/markdown";
 import { createProjectDialogValues, formatProjectDeadlineLocal, normalizeProjectColumn, parseProjectTags } from "@/lib/project-utils";
 import type { ClientRecord } from "@/lib/types/client-record";
+import { uploadAttachment } from "@/lib/attachment-upload";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 
@@ -172,6 +173,47 @@ function ProjectPageContent({ projectId, initial }: { projectId: string; initial
   const [expenseLineDrafts, setExpenseLineDrafts] = useState<Record<string, { label: string; amount: string }>>({});
   const [newExpenseLine, setNewExpenseLine] = useState({ label: "", amount: "" });
   const [createDiscussionEditorKey, setCreateDiscussionEditorKey] = useState(0);
+
+  type DiscussionPendingAttachment = {
+    id: string;
+    file: File;
+    progress: number;
+    stage: "queued" | "uploading" | "done" | "error";
+    error?: string;
+  };
+
+  const [discussionAttachments, setDiscussionAttachments] = useState<DiscussionPendingAttachment[]>([]);
+  const [isUploadingDiscussionAttachments, setIsUploadingDiscussionAttachments] = useState(false);
+  const discussionFileInputRef = useRef<HTMLInputElement | null>(null);
+
+  function setDiscussionAttachmentState(attId: string, partial: Partial<DiscussionPendingAttachment>) {
+    setDiscussionAttachments((current) =>
+      current.map((a) => (a.id === attId ? { ...a, ...partial } : a))
+    );
+  }
+
+  function addDiscussionPendingFiles(files: FileList | File[]) {
+    const nextFiles = Array.from(files);
+    if (nextFiles.length === 0) return;
+    setDiscussionAttachments((current) => {
+      const existingKeys = new Set(
+        current.map((a) => `${a.file.name}:${a.file.size}:${a.file.lastModified}`)
+      );
+      const additions: DiscussionPendingAttachment[] = [];
+      for (const file of nextFiles) {
+        const key = `${file.name}:${file.size}:${file.lastModified}`;
+        if (existingKeys.has(key)) continue;
+        existingKeys.add(key);
+        additions.push({ id: crypto.randomUUID(), file, progress: 0, stage: "queued" });
+      }
+      return [...current, ...additions];
+    });
+  }
+
+  function removeDiscussionAttachment(attId: string) {
+    setDiscussionAttachments((current) => current.filter((a) => a.id !== attId));
+  }
+
   const [members, setMembers] = useState<{
     user_id: string;
     email: string;
@@ -406,21 +448,77 @@ function ProjectPageContent({ projectId, initial }: { projectId: string; initial
   }
 
   async function createDiscussion() {
-    if (!token || !projectId) return;
-    const data = await authedFetch(token, `/projects/${projectId}/threads`, {
+    if (!token) {
+      throw new Error("Your session expired. Refresh and sign in again.");
+    }
+    if (!projectId) return;
+    const created = await authedFetch(token, `/projects/${projectId}/threads`, {
       method: "POST",
       body: JSON.stringify({ title, bodyMarkdown })
     });
-    const thread = (data?.thread ?? null) as Thread | null;
+    const thread = (created?.thread ?? null) as Thread | null;
     if (thread) {
       seenThreadIdsRef.current.add(thread.id);
       updateSeenThreadActivity(thread, seenThreadActivityUpdatedAtRef.current);
     }
+    const newThreadId =
+      created && typeof created === "object" && "thread" in created
+        ? ((created.thread as { id?: string } | null | undefined)?.id ?? undefined)
+        : undefined;
+
+    let failedUploads = 0;
+    const attachmentsToUpload = discussionAttachments.filter((a) => a.stage !== "done");
+    if (newThreadId && attachmentsToUpload.length > 0) {
+      setIsUploadingDiscussionAttachments(true);
+      try {
+        for (const attachment of attachmentsToUpload) {
+          try {
+            setDiscussionAttachmentState(attachment.id, { stage: "uploading", progress: 10, error: undefined });
+            await uploadAttachment({
+              token,
+              onToken: setToken,
+              projectId,
+              threadId: newThreadId,
+              file: attachment.file,
+              onUploadProgress: (uploadProgress) =>
+                setDiscussionAttachmentState(attachment.id, {
+                  stage: "uploading",
+                  progress: Math.max(20, Math.min(95, Math.round(20 + uploadProgress * 75)))
+                })
+            });
+            setDiscussionAttachmentState(attachment.id, { stage: "done", progress: 100, error: undefined });
+          } catch (error) {
+            failedUploads += 1;
+            setDiscussionAttachmentState(attachment.id, {
+              stage: "error",
+              error: error instanceof Error ? error.message : "Upload failed"
+            });
+          }
+        }
+        if (failedUploads > 0) {
+          setStatus(`Discussion saved. ${failedUploads} attachment(s) failed to upload.`);
+        }
+      } finally {
+        setIsUploadingDiscussionAttachments(false);
+      }
+    }
+
     setTitle("");
     setBodyMarkdown("");
-    setCreateDiscussionEditorKey((current) => current + 1);
+    if (failedUploads === 0) {
+      setDiscussionAttachments([]);
+    } else {
+      setDiscussionAttachments((current) => current.filter((a) => a.stage === "error"));
+    }
+    if (discussionFileInputRef.current && failedUploads === 0) {
+      discussionFileInputRef.current.value = "";
+    }
+    setCreateDiscussionEditorKey((k) => k + 1);
     createDiscussionDialogRef.current?.close();
-    await load(token, projectId);
+
+    if (token) {
+      await load(token, projectId);
+    }
   }
 
   async function saveProject() {
@@ -1146,9 +1244,12 @@ function ProjectPageContent({ projectId, initial }: { projectId: string; initial
         onCancel={() => {
           setTitle("");
           setBodyMarkdown("");
+          setDiscussionAttachments([]);
           setCreateDiscussionEditorKey((current) => current + 1);
           createDiscussionDialogRef.current?.close();
         }}
+        canSubmit={Boolean(title.trim()) && Boolean(bodyMarkdown.trim()) && !isUploadingDiscussionAttachments}
+        submitLabel={isUploadingDiscussionAttachments ? "Uploading..." : "Create"}
         editor={(
           <MarkdownEditor
             key={`create-discussion-${createDiscussionEditorKey}`}
@@ -1157,6 +1258,58 @@ function ProjectPageContent({ projectId, initial }: { projectId: string; initial
             placeholder="Write the discussion body in markdown"
             overlayContainer={createDiscussionDialogRef.current}
           />
+        )}
+        attachmentsSlot={(
+          <div className="commentUploadArea">
+            <label className="commentFileLabel">Attach files (optional)</label>
+            <input
+              ref={discussionFileInputRef}
+              type="file"
+              multiple
+              className="commentFileInputHidden"
+              onChange={(event) => addDiscussionPendingFiles(event.target.files ?? [])}
+            />
+            <div
+              className="commentDropZone"
+              onClick={() => discussionFileInputRef.current?.click()}
+              onDragEnter={(e) => e.preventDefault()}
+              onDragOver={(e) => e.preventDefault()}
+              onDrop={(e) => {
+                e.preventDefault();
+                addDiscussionPendingFiles(e.dataTransfer.files);
+              }}
+            >
+              <p className="commentDropZoneTitle">Drag files here</p>
+              <p className="commentDropZoneSubtle">or click to browse from your device</p>
+            </div>
+            {discussionAttachments.length > 0 && (
+              <ul className="commentUploadQueue">
+                {discussionAttachments.map((a) => (
+                  <li key={a.id} className="commentUploadQueueItem">
+                    <div className="commentUploadQueueHead">
+                      <span>{a.file.name}</span>
+                      <small>
+                        {Math.round(a.file.size / 1024)} KB &bull; {a.stage === "uploading" ? `${a.progress}%` : a.stage}
+                      </small>
+                    </div>
+                    {a.error && <small className="commentUploadError">{a.error}</small>}
+                    {!isUploadingDiscussionAttachments && (
+                      <OneShotButton
+                        type="button"
+                        className="secondary"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          removeDiscussionAttachment(a.id);
+                        }}
+                      >
+                        Remove
+                      </OneShotButton>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
         )}
       />
 

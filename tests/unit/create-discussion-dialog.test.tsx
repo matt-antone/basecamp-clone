@@ -23,4 +23,36 @@ describe("CreateDiscussionDialog", () => {
     expect(markup).toContain(">Create<");
     expect(markup).toContain(">Cancel<");
   });
+
+  it("renders attachmentsSlot when provided", () => {
+    const markup = renderToStaticMarkup(
+      <CreateDiscussionDialog
+        dialogRef={createRef<HTMLDialogElement>()}
+        title="X"
+        bodyMarkdown="Y"
+        editor={<div />}
+        attachmentsSlot={<div className="attach-stub">Stub</div>}
+        onTitleChange={vi.fn()}
+        onCreate={vi.fn()}
+        onCancel={vi.fn()}
+      />
+    );
+    expect(markup).toContain("attach-stub");
+  });
+
+  it("disables Create when canSubmit is false", () => {
+    const markup = renderToStaticMarkup(
+      <CreateDiscussionDialog
+        dialogRef={createRef<HTMLDialogElement>()}
+        title="X"
+        bodyMarkdown="Y"
+        editor={<div />}
+        canSubmit={false}
+        onTitleChange={vi.fn()}
+        onCreate={vi.fn()}
+        onCancel={vi.fn()}
+      />
+    );
+    expect(markup).toMatch(/<button[^>]*disabled[^>]*>Create</);
+  });
 });

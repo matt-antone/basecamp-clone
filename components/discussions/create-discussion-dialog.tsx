@@ -7,6 +7,9 @@ type CreateDiscussionDialogProps = {
   title: string;
   bodyMarkdown: string;
   editor: ReactNode;
+  attachmentsSlot?: ReactNode;
+  canSubmit?: boolean;
+  submitLabel?: string;
   onTitleChange: (value: string) => void;
   onCreate: () => void;
   onCancel: () => void;
@@ -18,11 +21,14 @@ export function CreateDiscussionDialog(props: CreateDiscussionDialogProps) {
     title,
     bodyMarkdown,
     editor,
+    attachmentsSlot,
+    canSubmit,
+    submitLabel,
     onTitleChange,
     onCreate,
     onCancel
   } = props;
-
+  const submitDisabled = canSubmit !== undefined ? !canSubmit : !title || !bodyMarkdown;
   return (
     <dialog ref={dialogRef} className="dialog dialogCreateDiscussion">
       <form method="dialog" className="dialogForm">
@@ -30,10 +36,11 @@ export function CreateDiscussionDialog(props: CreateDiscussionDialogProps) {
         <div className="form">
           <input value={title} onChange={(event) => onTitleChange(event.target.value)} placeholder="Discussion title" />
           {editor}
+          {attachmentsSlot}
         </div>
         <div className="row">
-          <OneShotButton type="button" onClick={onCreate} disabled={!title || !bodyMarkdown}>
-            Create
+          <OneShotButton type="button" onClick={onCreate} disabled={submitDisabled}>
+            {submitLabel ?? "Create"}
           </OneShotButton>
           <OneShotButton type="button" className="secondary" onClick={onCancel}>
             Cancel
