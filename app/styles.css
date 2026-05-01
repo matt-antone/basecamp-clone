@@ -3757,3 +3757,12 @@ textarea:focus-visible,
     height: auto;
   }
 }
+
+.memberCheckboxItem label {
+  display: flex;
+  gap: 1rem;
+}
+
+.memberCheckboxItem label input{
+  width:fit-content;
+}

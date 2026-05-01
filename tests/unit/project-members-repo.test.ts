@@ -1,0 +1,126 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+const queryMock = vi.fn();
+
+vi.mock("@/lib/db", () => ({
+  query: queryMock
+}));
+
+beforeEach(() => {
+  queryMock.mockReset();
+});
+
+afterEach(() => {
+  vi.resetModules();
+});
+
+describe("addProjectMember", () => {
+  it("inserts a (project_id, user_id) row idempotently", async () => {
+    queryMock.mockResolvedValueOnce({ rowCount: 1, rows: [] });
+    const { addProjectMember } = await import("@/lib/repositories");
+    await addProjectMember("p1", "u1");
+    expect(queryMock).toHaveBeenCalledWith(
+      expect.stringMatching(/insert into project_members.*on conflict.*do nothing/is),
+      ["p1", "u1"]
+    );
+  });
+});
+
+describe("removeProjectMember", () => {
+  it("deletes when more than one member remains", async () => {
+    queryMock.mockResolvedValueOnce({ rows: [{ count: 2 }] }); // count
+    queryMock.mockResolvedValueOnce({ rowCount: 1, rows: [] }); // delete
+    const { removeProjectMember } = await import("@/lib/repositories");
+    await removeProjectMember("p1", "u1");
+    expect(queryMock).toHaveBeenNthCalledWith(
+      2,
+      expect.stringMatching(/delete from project_members/i),
+      ["p1", "u1"]
+    );
+  });
+
+  it("throws when removing would leave zero members", async () => {
+    queryMock.mockResolvedValueOnce({ rows: [{ count: 1 }] });
+    const { removeProjectMember } = await import("@/lib/repositories");
+    await expect(removeProjectMember("p1", "u1")).rejects.toThrow(
+      /last member/i
+    );
+    expect(queryMock).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("listProjectMembers", () => {
+  it("returns members joined with user_profiles, ordered by added_at", async () => {
+    queryMock.mockResolvedValueOnce({
+      rows: [
+        {
+          user_id: "u1",
+          email: "a@x.com",
+          first_name: "Alex",
+          last_name: "A",
+          added_at: new Date("2026-04-30T00:00:00Z")
+        }
+      ]
+    });
+    const { listProjectMembers } = await import("@/lib/repositories");
+    const result = await listProjectMembers("p1");
+    expect(result).toHaveLength(1);
+    expect(result[0].email).toBe("a@x.com");
+    expect(queryMock).toHaveBeenCalledWith(
+      expect.stringMatching(/from project_members.*join user_profiles/is),
+      ["p1"]
+    );
+    expect(queryMock).toHaveBeenCalledWith(
+      expect.stringMatching(/order by min\(pm\.added_at\) asc/i),
+      ["p1"]
+    );
+    expect(queryMock).toHaveBeenCalledWith(
+      expect.stringMatching(/up\.is_legacy = false/i),
+      ["p1"]
+    );
+    expect(queryMock).toHaveBeenCalledWith(
+      expect.stringMatching(/up\.email is not null/i),
+      ["p1"]
+    );
+  });
+});
+
+describe("listProjectMemberRecipients", () => {
+  it("excludes the actor and legacy users; returns email-shaped rows", async () => {
+    queryMock.mockResolvedValueOnce({
+      rows: [
+        { id: "u2", email: "b@x.com", first_name: "Bee", last_name: null }
+      ]
+    });
+    const { listProjectMemberRecipients } = await import("@/lib/repositories");
+    const recipients = await listProjectMemberRecipients("p1", "u1");
+    expect(recipients).toEqual([
+      { id: "u2", email: "b@x.com", firstName: "Bee", lastName: null }
+    ]);
+    const [sql, params] = queryMock.mock.calls[0];
+    expect(sql).toMatch(/from project_members/i);
+    expect(sql).toMatch(/up\.is_legacy = false/i);
+    expect(sql).toMatch(/pm\.user_id <> \$2/i);
+    expect(params).toEqual(["p1", "u1"]);
+  });
+});
+
+describe("listActiveUsers", () => {
+  it("excludes legacy and null-email users; orders by name", async () => {
+    queryMock.mockResolvedValueOnce({
+      rows: [
+        { id: "u1", email: "a@x.com", first_name: "Alex", last_name: null }
+      ]
+    });
+    const { listActiveUsers } = await import("@/lib/repositories");
+    const result = await listActiveUsers();
+    expect(result).toEqual([
+      { id: "u1", email: "a@x.com", first_name: "Alex", last_name: null }
+    ]);
+    const [sql] = queryMock.mock.calls[0];
+    expect(sql).toMatch(/from user_profiles/i);
+    expect(sql).toMatch(/is_legacy = false/i);
+    expect(sql).toMatch(/email is not null/i);
+    expect(sql).toMatch(/order by/i);
+  });
+});
