@@ -17,7 +17,7 @@ export type UserProfile = {
   bio: string | null;
 };
 
-type NotificationRecipient = Pick<UserProfile, "id" | "email" | "firstName" | "lastName">;
+export type NotificationRecipient = Pick<UserProfile, "id" | "email" | "firstName" | "lastName">;
 type SiteSettings = {
   siteTitle: string | null;
   logoUrl: string | null;
@@ -64,6 +64,36 @@ function normalizeProjectFileSizeRow<T extends Record<string, unknown>>(row: T):
 
 export async function getUserProfileById(id: string) {
   const result = await query("select * from user_profiles where id = $1", [id]);
+  return result.rows[0] ?? null;
+}
+
+export type ActiveUser = {
+  id: string;
+  email: string;
+  first_name: string | null;
+  last_name: string | null;
+};
+
+export async function listActiveUsers(): Promise<ActiveUser[]> {
+  const result = await query<ActiveUser>(
+    `select id, email, first_name, last_name
+       from user_profiles
+      where is_legacy = false
+        and email is not null
+      order by coalesce(first_name, ''), coalesce(last_name, '')`
+  );
+  return result.rows;
+}
+
+export async function getActiveUserById(userId: string): Promise<ActiveUser | null> {
+  const result = await query<ActiveUser>(
+    `select id, email, first_name, last_name
+       from user_profiles
+      where id = $1
+        and is_legacy = false
+        and email is not null`,
+    [userId]
+  );
   return result.rows[0] ?? null;
 }
 
@@ -634,7 +664,11 @@ export async function createProject(args: {
        returning *`,
       values
     );
-    return result.rows[0];
+    const created = result.rows[0];
+    // Non-atomic: project row is committed before this insert.
+    // If this throws, the project exists without the creator in project_members.
+    await addProjectMember(created.id, args.createdBy);
+    return created;
   } catch (error) {
     if (!isMissingProjectDeadlineColumnError(error)) {
       throw error;
@@ -671,7 +705,11 @@ export async function createProject(args: {
        returning *`,
       [...values.slice(0, 9), requestor]
     );
-    return fallback.rows[0];
+    const created = fallback.rows[0];
+    // Non-atomic: project row is committed before this insert.
+    // If this throws, the project exists without the creator in project_members.
+    await addProjectMember(created.id, args.createdBy);
+    return created;
   }
 }
 
@@ -1284,6 +1322,82 @@ export async function setProjectStatus(id: string, status: ProjectStatus) {
   return result.rows[0] ?? null;
 }
 
+export async function addProjectMember(projectId: string, userId: string) {
+  await query(
+    "insert into project_members (project_id, user_id) values ($1, $2) on conflict (project_id, user_id) do nothing",
+    [projectId, userId]
+  );
+}
+
+export async function removeProjectMember(projectId: string, userId: string) {
+  const countResult = await query(
+    "select count(*)::int as count from project_members where project_id = $1",
+    [projectId]
+  );
+  const current = Number(countResult.rows[0]?.count ?? 0);
+  if (current <= 1) {
+    throw new Error("Cannot remove the last member of a project");
+  }
+  await query(
+    "delete from project_members where project_id = $1 and user_id = $2",
+    [projectId, userId]
+  );
+}
+
+export type ProjectMember = {
+  user_id: string;
+  email: string;
+  first_name: string | null;
+  last_name: string | null;
+  added_at: Date;
+};
+
+export async function listProjectMembers(projectId: string): Promise<ProjectMember[]> {
+  const result = await query<ProjectMember>(
+    `select up.id as user_id,
+            up.email,
+            up.first_name,
+            up.last_name,
+            min(pm.added_at) as added_at
+       from project_members pm
+       join user_profiles up on up.id = pm.user_id
+      where pm.project_id = $1
+        and up.is_legacy = false
+        and up.email is not null
+   group by up.id, up.email, up.first_name, up.last_name
+   order by min(pm.added_at) asc`,
+    [projectId]
+  );
+  return result.rows as ProjectMember[];
+}
+
+export async function listProjectMemberRecipients(
+  projectId: string,
+  excludeUserId: string
+): Promise<NotificationRecipient[]> {
+  const result = await query<{
+    id: string;
+    email: string;
+    first_name: string | null;
+    last_name: string | null;
+  }>(
+    `select up.id, up.email, up.first_name, up.last_name
+       from project_members pm
+       join user_profiles up on up.id = pm.user_id
+      where pm.project_id = $1
+        and pm.user_id <> $2
+        and up.is_legacy = false
+        and up.email is not null`,
+    [projectId, excludeUserId]
+  );
+  return result.rows.map((row) => ({
+    id: row.id,
+    email: row.email,
+    firstName: row.first_name,
+    lastName: row.last_name
+  }));
+}
+
 export async function listThreads(projectId: string) {
   const result = await query(
     `select
@@ -1692,3 +1806,4 @@ function isMissingProjectFileColumnError(error: unknown) {
     message.includes("project_files.bc_attachment_id")
   );
 }
+

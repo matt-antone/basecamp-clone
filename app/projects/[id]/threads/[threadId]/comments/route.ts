@@ -7,7 +7,7 @@ import {
   getProject,
   getThread,
   getUserProfileById,
-  listNotificationRecipients
+  listProjectMemberRecipients
 } from "@/lib/repositories";
 import { z } from "zod";
 
@@ -72,7 +72,7 @@ export async function POST(
     try {
       const [actorProfile, recipients] = await Promise.all([
         getUserProfileById(user.id),
-        listNotificationRecipients()
+        listProjectMemberRecipients(id, user.id)
       ]);
       recipientCount = recipients.length;
 
