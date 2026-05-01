@@ -39,7 +39,8 @@ export async function PATCH(
     if (!project) return notFound("Project not found");
     const thread = await getThread(id, threadId);
     if (!thread) return notFound("Thread not found");
-    if ((thread as { author_user_id: string }).author_user_id !== user.id) {
+    const authorUserId = (thread as unknown as { author_user_id?: unknown }).author_user_id;
+    if (typeof authorUserId !== "string" || authorUserId !== user.id) {
       return forbidden("Only the author can edit this discussion");
     }
     const payload = editThreadSchema.parse(await request.json());
