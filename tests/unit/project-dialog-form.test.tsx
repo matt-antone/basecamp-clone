@@ -32,7 +32,44 @@ describe("ProjectDialogForm Members section", () => {
     expect(screen.queryByText(/^Members$/)).not.toBeInTheDocument();
   });
 
-  it("renders members and supports remove", () => {
+  it("renders a checkbox per active user, checked for current members", () => {
+    render(
+      <ProjectDialogForm
+        {...baseProps}
+        members={[{ user_id: "u1", email: "alex@x.com", first_name: "Alex", last_name: null }]}
+        activeUsers={[
+          { id: "u1", email: "alex@x.com", first_name: "Alex", last_name: null },
+          { id: "u2", email: "bob@x.com", first_name: "Bob", last_name: null }
+        ]}
+        onAddMember={vi.fn()}
+        onRemoveMember={vi.fn()}
+      />
+    );
+    const alex = screen.getByLabelText(/alex/i) as HTMLInputElement;
+    const bob = screen.getByLabelText(/bob/i) as HTMLInputElement;
+    expect(alex.checked).toBe(true);
+    expect(bob.checked).toBe(false);
+  });
+
+  it("checking an unchecked box calls onAddMember", () => {
+    const onAdd = vi.fn();
+    render(
+      <ProjectDialogForm
+        {...baseProps}
+        members={[{ user_id: "u1", email: "alex@x.com", first_name: "Alex", last_name: null }]}
+        activeUsers={[
+          { id: "u1", email: "alex@x.com", first_name: "Alex", last_name: null },
+          { id: "u2", email: "bob@x.com", first_name: "Bob", last_name: null }
+        ]}
+        onAddMember={onAdd}
+        onRemoveMember={vi.fn()}
+      />
+    );
+    fireEvent.click(screen.getByLabelText(/bob/i));
+    expect(onAdd).toHaveBeenCalledWith("u2");
+  });
+
+  it("unchecking a checked box calls onRemoveMember", () => {
     const onRemove = vi.fn();
     render(
       <ProjectDialogForm
@@ -41,45 +78,42 @@ describe("ProjectDialogForm Members section", () => {
           { user_id: "u1", email: "alex@x.com", first_name: "Alex", last_name: null },
           { user_id: "u2", email: "bob@x.com", first_name: "Bob", last_name: null }
         ]}
-        activeUsers={[]}
+        activeUsers={[
+          { id: "u1", email: "alex@x.com", first_name: "Alex", last_name: null },
+          { id: "u2", email: "bob@x.com", first_name: "Bob", last_name: null }
+        ]}
         onAddMember={vi.fn()}
         onRemoveMember={onRemove}
       />
     );
-    expect(screen.getByText("alex@x.com")).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: /remove alex@x.com/i }));
+    fireEvent.click(screen.getByLabelText(/alex/i));
     expect(onRemove).toHaveBeenCalledWith("u1");
   });
 
-  it("disables remove when only one member", () => {
+  it("disables the checkbox for the last remaining member", () => {
     render(
       <ProjectDialogForm
         {...baseProps}
-        members={[{ user_id: "u1", email: "alex@x.com", first_name: null, last_name: null }]}
+        members={[{ user_id: "u1", email: "alex@x.com", first_name: "Alex", last_name: null }]}
+        activeUsers={[{ id: "u1", email: "alex@x.com", first_name: "Alex", last_name: null }]}
+        onAddMember={vi.fn()}
+        onRemoveMember={vi.fn()}
+      />
+    );
+    const checkbox = screen.getByLabelText(/alex/i) as HTMLInputElement;
+    expect(checkbox.disabled).toBe(true);
+  });
+
+  it("shows fallback when no active users available", () => {
+    render(
+      <ProjectDialogForm
+        {...baseProps}
+        members={[]}
         activeUsers={[]}
         onAddMember={vi.fn()}
         onRemoveMember={vi.fn()}
       />
     );
-    expect(screen.getByRole("button", { name: /remove alex@x.com/i })).toBeDisabled();
-  });
-
-  it("calls onAddMember when picker selection changes", () => {
-    const onAdd = vi.fn();
-    render(
-      <ProjectDialogForm
-        {...baseProps}
-        members={[{ user_id: "u1", email: "alex@x.com", first_name: null, last_name: null }]}
-        activeUsers={[
-          { id: "u1", email: "alex@x.com", first_name: null, last_name: null },
-          { id: "u2", email: "bob@x.com", first_name: null, last_name: null }
-        ]}
-        onAddMember={onAdd}
-        onRemoveMember={vi.fn()}
-      />
-    );
-    const picker = screen.getByLabelText("Add member") as HTMLSelectElement;
-    fireEvent.change(picker, { target: { value: "u2" } });
-    expect(onAdd).toHaveBeenCalledWith("u2");
+    expect(screen.getByText(/No active users available/i)).toBeInTheDocument();
   });
 });

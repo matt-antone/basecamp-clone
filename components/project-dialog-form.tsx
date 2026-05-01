@@ -153,39 +153,32 @@ export function ProjectDialogForm({
         {showMembers ? (
           <fieldset className="dialogField">
             <legend>Members</legend>
-            <ul className="memberList">
-              {members!.map((m) => (
-                <li key={m.user_id} className="memberListItem">
-                  <span>{m.email}</span>
-                  <button
-                    type="button"
-                    aria-label={`Remove ${m.email}`}
-                    disabled={members!.length <= 1}
-                    onClick={() => onRemoveMember!(m.user_id)}
-                  >×</button>
-                </li>
-              ))}
+            <ul className="memberCheckboxList">
+              {activeUsers!.map((u) => {
+                const isMember = members!.some((m) => m.user_id === u.id);
+                const isLastMember = isMember && members!.length <= 1;
+                const displayName = [u.first_name, u.last_name].filter(Boolean).join(" ") || u.email;
+                return (
+                  <li key={u.id} className="memberCheckboxItem">
+                    <label>
+                      <input
+                        type="checkbox"
+                        checked={isMember}
+                        disabled={isLastMember}
+                        onChange={(event) => {
+                          if (event.target.checked) onAddMember!(u.id);
+                          else onRemoveMember!(u.id);
+                        }}
+                      />
+                      <span className="memberCheckboxName">{displayName}</span>
+                      <span className="memberCheckboxEmail">{u.email}</span>
+                    </label>
+                    {isLastMember ? <small className="memberCheckboxHint">Cannot remove the last member</small> : null}
+                  </li>
+                );
+              })}
+              {activeUsers!.length === 0 ? <li><small>No active users available.</small></li> : null}
             </ul>
-            <select
-              aria-label="Add member"
-              value=""
-              onChange={(event) => {
-                const next = event.target.value;
-                if (next) {
-                  onAddMember!(next);
-                  event.target.value = "";
-                }
-              }}
-            >
-              <option value="">Add a member…</option>
-              {activeUsers!
-                .filter((u) => !members!.some((m) => m.user_id === u.id))
-                .map((u) => (
-                  <option key={u.id} value={u.id}>
-                    {u.email}
-                  </option>
-                ))}
-            </select>
           </fieldset>
         ) : null}
       </div>
