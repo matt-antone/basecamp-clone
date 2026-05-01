@@ -34,6 +34,7 @@
   --tab-bg: #ece4d8;
   --tab-text: #332d26;
   --active-border: #34536f;
+  --active-text: #34536f;
   --kanban-column-bg: #f2ebe2;
   --kanban-border: #d8d0c3;
   --kanban-border-dotted: #b8ab98;
@@ -74,6 +75,7 @@
   --tab-bg: #2b313a;
   --tab-text: #d6cec1;
   --active-border: #7f9ebb;
+  --active-text: #c6dcf0;
   --kanban-column-bg: #1a2029;
   --kanban-border: #39414c;
   --kanban-border-dotted: #505967;
@@ -2016,8 +2018,32 @@ textarea {
   transition: color 120ms ease;
 }
 
+.projectLinkRow {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  width: fit-content;
+}
+
 .projectLink:hover {
   text-decoration: underline;
+}
+
+.newItemPill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 1.25rem;
+  padding: 0 0.45rem;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--active-border) 35%, transparent);
+  background: color-mix(in srgb, var(--active-border) 18%, var(--panel-bg));
+  color: var(--active-text);
+  font-size: 0.72rem;
+  font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
 }
 
 button {
@@ -2757,6 +2783,18 @@ li.active {
   grid-template-columns: minmax(0, 1.5fr) minmax(120px, 0.7fr) auto auto;
 }
 
+.projectExpenseLabelCell {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.projectExpenseLabelCell input {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
 .projectExpenseComposer button {
   white-space: nowrap;
 }
@@ -2949,6 +2987,13 @@ li.active {
   display: grid;
   gap: 2px;
   font-size: 0.65rem;
+}
+
+.fileThumbNameRow {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-width: 0;
 }
 
 .fileList {
