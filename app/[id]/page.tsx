@@ -203,6 +203,9 @@ function ProjectPageContent({ projectId, initial }: { projectId: string; initial
     setFiles(nextState.files);
     setClients(nextState.clients);
     setViewerProfile(nextState.viewerProfile);
+    nextState.threads.forEach((thread) => seenThreadIdsRef.current.add(thread.id));
+    nextState.files.forEach((file) => seenFileIdsRef.current.add(file.id));
+    nextState.expenseLines.forEach((line) => seenExpenseLineIdsRef.current.add(line.id));
     projectActivityUpdatedDateRef.current = getProjectActivityUpdatedDate(nextState.project);
     setStatus("Ready");
   }, []);
