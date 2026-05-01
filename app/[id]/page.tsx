@@ -172,6 +172,18 @@ function ProjectPageContent({ projectId, initial }: { projectId: string; initial
   const [expenseLineDrafts, setExpenseLineDrafts] = useState<Record<string, { label: string; amount: string }>>({});
   const [newExpenseLine, setNewExpenseLine] = useState({ label: "", amount: "" });
   const [createDiscussionEditorKey, setCreateDiscussionEditorKey] = useState(0);
+  const [members, setMembers] = useState<{
+    user_id: string;
+    email: string;
+    first_name: string | null;
+    last_name: string | null;
+  }[]>([]);
+  const [activeUsers, setActiveUsers] = useState<{
+    id: string;
+    email: string;
+    first_name: string | null;
+    last_name: string | null;
+  }[]>([]);
   const projectActivityUpdatedDateRef = useRef(getProjectActivityUpdatedDate(initial.project));
   const pendingProjectRefreshRef = useRef<string | null>(null);
   const seenThreadIdsRef = useRef(new Set(initial.threads.map((thread) => thread.id)));
@@ -592,9 +604,58 @@ function ProjectPageContent({ projectId, initial }: { projectId: string; initial
     }
   }
 
+  async function loadMembersAndActiveUsers() {
+    if (!token || !projectId) return;
+    try {
+      const [membersBody, usersBody] = await Promise.all([
+        authedFetch(token, `/projects/${projectId}/members`) as Promise<{ members?: typeof members }>,
+        authedFetch(token, `/users/active`) as Promise<{ users?: typeof activeUsers }>
+      ]);
+      if (Array.isArray(membersBody?.members)) setMembers(membersBody.members);
+      if (Array.isArray(usersBody?.users)) setActiveUsers(usersBody.users);
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "Could not load members");
+    }
+  }
+
   function openEditProjectDialog() {
     setProjectForm(createProjectDialogValues(project?.client_id ?? "", project));
+    loadMembersAndActiveUsers();
     editProjectDialogRef.current?.showModal();
+  }
+
+  async function handleAddMember(userId: string) {
+    if (!token) return;
+    const target = activeUsers.find((u) => u.id === userId);
+    if (!target) return;
+    const previous = members;
+    setMembers((prev) => [
+      ...prev,
+      { user_id: target.id, email: target.email, first_name: target.first_name, last_name: target.last_name }
+    ]);
+    try {
+      await authedFetch(token, `/projects/${projectId}/members`, {
+        method: "POST",
+        body: JSON.stringify({ userId })
+      });
+    } catch (error) {
+      setMembers(previous);
+      setStatus(error instanceof Error ? error.message : "Could not add member");
+    }
+  }
+
+  async function handleRemoveMember(userId: string) {
+    if (!token) return;
+    const previous = members;
+    setMembers((prev) => prev.filter((m) => m.user_id !== userId));
+    try {
+      await authedFetch(token, `/projects/${projectId}/members/${userId}`, {
+        method: "DELETE"
+      });
+    } catch (error) {
+      setMembers(previous);
+      setStatus(error instanceof Error ? error.message : "Could not remove member");
+    }
   }
 
   function openCreateDiscussionDialog() {
@@ -1111,6 +1172,10 @@ function ProjectPageContent({ projectId, initial }: { projectId: string; initial
           onChange={setProjectForm}
           onSubmit={() => saveProject().catch((error) => setStatus(error.message))}
           onCancel={() => editProjectDialogRef.current?.close()}
+          members={members}
+          activeUsers={activeUsers}
+          onAddMember={handleAddMember}
+          onRemoveMember={handleRemoveMember}
         />
       </dialog>
     </main >

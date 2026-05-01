@@ -26,3 +26,9 @@ certificates
 
 # Fallow
 .fallow
+
+# Stray npm artifact (repo uses pnpm)
+package-lock.json
+
+# Local DB backups taken before migrations
+backups/

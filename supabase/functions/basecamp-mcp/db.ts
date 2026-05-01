@@ -445,6 +445,33 @@ export async function listNotificationRecipients(
   }));
 }
 
+export async function listProjectMemberRecipients(
+  supabase: SupabaseClient,
+  projectId: string,
+  excludeUserId: string | null = null
+): Promise<MailRecipient[]> {
+  const { data, error } = await supabase
+    .from("project_members")
+    .select("user_id, user_profiles!inner(email, first_name, last_name, is_legacy)")
+    .eq("project_id", projectId);
+  if (error || !data) return [];
+  return data
+    .filter((row: any) => {
+      if (excludeUserId && row.user_id === excludeUserId) return false;
+      const profile = Array.isArray(row.user_profiles) ? row.user_profiles[0] : row.user_profiles;
+      if (!profile?.email) return false;
+      if (profile.is_legacy === true) return false;
+      return true;
+    })
+    .map((row: any) => {
+      const profile = Array.isArray(row.user_profiles) ? row.user_profiles[0] : row.user_profiles;
+      return {
+        email: profile.email as string,
+        name: [profile.first_name, profile.last_name].filter(Boolean).join(" ") || null,
+      } as MailRecipient;
+    });
+}
+
 export async function getThreadForNotification(
   supabase: SupabaseClient,
   threadId: string

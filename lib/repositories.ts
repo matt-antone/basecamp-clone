@@ -67,6 +67,36 @@ export async function getUserProfileById(id: string) {
   return result.rows[0] ?? null;
 }
 
+export type ActiveUser = {
+  id: string;
+  email: string;
+  first_name: string | null;
+  last_name: string | null;
+};
+
+export async function listActiveUsers(): Promise<ActiveUser[]> {
+  const result = await query<ActiveUser>(
+    `select id, email, first_name, last_name
+       from user_profiles
+      where is_legacy = false
+        and email is not null
+      order by coalesce(first_name, ''), coalesce(last_name, '')`
+  );
+  return result.rows;
+}
+
+export async function getActiveUserById(userId: string): Promise<ActiveUser | null> {
+  const result = await query<ActiveUser>(
+    `select id, email, first_name, last_name
+       from user_profiles
+      where id = $1
+        and is_legacy = false
+        and email is not null`,
+    [userId]
+  );
+  return result.rows[0] ?? null;
+}
+
 export async function createUserProfile(profile: UserProfile) {
   const result = await query(
     `insert into user_profiles (id, email, first_name, last_name, avatar_url, job_title, timezone, bio)
@@ -1333,12 +1363,19 @@ export type ProjectMember = {
 };
 
 export async function listProjectMembers(projectId: string): Promise<ProjectMember[]> {
-  const result = await query(
-    `select pm.user_id, up.email, up.first_name, up.last_name, pm.added_at
+  const result = await query<ProjectMember>(
+    `select up.id as user_id,
+            up.email,
+            up.first_name,
+            up.last_name,
+            min(pm.added_at) as added_at
        from project_members pm
        join user_profiles up on up.id = pm.user_id
       where pm.project_id = $1
-      order by pm.added_at asc`,
+        and up.is_legacy = false
+        and up.email is not null
+   group by up.id, up.email, up.first_name, up.last_name
+   order by min(pm.added_at) asc`,
     [projectId]
   );
   return result.rows as ProjectMember[];

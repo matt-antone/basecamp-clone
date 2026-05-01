@@ -41,20 +41,17 @@ export function notifyBestEffort(
           ? Promise.resolve(event.projectId)
           : threadP.then((t) => t?.project_id ?? null);
 
-      const recipientsP = db.listNotificationRecipients(supabase);
       const profileP = db.getProfile(supabase, agent.client_id);
 
-      const [resolvedProjectId, recipients, profile] = await Promise.all([
-        projectIdP,
-        recipientsP,
-        profileP,
-      ]);
+      const [resolvedProjectId, profile] = await Promise.all([projectIdP, profileP]);
+      if (!resolvedProjectId) return;
+
+      const recipients = await db.listProjectMemberRecipients(supabase, resolvedProjectId, null);
 
       if (recipients.length === 0) {
         console.info("mcp_notification_skipped", { type: event.type, reason: "no_recipients" });
         return;
       }
-      if (!resolvedProjectId) return;
 
       const project = await db.getProjectForNotification(supabase, resolvedProjectId);
       if (!project) return;

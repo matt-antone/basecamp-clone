@@ -19,6 +19,20 @@ export type ProjectDialogValues = {
   pm_note: string;
 };
 
+type ProjectDialogMember = {
+  user_id: string;
+  email: string;
+  first_name: string | null;
+  last_name: string | null;
+};
+
+type ProjectDialogActiveUser = {
+  id: string;
+  email: string;
+  first_name: string | null;
+  last_name: string | null;
+};
+
 type ProjectDialogFormProps = {
   title: string;
   submitLabel: string;
@@ -28,6 +42,10 @@ type ProjectDialogFormProps = {
   clientDisabled?: boolean;
   /** When true, show PM note (detail edit only). */
   showPmNote?: boolean;
+  members?: ProjectDialogMember[];
+  activeUsers?: ProjectDialogActiveUser[];
+  onAddMember?: (userId: string) => void;
+  onRemoveMember?: (userId: string) => void;
   onChange: (values: ProjectDialogValues) => void;
   onSubmit: () => void;
   onCancel: () => void;
@@ -41,6 +59,10 @@ export function ProjectDialogForm({
   submitting = false,
   clientDisabled = false,
   showPmNote = false,
+  members,
+  activeUsers,
+  onAddMember,
+  onRemoveMember,
   onChange,
   onSubmit,
   onCancel
@@ -53,6 +75,7 @@ export function ProjectDialogForm({
   }
 
   const canSubmit = values.name.trim().length > 0 && values.clientId.length > 0 && !submitting;
+  const showMembers = Boolean(members && activeUsers && onAddMember && onRemoveMember);
 
   return (
     <form method="dialog" className="dialogForm">
@@ -127,6 +150,36 @@ export function ProjectDialogForm({
           </select>
         </label>
         {clientDisabled ? <p className="dialogFieldHint">Client stays fixed after a project is created.</p> : null}
+        {showMembers ? (
+          <fieldset className="dialogField">
+            <legend>Members</legend>
+            <ul className="memberCheckboxList">
+              {activeUsers!.map((u) => {
+                const isMember = members!.some((m) => m.user_id === u.id);
+                const isLastMember = isMember && members!.length <= 1;
+                const displayName = [u.first_name, u.last_name].filter(Boolean).join(" ") || u.email;
+                return (
+                  <li key={u.id} className="memberCheckboxItem">
+                    <label>
+                      <input
+                        type="checkbox"
+                        checked={isMember}
+                        disabled={isLastMember}
+                        onChange={(event) => {
+                          if (event.target.checked) onAddMember!(u.id);
+                          else onRemoveMember!(u.id);
+                        }}
+                      />
+                      <span className="memberCheckboxName">{displayName}</span>
+                    </label>
+                    {isLastMember ? <small className="memberCheckboxHint">Cannot remove the last member</small> : null}
+                  </li>
+                );
+              })}
+              {activeUsers!.length === 0 ? <li><small>No active users available.</small></li> : null}
+            </ul>
+          </fieldset>
+        ) : null}
       </div>
       <div className="row">
         <OneShotButton type="button" onClick={onSubmit} disabled={!canSubmit}>
