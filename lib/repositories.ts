@@ -1437,6 +1437,26 @@ export async function createThread(args: {
   return result.rows[0];
 }
 
+export async function editThread(args: {
+  projectId: string;
+  threadId: string;
+  title: string;
+  bodyMarkdown: string;
+}) {
+  const bodyHtml = renderMarkdown(args.bodyMarkdown);
+  const result = await query(
+    `update discussion_threads set
+            title = $1,
+            body_markdown = $2,
+            body_html = $3,
+            edited_at = now()
+      where id = $4 and project_id = $5
+      returning id, title, body_markdown, body_html, edited_at`,
+    [args.title, args.bodyMarkdown, bodyHtml, args.threadId, args.projectId]
+  );
+  return result.rows[0];
+}
+
 export async function getThread(projectId: string, threadId: string) {
   const threadResult = await query(
     `select

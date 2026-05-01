@@ -8,6 +8,7 @@ import { MarkdownHtml } from "@/components/discussions/markdown-html";
 import { InlineLoadingState, PageLoadingState } from "@/components/loading-shells";
 import { OneShotButton } from "@/components/one-shot-button";
 import { authedJsonFetch, ensureAccessToken, fetchAuthSession } from "@/lib/browser-auth";
+import { uploadAttachment } from "@/lib/attachment-upload";
 import { triggerBrowserDownload } from "@/lib/browser-download";
 import { createClientResource } from "@/lib/client-resource";
 import { useEffect, useRef, useState } from "react";
@@ -49,6 +50,9 @@ type ThreadDetail = {
   id: string;
   title: string;
   body_html: string;
+  body_markdown: string;
+  edited_at: string | null;
+  author_user_id: string;
   starter_email?: string | null;
   starter_first_name?: string | null;
   starter_last_name?: string | null;
@@ -134,6 +138,10 @@ function DiscussionPageContent(props: {
   const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
   const [editingBody, setEditingBody] = useState("");
   const [newCommentEditorKey, setNewCommentEditorKey] = useState(0);
+  const [isEditingThread, setIsEditingThread] = useState(false);
+  const [editThreadTitle, setEditThreadTitle] = useState("");
+  const [editThreadBody, setEditThreadBody] = useState("");
+  const [isSavingThread, setIsSavingThread] = useState(false);
   const commentFileInputRef = useRef<HTMLInputElement | null>(null);
 
   async function authedFetch(accessToken: string, path: string, options: RequestInit = {}) {
@@ -178,7 +186,7 @@ function DiscussionPageContent(props: {
         for (const attachment of attachmentsToUpload) {
           try {
             setPendingAttachmentState(attachment.id, { stage: "hashing", progress: 10, error: undefined });
-            await uploadAttachmentForComment({
+            await uploadAttachment({
               token,
               onToken: setToken,
               projectId,
@@ -239,6 +247,37 @@ function DiscussionPageContent(props: {
   function startEditingComment(comment: Comment) {
     setEditingCommentId(comment.id);
     setEditingBody(comment.body_markdown);
+  }
+
+  function startEditingThread() {
+    if (!thread) return;
+    setEditThreadTitle(thread.title);
+    setEditThreadBody(thread.body_markdown ?? "");
+    setIsEditingThread(true);
+  }
+
+  function cancelEditingThread() {
+    setIsEditingThread(false);
+  }
+
+  async function saveThreadEdit() {
+    if (!thread || !token) return;
+    setIsSavingThread(true);
+    try {
+      const data = await authedFetch(token, `/projects/${projectId}/threads/${thread.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ title: editThreadTitle, bodyMarkdown: editThreadBody })
+      });
+      const updated = (data as { thread?: typeof thread }).thread;
+      if (updated) {
+        setThread((prev) => (prev ? { ...prev, ...updated } : prev));
+      }
+      setIsEditingThread(false);
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "Could not save discussion edit");
+    } finally {
+      setIsSavingThread(false);
+    }
   }
 
   async function openDownload(fileId: string) {
@@ -349,21 +388,60 @@ function DiscussionPageContent(props: {
               </span>
               <div className="discussionLeadMetaCopy">
                 <strong>{getPersonLabel(thread)}</strong>
-                <small>Started the thread</small>
+                <small>
+                  Started the thread
+                  {thread.edited_at ? " (edited)" : ""}
+                </small>
+                {currentUser?.id === thread.author_user_id && !isEditingThread && (
+                  <OneShotButton type="button" className="terciary" onClick={startEditingThread}>
+                    Edit
+                  </OneShotButton>
+                )}
               </div>
             </div>
-            <MarkdownHtml html={thread.body_html} />
-            {(thread.threadAttachments?.length ?? 0) > 0 && (
-              <div className="commentAttachmentStack">
-                <AttachmentCollections
-                  attachments={thread.threadAttachments ?? []}
-                  projectId={projectId}
-                  token={token}
-                  onToken={setToken}
-                  onDownload={openDownload}
-                  onError={setStatus}
+            {isEditingThread ? (
+              <div className="editorWrap">
+                <input
+                  className="dialogField"
+                  value={editThreadTitle}
+                  onChange={(e) => setEditThreadTitle(e.target.value)}
+                  aria-label="Edit discussion title"
                 />
+                <MarkdownEditor
+                  key={`edit-thread-${thread.id}`}
+                  markdown={editThreadBody}
+                  onChange={setEditThreadBody}
+                  placeholder="Edit discussion in markdown"
+                />
+                <div className="row">
+                  <OneShotButton
+                    type="button"
+                    onClick={saveThreadEdit}
+                    disabled={!editThreadTitle.trim() || !editThreadBody.trim() || isSavingThread}
+                  >
+                    {isSavingThread ? "Saving…" : "Save"}
+                  </OneShotButton>
+                  <OneShotButton type="button" className="secondary" onClick={cancelEditingThread} disabled={isSavingThread}>
+                    Cancel
+                  </OneShotButton>
+                </div>
               </div>
+            ) : (
+              <>
+                <MarkdownHtml html={thread.body_html} />
+                {(thread.threadAttachments?.length ?? 0) > 0 && (
+                  <div className="commentAttachmentStack">
+                    <AttachmentCollections
+                      attachments={thread.threadAttachments ?? []}
+                      projectId={projectId}
+                      token={token}
+                      onToken={setToken}
+                      onDownload={openDownload}
+                      onError={setStatus}
+                    />
+                  </div>
+                )}
+              </>
             )}
           </section>
 
@@ -463,116 +541,6 @@ function DiscussionPageContent(props: {
       )}
     </main>
   );
-}
-
-async function uploadAttachmentForComment(args: {
-  token: string;
-  onToken: (token: string | null) => void;
-  projectId: string;
-  threadId: string;
-  commentId: string;
-  file: File;
-  onUploadProgress: (value: number) => void;
-}) {
-  const { token, onToken, projectId, threadId, commentId, file, onUploadProgress } = args;
-  const resolvedToken = await ensureAccessToken(token, onToken);
-
-  onUploadProgress(0.1);
-
-  // 1. Mint upload link.
-  const { data: initData } = await authedJsonFetch({
-    accessToken: resolvedToken,
-    init: {
-      method: "POST",
-      body: JSON.stringify({
-        filename: file.name,
-        mimeType: file.type || "application/octet-stream",
-        sizeBytes: file.size
-      })
-    },
-    onToken,
-    path: `/projects/${projectId}/files/upload-init`
-  });
-  const { uploadUrl, targetPath, requestId } = initData as { uploadUrl: string; targetPath: string; requestId: string };
-
-  // 2. POST bytes directly to Dropbox via XHR (Fetch lacks upload-progress events).
-  //    Dropbox temporary upload links accept POST with the file body. The response is
-  //    only {"content-hash": "..."} so we rely on targetPath for the metadata lookup.
-  await new Promise<void>((resolve, reject) => {
-    const xhr = new XMLHttpRequest();
-    xhr.open("POST", uploadUrl);
-    xhr.setRequestHeader("Content-Type", "application/octet-stream");
-    xhr.upload.onprogress = (event) => {
-      if (event.lengthComputable) {
-        const dropboxFraction = event.loaded / event.total;
-        // Map 0-100% Dropbox upload to 10-90% of the overall progress band.
-        onUploadProgress(Math.max(0.1, Math.min(0.9, 0.1 + dropboxFraction * 0.8)));
-      }
-    };
-    xhr.onload = () => {
-      // 4xx/5xx: real HTTP failure
-      if (xhr.status < 200 || xhr.status >= 300) {
-        const body = xhr.responseText.slice(0, 300);
-        if (/conflict|already exists|path\/conflict/i.test(body)) {
-          reject(new Error(
-            "A file with this name already exists in this project. Rename the file and try again."
-          ));
-          return;
-        }
-        reject(new Error(`Upload failed (${xhr.status}): ${body}`));
-        return;
-      }
-      // 2xx: parse body and verify it looks like a successful upload response.
-      let parsed: { "content-hash"?: string; ".tag"?: string; reason?: { ".tag"?: string } } | null = null;
-      try {
-        parsed = xhr.responseText ? JSON.parse(xhr.responseText) : null;
-      } catch {
-        parsed = null;
-      }
-      // Dropbox sometimes returns 200 with an embedded WriteError shape on commit conflicts.
-      if (parsed && parsed[".tag"] === "path") {
-        const reasonTag = parsed.reason?.[".tag"] ?? "unknown";
-        if (/conflict/i.test(reasonTag)) {
-          reject(new Error(
-            "A file with this name already exists in this project. Rename the file and try again."
-          ));
-          return;
-        }
-        reject(new Error(`Upload rejected by Dropbox: ${reasonTag}`));
-        return;
-      }
-      if (!parsed || !parsed["content-hash"]) {
-        reject(new Error("Upload completed but server response was unexpected."));
-        return;
-      }
-      resolve();
-    };
-    xhr.onerror = () => reject(new Error("Network error uploading to Dropbox"));
-    xhr.timeout = 300_000; // 5 minutes
-    xhr.ontimeout = () => reject(new Error("Upload timed out"));
-    xhr.send(file);
-  });
-
-  onUploadProgress(0.9);
-
-  // 3. Finalize on the server via path-keyed metadata lookup.
-  await authedJsonFetch({
-    accessToken: resolvedToken,
-    init: {
-      method: "POST",
-      headers: { "x-original-mime-type": file.type || "application/octet-stream" },
-      body: JSON.stringify({
-        targetPath,
-        requestId,
-        threadId,
-        commentId
-      })
-    },
-    onToken,
-    path: `/projects/${projectId}/files/upload-complete`
-  });
-
-  onUploadProgress(1);
 }
 
 function formatAttachmentStage(attachment: PendingAttachment) {
