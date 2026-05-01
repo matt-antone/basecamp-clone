@@ -171,7 +171,6 @@ export function ProjectDialogForm({
                         }}
                       />
                       <span className="memberCheckboxName">{displayName}</span>
-                      <span className="memberCheckboxEmail">{u.email}</span>
                     </label>
                     {isLastMember ? <small className="memberCheckboxHint">Cannot remove the last member</small> : null}
                   </li>

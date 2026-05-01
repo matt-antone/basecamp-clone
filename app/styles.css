@@ -3760,7 +3760,7 @@ textarea:focus-visible,
 
 .memberCheckboxItem label {
   display: flex;
-  gap: 1rem;
+  gap: 0.5rem;
 }
 
 .memberCheckboxItem label input{
