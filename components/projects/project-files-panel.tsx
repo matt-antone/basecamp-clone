@@ -29,6 +29,7 @@ type ProjectFilesPanelProps = {
   onClearSelectedFile: () => void;
   onDownloadFile: (fileId: string) => void;
   getFileBadgeLabel: (file: ProjectFile) => string;
+  newFileIds?: ReadonlySet<string>;
 };
 
 export function ProjectFilesPanel(props: ProjectFilesPanelProps) {
@@ -47,7 +48,8 @@ export function ProjectFilesPanel(props: ProjectFilesPanelProps) {
     onUploadSelectedFile,
     onClearSelectedFile,
     onDownloadFile,
-    getFileBadgeLabel
+    getFileBadgeLabel,
+    newFileIds = new Set<string>()
   } = props;
 
   return (
@@ -150,14 +152,17 @@ export function ProjectFilesPanel(props: ProjectFilesPanelProps) {
                 />
               </OneShotButton>
               <div className="fileThumbMeta">
-                <OneShotButton
-                  type="button"
-                  className="fileDownloadButton"
-                  onClick={() => onDownloadFile(file.id)}
-                  title={file.filename}
-                >
-                  {file.filename}
-                </OneShotButton>
+                <div className="fileThumbNameRow">
+                  <OneShotButton
+                    type="button"
+                    className="fileDownloadButton"
+                    onClick={() => onDownloadFile(file.id)}
+                    title={file.filename}
+                  >
+                    {file.filename}
+                  </OneShotButton>
+                  {newFileIds.has(file.id) ? <span className="newItemPill">New</span> : null}
+                </div>
                 <small>
                   {formatBytes(file.size_bytes)} •{" "}
                   {new Date(file.created_at).toLocaleDateString()}

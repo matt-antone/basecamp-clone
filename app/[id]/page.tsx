@@ -12,6 +12,11 @@ import { authedJsonFetch, fetchAuthSession } from "@/lib/browser-auth";
 import { triggerBrowserDownload } from "@/lib/browser-download";
 import { createClientResource } from "@/lib/client-resource";
 import { calculateProjectExpensesTotalUsd, formatUsdInput, formatUsdMoney } from "@/lib/project-financials";
+import {
+  collectNewIds,
+  hasDirtyProjectPageDrafts,
+  isNewerProjectUpdate
+} from "@/lib/project-page-polling";
 import { renderMarkdown } from "@/lib/markdown";
 import { createProjectDialogValues, formatProjectDeadlineLocal, normalizeProjectColumn, parseProjectTags } from "@/lib/project-utils";
 import type { ClientRecord } from "@/lib/types/client-record";
@@ -36,6 +41,8 @@ type Project = {
   client_name?: string | null;
   client_code?: string | null;
   requestor?: string | null;
+  updated_at?: string | null;
+  last_activity_at?: string | null;
   /** PM-facing note (max 256); optional until migration applied. */
   pm_note?: string | null;
   my_hours?: number | string | null;
@@ -97,6 +104,7 @@ type ProjectPageBootstrap = {
 };
 
 const projectBootstrapResource = createClientResource(loadProjectBootstrap, (projectId) => projectId);
+const PROJECT_PAGE_POLL_INTERVAL_MS = 5 * 60 * 1000;
 
 export default function ProjectPage() {
   const params = useParams<{ id: string }>();
@@ -161,6 +169,14 @@ function ProjectPageContent({ projectId, initial }: { projectId: string; initial
   const [expenseLineDrafts, setExpenseLineDrafts] = useState<Record<string, { label: string; amount: string }>>({});
   const [newExpenseLine, setNewExpenseLine] = useState({ label: "", amount: "" });
   const [createDiscussionEditorKey, setCreateDiscussionEditorKey] = useState(0);
+  const projectActivityUpdatedDateRef = useRef(getProjectActivityUpdatedDate(initial.project));
+  const pendingProjectRefreshRef = useRef<string | null>(null);
+  const seenThreadIdsRef = useRef(new Set(initial.threads.map((thread) => thread.id)));
+  const seenFileIdsRef = useRef(new Set(initial.files.map((file) => file.id)));
+  const seenExpenseLineIdsRef = useRef(new Set(initial.expenseLines.map((line) => line.id)));
+  const [newThreadIds, setNewThreadIds] = useState<Set<string>>(() => new Set());
+  const [newFileIds, setNewFileIds] = useState<Set<string>>(() => new Set());
+  const [newExpenseLineIds, setNewExpenseLineIds] = useState<Set<string>>(() => new Set());
   const editProjectDialogRef = useRef<HTMLDialogElement | null>(null);
   const createDiscussionDialogRef = useRef<HTMLDialogElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -187,7 +203,35 @@ function ProjectPageContent({ projectId, initial }: { projectId: string; initial
     setFiles(nextState.files);
     setClients(nextState.clients);
     setViewerProfile(nextState.viewerProfile);
+    projectActivityUpdatedDateRef.current = getProjectActivityUpdatedDate(nextState.project);
     setStatus("Ready");
+  }, []);
+
+  const applyPolledProjectData = useCallback((
+    nextState: Awaited<ReturnType<typeof loadProjectData>>,
+    updatedDate: string
+  ) => {
+    const nextNewThreadIds = collectNewIds(nextState.threads, seenThreadIdsRef.current);
+    const nextNewFileIds = collectNewIds(nextState.files, seenFileIdsRef.current);
+    const nextNewExpenseLineIds = collectNewIds(nextState.expenseLines, seenExpenseLineIdsRef.current);
+
+    setNewThreadIds((current) => new Set([...current, ...nextNewThreadIds]));
+    setNewFileIds((current) => new Set([...current, ...nextNewFileIds]));
+    setNewExpenseLineIds((current) => new Set([...current, ...nextNewExpenseLineIds]));
+
+    setProject(nextState.project);
+    setUserHours(nextState.userHours);
+    setExpenseLines(nextState.expenseLines);
+    setThreads(nextState.threads);
+    setFiles(nextState.files);
+    setClients(nextState.clients);
+    setViewerProfile(nextState.viewerProfile);
+
+    nextState.threads.forEach((thread) => seenThreadIdsRef.current.add(thread.id));
+    nextState.files.forEach((file) => seenFileIdsRef.current.add(file.id));
+    nextState.expenseLines.forEach((line) => seenExpenseLineIdsRef.current.add(line.id));
+    projectActivityUpdatedDateRef.current = updatedDate;
+    pendingProjectRefreshRef.current = null;
   }, []);
 
   useEffect(() => {
@@ -215,6 +259,101 @@ function ProjectPageContent({ projectId, initial }: { projectId: string; initial
     );
   }, [expenseLines]);
 
+  const isProjectPageDirty = hasDirtyProjectPageDrafts({
+    projectFormDirty: JSON.stringify(projectForm) !== JSON.stringify(createProjectDialogValues(project?.client_id ?? "", project)),
+    myHoursDirty: myHoursInput !== formatHoursInput(project?.my_hours),
+    archivedHoursDirty: userHours.some(
+      (entry) => archivedHoursInputs[entry.userId] !== formatHoursInput(entry.hours)
+    ),
+    expenseDraftsDirty: expenseLines.some((line) => {
+      const draft = expenseLineDrafts[line.id] ?? {
+        label: line.label,
+        amount: formatUsdInput(line.amount)
+      };
+      return draft.label !== line.label || draft.amount !== formatUsdInput(line.amount);
+    }),
+    newExpenseDirty: newExpenseLine.label.trim() !== "" || newExpenseLine.amount.trim() !== "",
+    fileQueued: selectedFile !== null,
+    createDiscussionDirty: title.trim() !== "" || bodyMarkdown.trim() !== "",
+    mutationInFlight: isUploading ||
+      isSavingProject ||
+      isSavingMyHours ||
+      isRestoringProject ||
+      savingArchivedHoursUserId !== null ||
+      savingExpenseLineId !== null ||
+      deletingExpenseLineId !== null ||
+      isCreatingExpenseLine
+  });
+
+  useEffect(() => {
+    if (!token || !projectId) return;
+
+    let cancelled = false;
+
+    async function pollProjectUpdatedDate() {
+      if (!token || !projectId) return;
+      const data = await authedFetch(token, `/projects/${projectId}/updated-date`);
+      if (cancelled) return;
+      const updatedDate = typeof data?.updatedDate === "string" ? data.updatedDate : null;
+      if (!isNewerProjectUpdate(updatedDate, projectActivityUpdatedDateRef.current)) {
+        return;
+      }
+      if (isProjectPageDirty) {
+        pendingProjectRefreshRef.current = updatedDate;
+        return;
+      }
+
+      const nextState = await loadProjectData(token, projectId);
+      if (cancelled) return;
+      if (updatedDate) {
+        applyPolledProjectData(nextState, updatedDate);
+      }
+    }
+
+    const intervalId = window.setInterval(() => {
+      pollProjectUpdatedDate().catch((error) => {
+        if (!cancelled) {
+          setStatus(error instanceof Error ? error.message : "Project refresh failed");
+        }
+      });
+    }, PROJECT_PAGE_POLL_INTERVAL_MS);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(intervalId);
+    };
+  }, [token, projectId, load, isProjectPageDirty, applyPolledProjectData]);
+
+  useEffect(() => {
+    if (!token || !projectId || isProjectPageDirty) return;
+
+    const pendingUpdatedDate = pendingProjectRefreshRef.current;
+    if (!pendingUpdatedDate) return;
+
+    if (!isNewerProjectUpdate(pendingUpdatedDate, projectActivityUpdatedDateRef.current)) {
+      pendingProjectRefreshRef.current = null;
+      return;
+    }
+
+    let cancelled = false;
+
+    loadProjectData(token, projectId)
+      .then((nextState) => {
+        if (!cancelled) {
+          applyPolledProjectData(nextState, pendingUpdatedDate);
+        }
+      })
+      .catch((error) => {
+        if (!cancelled) {
+          setStatus(error instanceof Error ? error.message : "Project refresh failed");
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [token, projectId, isProjectPageDirty, applyPolledProjectData]);
+
   function getStarterLabel(thread: Thread) {
     const fullName = `${thread.starter_first_name ?? ""} ${thread.starter_last_name ?? ""}`.trim();
     return fullName || thread.starter_email || "Starter";
@@ -238,10 +377,14 @@ function ProjectPageContent({ projectId, initial }: { projectId: string; initial
 
   async function createDiscussion() {
     if (!token || !projectId) return;
-    await authedFetch(token, `/projects/${projectId}/threads`, {
+    const data = await authedFetch(token, `/projects/${projectId}/threads`, {
       method: "POST",
       body: JSON.stringify({ title, bodyMarkdown })
     });
+    const thread = (data?.thread ?? null) as Thread | null;
+    if (thread) {
+      seenThreadIdsRef.current.add(thread.id);
+    }
     setTitle("");
     setBodyMarkdown("");
     setCreateDiscussionEditorKey((current) => current + 1);
@@ -349,6 +492,7 @@ function ProjectPageContent({ projectId, initial }: { projectId: string; initial
       });
       const created = (data?.expenseLine ?? null) as ProjectExpenseLine | null;
       if (created) {
+        seenExpenseLineIdsRef.current.add(created.id);
         setExpenseLines((current) => [...current, created]);
         setNewExpenseLine({ label: "", amount: "" });
       }
@@ -510,7 +654,7 @@ function ProjectPageContent({ projectId, initial }: { projectId: string; initial
       });
 
       // 3. Tell the server to finalize via path-keyed metadata lookup.
-      await authedFetch(token, `/projects/${projectId}/files/upload-complete`, {
+      const completeRes = await authedFetch(token, `/projects/${projectId}/files/upload-complete`, {
         method: "POST",
         headers: { "x-original-mime-type": selectedFile.type || "application/octet-stream" },
         body: JSON.stringify({
@@ -518,6 +662,10 @@ function ProjectPageContent({ projectId, initial }: { projectId: string; initial
           requestId
         })
       });
+      const uploadedFile = (completeRes?.file ?? null) as ProjectFile | null;
+      if (uploadedFile) {
+        seenFileIdsRef.current.add(uploadedFile.id);
+      }
 
       setUploadError(null);
       setSelectedFile(null);
@@ -721,8 +869,9 @@ function ProjectPageContent({ projectId, initial }: { projectId: string; initial
                 {getStarterInitials(thread)}
               </span>
               <div className="projectMain">
-                <Link href={`/${projectId}/${thread.id}`} className="projectLink">
-                  {thread.title}
+                <Link href={`/${projectId}/${thread.id}`} className="projectLink projectLinkRow">
+                  <span>{thread.title}</span>
+                  {newThreadIds.has(thread.id) ? <span className="newItemPill">New</span> : null}
                 </Link>
                 <small>{new Date(thread.created_at).toLocaleString()}</small>
               </div>
@@ -766,6 +915,7 @@ function ProjectPageContent({ projectId, initial }: { projectId: string; initial
         }}
         onDownloadFile={(fileId) => downloadFile(fileId).catch((error) => setStatus(error.message))}
         getFileBadgeLabel={getFileBadgeLabel}
+        newFileIds={newFileIds}
       />
 
       <section className="stackSection">
@@ -838,19 +988,22 @@ function ProjectPageContent({ projectId, initial }: { projectId: string; initial
 
                   return (
                     <div key={line.id} className="projectExpenseRow">
-                      <input
-                        value={draft.label}
-                        onChange={(event) =>
-                          setExpenseLineDrafts((current) => ({
-                            ...current,
-                            [line.id]: {
-                              ...draft,
-                              label: event.target.value
-                            }
-                          }))
-                        }
-                        aria-label={`${line.label} label`}
-                      />
+                      <div className="projectExpenseLabelCell">
+                        <input
+                          value={draft.label}
+                          onChange={(event) =>
+                            setExpenseLineDrafts((current) => ({
+                              ...current,
+                              [line.id]: {
+                                ...draft,
+                                label: event.target.value
+                              }
+                            }))
+                          }
+                          aria-label={`${line.label} label`}
+                        />
+                        {newExpenseLineIds.has(line.id) ? <span className="newItemPill">New</span> : null}
+                      </div>
                       <input
                         type="number"
                         min="0"
@@ -953,6 +1106,12 @@ function getFileBadgeLabel(file: ProjectFile) {
   if (mime.includes("zip") || mime.includes("compressed")) return "ZIP";
   const extension = file.filename.split(".").pop()?.trim().toUpperCase();
   return extension && extension.length <= 5 ? extension : "FILE";
+}
+
+function getProjectActivityUpdatedDate(project: Project | null) {
+  if (!project) return null;
+  const candidates = [project.updated_at, project.last_activity_at].filter(Boolean) as string[];
+  return candidates.sort((a, b) => new Date(b).getTime() - new Date(a).getTime())[0] ?? null;
 }
 
 function formatHoursInput(value: number | string | null | undefined) {
