@@ -71,7 +71,15 @@ describe("listProjectMembers", () => {
       ["p1"]
     );
     expect(queryMock).toHaveBeenCalledWith(
-      expect.stringMatching(/order by pm\.added_at asc/i),
+      expect.stringMatching(/order by min\(pm\.added_at\) asc/i),
+      ["p1"]
+    );
+    expect(queryMock).toHaveBeenCalledWith(
+      expect.stringMatching(/up\.is_legacy = false/i),
+      ["p1"]
+    );
+    expect(queryMock).toHaveBeenCalledWith(
+      expect.stringMatching(/up\.email is not null/i),
       ["p1"]
     );
   });
