@@ -1,4 +1,4 @@
-# Basecamp Clone v1
+# Basecamp Clone v1.2
 
 Next.js + Supabase + Dropbox implementation based on `PLAN.md`.
 
