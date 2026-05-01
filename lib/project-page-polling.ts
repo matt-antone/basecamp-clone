@@ -18,6 +18,22 @@ export function collectNewIds<T extends { id: string }>(items: T[], seenIds: Rea
   return new Set(items.map((item) => item.id).filter((id) => !seenIds.has(id)));
 }
 
+export function collectNewOrUpdatedIds<T extends { id: string }>(
+  items: T[],
+  seenIds: ReadonlySet<string>,
+  seenActivityUpdatedAt: ReadonlyMap<string, string>,
+  getActivityUpdatedAt: (item: T) => string | null | undefined
+) {
+  return new Set(
+    items
+      .filter((item) => {
+        if (!seenIds.has(item.id)) return true;
+        return isNewerProjectUpdate(getActivityUpdatedAt(item), seenActivityUpdatedAt.get(item.id));
+      })
+      .map((item) => item.id)
+  );
+}
+
 export function hasDirtyProjectPageDrafts(state: ProjectPageDirtyState) {
   return Object.values(state).some(Boolean);
 }

@@ -13,6 +13,7 @@ import { triggerBrowserDownload } from "@/lib/browser-download";
 import { createClientResource } from "@/lib/client-resource";
 import { calculateProjectExpensesTotalUsd, formatUsdInput, formatUsdMoney } from "@/lib/project-financials";
 import {
+  collectNewOrUpdatedIds,
   collectNewIds,
   hasDirtyProjectPageDrafts,
   isNewerProjectUpdate
@@ -70,6 +71,8 @@ type Thread = {
   title: string;
   body_html: string;
   created_at: string;
+  updated_at?: string | null;
+  activity_updated_at?: string | null;
   starter_email: string | null;
   starter_first_name: string | null;
   starter_last_name: string | null;
@@ -172,6 +175,7 @@ function ProjectPageContent({ projectId, initial }: { projectId: string; initial
   const projectActivityUpdatedDateRef = useRef(getProjectActivityUpdatedDate(initial.project));
   const pendingProjectRefreshRef = useRef<string | null>(null);
   const seenThreadIdsRef = useRef(new Set(initial.threads.map((thread) => thread.id)));
+  const seenThreadActivityUpdatedAtRef = useRef(createThreadActivityMap(initial.threads));
   const seenFileIdsRef = useRef(new Set(initial.files.map((file) => file.id)));
   const seenExpenseLineIdsRef = useRef(new Set(initial.expenseLines.map((line) => line.id)));
   const [newThreadIds, setNewThreadIds] = useState<Set<string>>(() => new Set());
@@ -203,7 +207,10 @@ function ProjectPageContent({ projectId, initial }: { projectId: string; initial
     setFiles(nextState.files);
     setClients(nextState.clients);
     setViewerProfile(nextState.viewerProfile);
-    nextState.threads.forEach((thread) => seenThreadIdsRef.current.add(thread.id));
+    nextState.threads.forEach((thread) => {
+      seenThreadIdsRef.current.add(thread.id);
+      updateSeenThreadActivity(thread, seenThreadActivityUpdatedAtRef.current);
+    });
     nextState.files.forEach((file) => seenFileIdsRef.current.add(file.id));
     nextState.expenseLines.forEach((line) => seenExpenseLineIdsRef.current.add(line.id));
     projectActivityUpdatedDateRef.current = getProjectActivityUpdatedDate(nextState.project);
@@ -214,7 +221,12 @@ function ProjectPageContent({ projectId, initial }: { projectId: string; initial
     nextState: Awaited<ReturnType<typeof loadProjectData>>,
     updatedDate: string
   ) => {
-    const nextNewThreadIds = collectNewIds(nextState.threads, seenThreadIdsRef.current);
+    const nextNewThreadIds = collectNewOrUpdatedIds(
+      nextState.threads,
+      seenThreadIdsRef.current,
+      seenThreadActivityUpdatedAtRef.current,
+      getThreadActivityUpdatedAt
+    );
     const nextNewFileIds = collectNewIds(nextState.files, seenFileIdsRef.current);
     const nextNewExpenseLineIds = collectNewIds(nextState.expenseLines, seenExpenseLineIdsRef.current);
 
@@ -230,7 +242,10 @@ function ProjectPageContent({ projectId, initial }: { projectId: string; initial
     setClients(nextState.clients);
     setViewerProfile(nextState.viewerProfile);
 
-    nextState.threads.forEach((thread) => seenThreadIdsRef.current.add(thread.id));
+    nextState.threads.forEach((thread) => {
+      seenThreadIdsRef.current.add(thread.id);
+      updateSeenThreadActivity(thread, seenThreadActivityUpdatedAtRef.current);
+    });
     nextState.files.forEach((file) => seenFileIdsRef.current.add(file.id));
     nextState.expenseLines.forEach((line) => seenExpenseLineIdsRef.current.add(line.id));
     projectActivityUpdatedDateRef.current = updatedDate;
@@ -387,6 +402,7 @@ function ProjectPageContent({ projectId, initial }: { projectId: string; initial
     const thread = (data?.thread ?? null) as Thread | null;
     if (thread) {
       seenThreadIdsRef.current.add(thread.id);
+      updateSeenThreadActivity(thread, seenThreadActivityUpdatedAtRef.current);
     }
     setTitle("");
     setBodyMarkdown("");
@@ -1115,6 +1131,23 @@ function getProjectActivityUpdatedDate(project: Project | null) {
   if (!project) return null;
   const candidates = [project.updated_at, project.last_activity_at].filter(Boolean) as string[];
   return candidates.sort((a, b) => new Date(b).getTime() - new Date(a).getTime())[0] ?? null;
+}
+
+function getThreadActivityUpdatedAt(thread: Thread) {
+  return thread.activity_updated_at ?? thread.updated_at ?? thread.created_at;
+}
+
+function createThreadActivityMap(threads: Thread[]) {
+  const activityMap = new Map<string, string>();
+  threads.forEach((thread) => updateSeenThreadActivity(thread, activityMap));
+  return activityMap;
+}
+
+function updateSeenThreadActivity(thread: Thread, activityMap: Map<string, string>) {
+  const activityUpdatedAt = getThreadActivityUpdatedAt(thread);
+  if (activityUpdatedAt) {
+    activityMap.set(thread.id, activityUpdatedAt);
+  }
 }
 
 function formatHoursInput(value: number | string | null | undefined) {

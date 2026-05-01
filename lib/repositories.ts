@@ -1375,13 +1375,25 @@ export async function listThreads(projectId: string) {
   const result = await query(
     `select
        discussion_threads.*,
+       latest_comment.latest_comment_updated_at,
+       greatest(
+         discussion_threads.created_at,
+         discussion_threads.updated_at,
+         coalesce(latest_comment.latest_comment_updated_at, discussion_threads.updated_at, discussion_threads.created_at)
+       ) as activity_updated_at,
        user_profiles.email as starter_email,
        user_profiles.first_name as starter_first_name,
        user_profiles.last_name as starter_last_name
      from discussion_threads
+     left join lateral (
+       select max(discussion_comments.updated_at) as latest_comment_updated_at
+       from discussion_comments
+       where discussion_comments.project_id = discussion_threads.project_id
+         and discussion_comments.thread_id = discussion_threads.id
+     ) latest_comment on true
      left join user_profiles on user_profiles.id = discussion_threads.author_user_id
      where discussion_threads.project_id = $1
-     order by discussion_threads.created_at desc`,
+     order by activity_updated_at desc`,
     [projectId]
   );
   return result.rows;
