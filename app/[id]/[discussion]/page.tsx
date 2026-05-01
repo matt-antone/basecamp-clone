@@ -49,6 +49,9 @@ type ThreadDetail = {
   id: string;
   title: string;
   body_html: string;
+  body_markdown: string;
+  edited_at: string | null;
+  author_user_id: string;
   starter_email?: string | null;
   starter_first_name?: string | null;
   starter_last_name?: string | null;
@@ -134,6 +137,10 @@ function DiscussionPageContent(props: {
   const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
   const [editingBody, setEditingBody] = useState("");
   const [newCommentEditorKey, setNewCommentEditorKey] = useState(0);
+  const [isEditingThread, setIsEditingThread] = useState(false);
+  const [editThreadTitle, setEditThreadTitle] = useState("");
+  const [editThreadBody, setEditThreadBody] = useState("");
+  const [isSavingThread, setIsSavingThread] = useState(false);
   const commentFileInputRef = useRef<HTMLInputElement | null>(null);
 
   async function authedFetch(accessToken: string, path: string, options: RequestInit = {}) {
@@ -239,6 +246,37 @@ function DiscussionPageContent(props: {
   function startEditingComment(comment: Comment) {
     setEditingCommentId(comment.id);
     setEditingBody(comment.body_markdown);
+  }
+
+  function startEditingThread() {
+    if (!thread) return;
+    setEditThreadTitle(thread.title);
+    setEditThreadBody(thread.body_markdown ?? "");
+    setIsEditingThread(true);
+  }
+
+  function cancelEditingThread() {
+    setIsEditingThread(false);
+  }
+
+  async function saveThreadEdit() {
+    if (!thread || !token) return;
+    setIsSavingThread(true);
+    try {
+      const data = await authedFetch(token, `/projects/${projectId}/threads/${thread.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ title: editThreadTitle, bodyMarkdown: editThreadBody })
+      });
+      const updated = (data as { thread?: typeof thread }).thread;
+      if (updated) {
+        setThread((prev) => (prev ? { ...prev, ...updated } : prev));
+      }
+      setIsEditingThread(false);
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "Could not save discussion edit");
+    } finally {
+      setIsSavingThread(false);
+    }
   }
 
   async function openDownload(fileId: string) {
@@ -349,21 +387,60 @@ function DiscussionPageContent(props: {
               </span>
               <div className="discussionLeadMetaCopy">
                 <strong>{getPersonLabel(thread)}</strong>
-                <small>Started the thread</small>
+                <small>
+                  Started the thread
+                  {thread.edited_at ? " (edited)" : ""}
+                </small>
+                {currentUser?.id === thread.author_user_id && !isEditingThread && (
+                  <OneShotButton type="button" className="terciary" onClick={startEditingThread}>
+                    Edit
+                  </OneShotButton>
+                )}
               </div>
             </div>
-            <MarkdownHtml html={thread.body_html} />
-            {(thread.threadAttachments?.length ?? 0) > 0 && (
-              <div className="commentAttachmentStack">
-                <AttachmentCollections
-                  attachments={thread.threadAttachments ?? []}
-                  projectId={projectId}
-                  token={token}
-                  onToken={setToken}
-                  onDownload={openDownload}
-                  onError={setStatus}
+            {isEditingThread ? (
+              <div className="editorWrap">
+                <input
+                  className="dialogField"
+                  value={editThreadTitle}
+                  onChange={(e) => setEditThreadTitle(e.target.value)}
+                  aria-label="Edit discussion title"
                 />
+                <MarkdownEditor
+                  key={`edit-thread-${thread.id}`}
+                  markdown={editThreadBody}
+                  onChange={setEditThreadBody}
+                  placeholder="Edit discussion in markdown"
+                />
+                <div className="row">
+                  <OneShotButton
+                    type="button"
+                    onClick={saveThreadEdit}
+                    disabled={!editThreadTitle.trim() || !editThreadBody.trim() || isSavingThread}
+                  >
+                    {isSavingThread ? "Saving…" : "Save"}
+                  </OneShotButton>
+                  <OneShotButton type="button" className="secondary" onClick={cancelEditingThread} disabled={isSavingThread}>
+                    Cancel
+                  </OneShotButton>
+                </div>
               </div>
+            ) : (
+              <>
+                <MarkdownHtml html={thread.body_html} />
+                {(thread.threadAttachments?.length ?? 0) > 0 && (
+                  <div className="commentAttachmentStack">
+                    <AttachmentCollections
+                      attachments={thread.threadAttachments ?? []}
+                      projectId={projectId}
+                      token={token}
+                      onToken={setToken}
+                      onDownload={openDownload}
+                      onError={setStatus}
+                    />
+                  </div>
+                )}
+              </>
             )}
           </section>
 
