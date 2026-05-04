@@ -42,13 +42,55 @@ const MISSING_COLON = /^([A-Za-z]+)-(\d{3,4})\s+(\S.*)$/;
 const ANYWHERE_CODE_NUM = /\b([A-Za-z]+)-(\d{3,4})(?::\s*(.*)|\s+(.+))?$/;
 const STARTS_WITH_CODE_NUM = /^[A-Za-z]+-\d{3,4}/;
 
+function detectFlags(
+  rawStr: string,
+  trimmed: string,
+  code: string | null,
+  parsedTitle: string,
+  primaryClass: PrimaryClass
+): Flag[] {
+  const flags: Flag[] = [];
+
+  if (code !== null && code !== code.toUpperCase()) {
+    flags.push("lowercase-code");
+  }
+
+  if (/–/.test(trimmed)) {
+    flags.push("en-dash-separator");
+  }
+
+  // eslint-disable-next-line no-control-regex
+  if (/[^\x00-\x7F]/.test(trimmed)) {
+    flags.push("non-ascii");
+  }
+
+  if (rawStr !== trimmed) {
+    flags.push("leading-trailing-ws");
+  }
+
+  if (
+    (primaryClass === "clean" || primaryClass === "clean-3digit-num") &&
+    parsedTitle.includes(":")
+  ) {
+    flags.push("colon-in-title");
+  }
+
+  return flags;
+}
+
 export function classifyTitle(raw: string | null | undefined): Classification {
   if (raw == null || String(raw).trim() === "") {
     return { primaryClass: "empty-raw", flags: [], code: null, num: null, parsedTitle: "" };
   }
 
-  const trimmed = String(raw).trim();
+  const rawStr = String(raw);
+  const trimmed = rawStr.trim();
+  const result = classifyPrimary(trimmed);
+  result.flags = detectFlags(rawStr, trimmed, result.code, result.parsedTitle, result.primaryClass);
+  return result;
+}
 
+function classifyPrimary(trimmed: string): Classification {
   // PRIMARY (clean / clean-3digit-num / empty-title)
   const primary = trimmed.match(PRIMARY);
   if (primary) {

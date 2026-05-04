@@ -25,7 +25,7 @@ const fixtures: Fixture[] = [
 
   // empty-title
   { raw: "GX-0042:", primaryClass: "empty-title", flags: [], code: "GX", num: "0042", parsedTitle: "" },
-  { raw: "GX-0042:   ", primaryClass: "empty-title", flags: [], code: "GX", num: "0042", parsedTitle: "" },
+  { raw: "GX-0042:   ", primaryClass: "empty-title", flags: ["leading-trailing-ws"], code: "GX", num: "0042", parsedTitle: "" },
 
   // clean
   { raw: "GX-0042: Brand refresh", primaryClass: "clean", flags: [], code: "GX", num: "0042", parsedTitle: "Brand refresh" },
@@ -63,7 +63,7 @@ const fixtures: Fixture[] = [
   { raw: "gx-0042: Foo", primaryClass: "clean", flags: ["lowercase-code"], code: "gx", num: "0042", parsedTitle: "Foo" },
 
   // flags: en-dash-separator
-  { raw: "GX – Foo", primaryClass: "fallback-no-num", flags: ["en-dash-separator"], code: "GX", num: null, parsedTitle: "Foo" },
+  { raw: "GX – Foo", primaryClass: "fallback-no-num", flags: ["en-dash-separator", "non-ascii"], code: "GX", num: null, parsedTitle: "Foo" },
 
   // flags: non-ascii
   { raw: "GX-0042: Café redesign", primaryClass: "clean", flags: ["non-ascii"], code: "GX", num: "0042", parsedTitle: "Café redesign" },
