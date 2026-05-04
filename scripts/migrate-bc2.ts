@@ -24,6 +24,7 @@ import {
   resolveClientId,
   resolvePerson
 } from "../lib/imports/bc2-transformer";
+import { resolveTitle, type KnownClient } from "../lib/imports/bc2-client-resolver";
 import { createThread, createComment, createFileMetadata } from "../lib/repositories";
 import { DropboxStorageAdapter } from "../lib/storage/dropbox-adapter";
 import { getProjectStorageDir, sanitizeDropboxFolderTitle } from "../lib/project-storage";
@@ -180,6 +181,13 @@ async function migratePeople(
 
 // ── Projects phase ────────────────────────────────────────────────────────────
 
+async function fetchKnownClients(): Promise<KnownClient[]> {
+  const r = await query<{ id: string; code: string; name: string }>(
+    "select id, code, name from clients order by code"
+  );
+  return r.rows.map((row) => ({ id: row.id, code: row.code, name: row.name }));
+}
+
 interface MigratedProject {
   bc2Id: number;
   localId: string;
@@ -194,6 +202,9 @@ async function migrateProjects(
 ): Promise<MigratedProject[]> {
   const projects: MigratedProject[] = [];
   process.stdout.write("Fetching projects...\n");
+
+  const knownClients = await fetchKnownClients();
+  process.stdout.write(`Pre-fetched ${knownClients.length} known clients for resolver\n`);
 
   let count = 0;
   for await (const bc2Project of fetcher.fetchProjects({ source: flags.projectSource })) {
@@ -230,7 +241,8 @@ async function migrateProjects(
         continue;
       }
 
-      const { code, num, title } = parseProjectTitle(bc2Project.name);
+      const resolved = resolveTitle(bc2Project.name, knownClients);
+      const { code, num, title } = resolved;
       const clientId = code ? await resolveClientId(code) : null;
 
       // Compute all NOT NULL derived fields required by the schema
