@@ -219,23 +219,28 @@ drop index if exists idx_projects_client_seq_unique;
 
 Done before the migration run, not part of the production deploy.
 
-#### 5a. New Supabase project
+**Test project already provisioned:** Supabase project `anrnlmmanhrddkvrnooe` exists. Supabase MCP server registered in `.mcp.json` (project-scoped) for direct schema/data tooling from Claude Code.
 
-User creates manually via Supabase dashboard. Captures:
+#### 5a. Capture connection string
 
-- `DATABASE_URL` for the new project → goes in `.env.local` (or `.env.test.local` swap workflow)
+From the Supabase dashboard for project `anrnlmmanhrddkvrnooe`:
 
-#### 5b. Apply existing migrations
+- Copy the pooled connection string (or direct, depending on which the migrator's `pg.Pool` prefers — direct is typical)
+- Workflow option: keep two env files — `.env.local` (production) and `.env.test.local` (test project). Swap the active file by symlink or by `cp` before runs. Reduces risk of accidentally pointing the migrator at production.
+- Alternative: a single `.env.local` with commented production URL while testing. Less safe but simpler.
 
-```
-supabase db push --db-url "postgresql://..."
-```
+#### 5b. Apply existing migrations + the new identity-relax migration
 
-Or equivalent — applies all `supabase/migrations/*.sql` to the new project including the new `NNNN_relax_project_code_not_null.sql`.
+Two paths:
+
+- **Preferred (MCP-driven):** use `mcp__supabase__apply_migration` (or whatever the Supabase MCP exposes for schema work). One call per migration file in `supabase/migrations/` order. Visible in this session, scriptable, no shell tooling required.
+- **CLI fallback:** `supabase db push --db-url <test-url>` if the Supabase CLI is set up locally. Requires linking the project once.
+
+End state: test DB schema matches production schema **plus** the new `NNNN_relax_project_identity_constraints.sql`.
 
 #### 5c. Seed clients from production
 
-`scripts/seed-clients-from-prod.ts` — reads `clients` table from production via env var `PROD_DATABASE_URL`, writes to test DB via `DATABASE_URL`. Idempotent (skip if code exists).
+`scripts/seed-clients-from-prod.ts` — reads `clients` table from production via env var `PROD_DATABASE_URL`, writes to test DB via `DATABASE_URL`. Idempotent (skip if code exists). 125 rows.
 
 ```
 npx tsx scripts/seed-clients-from-prod.ts
@@ -243,9 +248,11 @@ npx tsx scripts/seed-clients-from-prod.ts
 
 Required so the resolver has the 125 known client codes/names available; otherwise resolver whiffs and migrator falls into auto-create-pending for all 247 compound-code rows.
 
+Alternative if `PROD_DATABASE_URL` access is not available locally: dump `clients` to a JSON file from production (or via Supabase MCP if production also has an MCP), and have the seed script read from JSON instead of from a live DB. Safer (no production credentials in test env) but adds one manual step.
+
 #### 5d. Dropbox sandbox folder
 
-User sets `DROPBOX_PROJECTS_ROOT_FOLDER=/Projects-test` (or similar) in `.env.local` before running migrator. Production folder untouched.
+User sets `DROPBOX_PROJECTS_ROOT_FOLDER=/Projects-test` (or similar) in `.env.test.local` before running migrator. Production folder untouched.
 
 #### 5e. Run migrator
 
@@ -264,6 +271,16 @@ npx tsx scripts/audit-imported-projects.ts  # NEW: same classifier, different so
 ```
 
 Out of scope to build for this spec — note as follow-up if signal warrants.
+
+#### 5g. Ad-hoc inspection via Supabase MCP
+
+With the Supabase MCP registered, post-migration verification can be done interactively:
+
+- `mcp__supabase__query_documents` (or equivalent SQL execution tool) to spot-check counts per primary class, sample auto-created clients, dup suffix assignments
+- `mcp__supabase__get_schema` to confirm constraint changes landed
+- No need to swap `.env.local` for inspection — MCP talks directly to the test project via its registered project_ref
+
+These are diagnostics, not part of the deliverable. Useful during the test-run iteration loop.
 
 ## Data Flow
 
@@ -343,7 +360,8 @@ Run on test Supabase + Dropbox sandbox:
 | Schema migration breaks production reads | All 6 read sites already null-safe (verified in audit research); test-environment proves no regression before production migration |
 | Resolver normalization is too aggressive (false positives) | Word-boundary / longest-prefix-of-leading-run only. No substring fallback. Validated by research probe (zero false positives in `prefix-noise`/`fallback-no-num` recovery). |
 | Auto-created clients pollute `clients` table with bad data | Auto-create only on `matchedBy: "auto-create-pending"` with high-confidence parse (clean code+num). User can rename/merge in admin UI post-migration. List logged to `bc2-import-summary.json` for review. |
-| Test Supabase + Dropbox sandbox setup is fragile | One-off bootstrap script (`seed-clients-from-prod.ts`) + manual Supabase project creation. Docs in spec. Reproducible. |
+| Test Supabase + Dropbox sandbox setup is fragile | Test Supabase project `anrnlmmanhrddkvrnooe` already provisioned + MCP-registered. One-off bootstrap script (`seed-clients-from-prod.ts`) handles client seed. Reproducible. |
+| Accidentally pointing migrator at production while testing | Use `.env.test.local` as a separate file, not just inline overrides. Make the swap explicit (symlink or copy) and visible in shell prompt or commit msg. Set `DROPBOX_PROJECTS_ROOT_FOLDER` in the test env file so a misconfigured run still lands files in the sandbox folder, not production. |
 | Existing PR/branch work conflicts with these changes | Plan merges land on feature branch `feat/bc2-import-remediation`. Single combined PR for review. |
 | Variants sharing `project_seq` collide with existing `(client_id, project_seq)` unique index | Schema migration drops `idx_projects_client_seq_unique` (Section 4). `project_code` uniqueness on its own is sufficient as identity guard. |
 
