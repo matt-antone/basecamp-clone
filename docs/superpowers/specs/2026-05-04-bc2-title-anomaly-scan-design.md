@@ -49,7 +49,7 @@ tmp/                       # gitignored
 
 **Separation of concerns:**
 
-- `dump-bc2-titles.ts` does network IO only. Reuses `Bc2Fetcher.fetchProjects({ source })` from `lib/imports/bc2-fetcher.ts`. Projects each record to `{ id, name, status, archived, created_at }`. Writes atomically (`tmp/bc2-titles.json.tmp` → rename).
+- `dump-bc2-titles.ts` does network IO only. Reuses `Bc2Fetcher.fetchProjects({ source })` from `lib/imports/bc2-fetcher.ts`. Projects each record to `{ id, name, archived, created_at }`. Writes atomically (`tmp/bc2-titles.json.tmp` → rename).
 - `bc2-title-classifier.ts` is pure. No `lib/db`, no network, no fs. Lets the classifier be re-run 50× on the cached dump while iterating on rules.
 - `audit-bc2-titles.ts` reads dump, calls classifier per row, runs cross-row duplicate detection, writes CSV + JSON, prints a stdout summary.
 
@@ -117,9 +117,9 @@ BC2 API ──► dump-bc2-titles.ts ──► tmp/bc2-titles.json
 One row per project, sortable in spreadsheets:
 
 ```
-bc2_id, raw_title, primary_class, flags, code, num, parsed_title, archived, status, created_at
-12345, "GX-0042b: Variant brand refresh", suffixed-num, "lowercase-code", GX, 0042b, "Variant brand refresh", false, active, 2024-08-12
-67890, "GX-0042: Brand refresh",          clean,        "",                GX, 0042,  "Brand refresh",          false, active, 2023-11-02
+bc2_id, raw_title, primary_class, flags, code, num, parsed_title, archived, created_at
+12345, "GX-0042b: Variant brand refresh", suffixed-num, "lowercase-code", GX, 0042b, "Variant brand refresh", false, 2024-08-12
+67890, "GX-0042: Brand refresh",          clean,        "",                GX, 0042,  "Brand refresh",          false, 2023-11-02
 ```
 
 `flags` is a `;`-separated list inside one CSV cell so spreadsheet filtering works.
@@ -143,7 +143,6 @@ Same data grouped for scripted follow-up:
         "parsed_title": "...",
         "flags": ["lowercase-code"],
         "archived": false,
-        "status": "active",
         "created_at": "2024-08-12T..."
       }
     ]
