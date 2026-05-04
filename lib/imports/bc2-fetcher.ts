@@ -11,7 +11,7 @@ export interface Bc2Person {
   time_zone: string | null;
 }
 
-interface Bc2Project {
+export interface Bc2Project {
   id: number;
   name: string;
   description: string | null;
