@@ -7,7 +7,10 @@ interface ParsedProjectTitle {
   title: string;
 }
 
-const PRIMARY_PATTERN = /^([A-Za-z]+)-(\d{3,4}):\s*(.+)$/;
+// Extended pattern: code-num separator title.
+// num: 1–5 digits with optional letter suffix (variants like 0042b, 049A).
+// separator: ":" OR whitespace (handles missing-colon titles).
+const PRIMARY_PATTERN = /^([A-Za-z]+)-(\d{1,5}[A-Za-z]*)\s*[:\s]\s*(.+)$/;
 const FALLBACK_PATTERN = /^([A-Za-z]+)\s*[-\u2013]\s*(.+)$/;
 
 export function parseProjectTitle(raw: string): ParsedProjectTitle {
