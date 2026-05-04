@@ -11,6 +11,7 @@ import {
   Bc2Fetcher,
   parseBc2IsoTimestamptz,
   type Bc2Attachment,
+  type Bc2Project,
   type Bc2ProjectSource
 } from "../lib/imports/bc2-fetcher";
 import type { Bc2DownloadEnv } from "../lib/imports/bc2-attachment-download";
@@ -20,7 +21,6 @@ import {
 } from "../lib/imports/bc2-attachment-linkage";
 import { importBc2FileFromAttachment } from "../lib/imports/bc2-migrate-single-file";
 import {
-  parseProjectTitle,
   resolveClientId,
   resolvePerson
 } from "../lib/imports/bc2-transformer";
@@ -54,6 +54,8 @@ interface CliFlags {
   fromProject: string | null;
   /** BC2 list: active (default), archived-only, or all */
   projectSource: Bc2ProjectSource;
+  /** Insert orphan projects (matchedBy="none") with NULL identity instead of skipping. */
+  allowOrphans: boolean;
 }
 
 function parseFlags(): CliFlags {
@@ -82,7 +84,8 @@ function parseFlags(): CliFlags {
     files: has("files"),
     onlyFiles: has("only-files"),
     fromProject: get("from-project"),
-    projectSource: rawProjects as Bc2ProjectSource
+    projectSource: rawProjects as Bc2ProjectSource,
+    allowOrphans: has("allow-orphans")
   };
 }
 
@@ -188,6 +191,45 @@ async function fetchKnownClients(): Promise<KnownClient[]> {
   return r.rows.map((row) => ({ id: row.id, code: row.code, name: row.name }));
 }
 
+function slugify(s: string): string {
+  return s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "project";
+}
+
+interface PrePassEntry {
+  bc2Id: string;
+  createdAt: string;
+  baseKey: string;
+}
+
+function planDupSuffixes(entries: PrePassEntry[]): Map<string, string> {
+  const groups = new Map<string, PrePassEntry[]>();
+  for (const e of entries) {
+    if (!e.baseKey) continue;
+    const list = groups.get(e.baseKey) ?? [];
+    list.push(e);
+    groups.set(e.baseKey, list);
+  }
+
+  const suffixMap = new Map<string, string>();
+  for (const [, list] of groups) {
+    if (list.length < 2) continue;
+    const sorted = [...list].sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+    // sorted[0] keeps bare (no entry written)
+    for (let i = 1; i < sorted.length; i++) {
+      const suffix = i <= 26 ? String.fromCharCode("a".charCodeAt(0) + i - 1) : `a${i - 1}`;
+      suffixMap.set(sorted[i].bc2Id, suffix);
+    }
+  }
+  return suffixMap;
+}
+
+interface OrphanRow {
+  bc2Id: number;
+  name: string;
+  archived: boolean;
+  createdAt: string;
+}
+
 interface MigratedProject {
   bc2Id: number;
   localId: string;
@@ -206,8 +248,33 @@ async function migrateProjects(
   const knownClients = await fetchKnownClients();
   process.stdout.write(`Pre-fetched ${knownClients.length} known clients for resolver\n`);
 
+  // ── Pre-pass: collect projects + plan dup-suffix map ──
+  process.stdout.write("Pre-pass: collecting projects for dup disambiguation...\n");
+  const allBc2Projects: Bc2Project[] = [];
+  const prePassEntries: PrePassEntry[] = [];
+  for await (const p of fetcher.fetchProjects({ source: flags.projectSource })) {
+    allBc2Projects.push(p);
+    const r = resolveTitle(p.name, knownClients);
+    if ((r.matchedBy === "code" || r.matchedBy === "name") && r.code && r.num) {
+      prePassEntries.push({
+        bc2Id: String(p.id),
+        createdAt: p.created_at,
+        baseKey: `${r.code}|${r.num}`
+      });
+    }
+  }
+  const dupSuffixMap = planDupSuffixes(prePassEntries);
+  process.stdout.write(`Pre-pass: fetched ${allBc2Projects.length} projects, ${dupSuffixMap.size} duplicates assigned suffixes\n`);
+
+  const orphans: OrphanRow[] = [];
+  const summary = {
+    matchedBy: { code: 0, name: 0, "auto-create-pending": 0, none: 0 } as Record<string, number>,
+    autoCreatedClients: [] as Array<{ code: string; name: string; bc2Id: number }>,
+    dupSuffixesAssigned: dupSuffixMap.size
+  };
+
   let count = 0;
-  for await (const bc2Project of fetcher.fetchProjects({ source: flags.projectSource })) {
+  for (const bc2Project of allBc2Projects) {
     if (flags.projectSource === "active" && bc2Project.archived) {
       continue;
     }
@@ -242,48 +309,86 @@ async function migrateProjects(
       }
 
       const resolved = resolveTitle(bc2Project.name, knownClients);
-      const { code, num, title } = resolved;
-      const clientId = code ? await resolveClientId(code) : null;
+      const { num, title } = resolved;
+      summary.matchedBy[resolved.matchedBy] = (summary.matchedBy[resolved.matchedBy] ?? 0) + 1;
 
-      // Compute all NOT NULL derived fields required by the schema
-      const slugify = (s: string) =>
-        s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "project";
-
-      // Resolve client code + name for slug/project_code generation
+      // ── Branch on matchedBy ──
+      let clientId: string | null = null;
       let clientCode = "GEN";
       let clientSlug = "unassigned";
-      if (clientId) {
-        const clientRow = await query<{ code: string; name: string }>(
-          "select code, name from clients where id = $1",
+
+      if (resolved.matchedBy === "code" || resolved.matchedBy === "name") {
+        clientId = resolved.clientId;
+        clientCode = (resolved.code ?? "GEN").toUpperCase();
+        const clientRow = await query<{ name: string }>(
+          "select name from clients where id = $1",
           [clientId]
         );
         if (clientRow.rows[0]) {
-          clientCode = clientRow.rows[0].code.toUpperCase();
           clientSlug = slugify(clientRow.rows[0].name);
         }
+      } else if (resolved.matchedBy === "auto-create-pending") {
+        const newCode = (resolved.autoCreatePrefix ?? resolved.code ?? "UNKNOWN").replace(/[\s\-_.]/g, "");
+        const newName = (resolved.autoCreatePrefix ?? resolved.code ?? "Unknown").trim();
+        clientId = await resolveClientId(newCode);
+        // resolveClientId uses code as name on insert; rename to the original prefix.
+        await query(
+          "update clients set name = $1 where id = $2 and name = $3",
+          [newName, clientId, newCode]
+        );
+        clientCode = newCode.toUpperCase();
+        clientSlug = slugify(newName);
+        process.stdout.write(`  auto-created client: ${newCode} (${newName}) for bc2 ${bc2Project.id}\n`);
+        summary.autoCreatedClients.push({ code: newCode, name: newName, bc2Id: bc2Project.id });
+      } else {
+        // matchedBy === "none". Orphan path.
+        if (!flags.allowOrphans) {
+          orphans.push({
+            bc2Id: bc2Project.id,
+            name: bc2Project.name,
+            archived: bc2Project.archived === true,
+            createdAt: bc2Project.created_at
+          });
+          process.stderr.write(`  skipped orphan: bc2 ${bc2Project.id} "${bc2Project.name}"\n`);
+          continue;
+        }
+        clientId = null;
+        clientCode = "";
+        clientSlug = "unassigned";
       }
 
-      // project_seq: use parsed num if available, else next seq for this client
-      let projectSeq: number;
+      // project_seq: integer prefix of num. Variants share seq.
+      let projectSeq: number | null = null;
       if (num) {
-        projectSeq = parseInt(num, 10);
-      } else {
+        const numPrefixMatch = num.match(/^(\d+)/);
+        projectSeq = numPrefixMatch ? parseInt(numPrefixMatch[1], 10) : null;
+      } else if (clientId !== null) {
         const seqRow = await query<{ next_seq: number }>(
           "select coalesce(max(project_seq), 0) + 1 as next_seq from projects where client_id is not distinct from $1",
           [clientId]
         );
-        projectSeq = seqRow.rows[0].next_seq;
+        projectSeq = seqRow.rows[0]?.next_seq ?? null;
       }
 
-      const projectCode = `${clientCode}-${String(projectSeq).padStart(4, "0")}`;
-      const projectSlug = slugify(title);
-      const folderName = `${projectCode}-${sanitizeDropboxFolderTitle(title)}`;
+      // project_code: only when we have a client + num. Variants get a/b/c suffix.
+      const baseProjectCode = clientId !== null && num
+        ? `${clientCode}-${num}`
+        : null;
+      const dupSuffix = baseProjectCode ? (dupSuffixMap.get(String(bc2Project.id)) ?? "") : "";
+      const projectCode = baseProjectCode ? `${baseProjectCode}${dupSuffix}` : null;
+
+      const projectSlug = title ? slugify(title) : null;
+      const folderName = projectCode
+        ? `${projectCode}-${sanitizeDropboxFolderTitle(title)}`
+        : `_NoCode_${bc2Project.id}-${sanitizeDropboxFolderTitle(title)}`;
       const projectsRoot = dropboxProjectsRootFromEnv();
+      const clientFolder = clientCode || "_NoClient";
       const storageDir = bc2Project.archived
-        ? `${projectsRoot}/${clientCode}/_Archive/${folderName}`
-        : `${projectsRoot}/${clientCode}/${folderName}`;
-      // slug is the unique URL identifier; use project_code in lowercase
-      const urlSlug = projectCode.toLowerCase();
+        ? `${projectsRoot}/${clientFolder}/_Archive/${folderName}`
+        : `${projectsRoot}/${clientFolder}/${folderName}`;
+      const urlSlug = projectCode
+        ? projectCode.toLowerCase()
+        : `${slugify(title || `bc2-${bc2Project.id}`)}-bc2-${bc2Project.id}`;
 
       const projectCreatedAt =
         parseBc2IsoTimestamptz(bc2Project.created_at) ?? new Date();
@@ -332,6 +437,36 @@ async function migrateProjects(
   }
 
   process.stdout.write(`  ${projects.length} projects resolved\n`);
+
+  // ── Write orphan CSV + summary JSON ──
+  const fs = await import("fs/promises");
+  const path = await import("path");
+  const tmpDir = path.resolve(process.cwd(), "tmp");
+  await fs.mkdir(tmpDir, { recursive: true });
+
+  const csvEsc = (v: string) => /[",\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v;
+  const orphanLines = ["bc2_id,raw_title,archived,created_at"];
+  for (const o of orphans) {
+    orphanLines.push([String(o.bc2Id), csvEsc(o.name), String(o.archived), o.createdAt].join(","));
+  }
+  const orphanPath = path.join(tmpDir, "bc2-import-orphans.csv");
+  await fs.writeFile(orphanPath, orphanLines.join("\n") + "\n", "utf-8");
+
+  const summaryOut = {
+    generated_at: new Date().toISOString(),
+    total_bc2_projects: allBc2Projects.length,
+    matched_by: summary.matchedBy,
+    auto_created_clients: summary.autoCreatedClients,
+    dup_suffixes_assigned: summary.dupSuffixesAssigned,
+    orphans_count: orphans.length,
+    orphan_csv: orphanPath
+  };
+  const summaryPath = path.join(tmpDir, "bc2-import-summary.json");
+  await fs.writeFile(summaryPath, JSON.stringify(summaryOut, null, 2), "utf-8");
+
+  process.stdout.write(`\nWrote orphans CSV (${orphans.length} rows): ${orphanPath}\n`);
+  process.stdout.write(`Wrote import summary: ${summaryPath}\n`);
+
   return projects;
 }
 
