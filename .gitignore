@@ -32,3 +32,7 @@ package-lock.json
 
 # Local DB backups taken before migrations
 backups/
+
+tmp/bc2-titles.json
+tmp/bc2-title-audit.csv
+tmp/bc2-title-audit.json
