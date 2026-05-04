@@ -40,6 +40,36 @@ describe("parseProjectTitle", () => {
     const r = parseProjectTitle("ALG-100:  Spaced Title  ");
     expect(r).toEqual({ code: "ALG", num: "100", title: "Spaced Title" });
   });
+
+  it("parses missing-colon (whitespace separator)", () => {
+    const r = parseProjectTitle("POMS-1511 Scissor Lift Certificates");
+    expect(r).toEqual({ code: "POMS", num: "1511", title: "Scissor Lift Certificates" });
+  });
+
+  it("parses short-num (1 or 2 digits)", () => {
+    const r = parseProjectTitle("Union-13: KubeCon Video Re-edit");
+    expect(r).toEqual({ code: "Union", num: "13", title: "KubeCon Video Re-edit" });
+  });
+
+  it("parses long-num (5 digits)", () => {
+    const r = parseProjectTitle("GX-12345: Foo");
+    expect(r).toEqual({ code: "GX", num: "12345", title: "Foo" });
+  });
+
+  it("parses suffixed-num uppercase variant", () => {
+    const r = parseProjectTitle("MMR-049A: Images 1804 2002 2204 2402");
+    expect(r).toEqual({ code: "MMR", num: "049A", title: "Images 1804 2002 2204 2402" });
+  });
+
+  it("parses suffixed-num lowercase variant", () => {
+    const r = parseProjectTitle("JFLA-188a: Changes to JFLA App");
+    expect(r).toEqual({ code: "JFLA", num: "188a", title: "Changes to JFLA App" });
+  });
+
+  it("parses missing-colon with short num", () => {
+    const r = parseProjectTitle("Union-68 SciPy Webinar Title Card");
+    expect(r).toEqual({ code: "Union", num: "68", title: "SciPy Webinar Title Card" });
+  });
 });
 
 describe("resolvePerson", () => {
