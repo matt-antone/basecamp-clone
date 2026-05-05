@@ -169,6 +169,46 @@ describe("migrateProjects", () => {
     expect(logs.every((l) => l.values[3] === "success")).toBe(true);
   });
 
+  it("logs failed for orphan projects (matchedBy=none)", async () => {
+    const { resolveTitle } = await import("@/lib/imports/bc2-client-resolver");
+    // override mock for this test only — pre-pass + main loop both call resolveTitle
+    const orphanResult = {
+      matchedBy: "none" as const,
+      code: null,
+      num: null,
+      title: "Untitled",
+      clientId: null,
+      confidence: "low" as const,
+    };
+    (resolveTitle as ReturnType<typeof vi.fn>)
+      .mockImplementationOnce(() => orphanResult)
+      .mockImplementationOnce(() => orphanResult);
+    const { calls, q } = fakeQuery();
+    const reader = stubReader(
+      [{ id: 9, name: "??? Random Title", archived: false } as Bc2Project],
+      [],
+    );
+    const out = await migrateProjects({
+      reader,
+      q,
+      jobId: "job-9",
+      filter: "all",
+      limit: null,
+      onlyProjectId: null,
+      knownClients: [],
+    });
+    expect(out.migrated).toHaveLength(0);
+    const failedLogs = calls.filter(
+      (c) => c.sql.startsWith("insert into import_logs") && c.values[3] === "failed",
+    );
+    expect(failedLogs.length).toBeGreaterThanOrEqual(1);
+    // confirm projects insert never ran for this orphan
+    const projectInserts = calls.filter((c) =>
+      c.sql.trim().startsWith("insert into projects"),
+    );
+    expect(projectInserts).toHaveLength(0);
+  });
+
   it("returns existing mapping without re-inserting when basecamp_project_id already mapped", async () => {
     const handlers: QueryHandler[] = [
       {

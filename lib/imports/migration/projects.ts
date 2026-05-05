@@ -60,7 +60,9 @@ async function resolveClientIdViaQ(q: Query, code: string): Promise<string> {
     "insert into clients (name, code) values ($1, $2) returning id",
     [code, code],
   );
-  return created.rows[0].id;
+  const cid = created.rows[0]?.id;
+  if (!cid) throw new Error(`clients insert returned no id`);
+  return cid;
 }
 
 async function loadProjects(
@@ -255,7 +257,8 @@ export async function migrateProjects(args: {
           projectUpdatedAt,
         ],
       );
-      const localId = created.rows[0].id;
+      const localId = created.rows[0]?.id;
+      if (!localId) throw new Error(`projects insert returned no id for bc2 ${bc2Project.id}`);
 
       await q(
         "insert into import_map_projects (basecamp_project_id, local_project_id) values ($1,$2)",
