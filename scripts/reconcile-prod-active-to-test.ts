@@ -51,10 +51,11 @@ async function main() {
   if (!process.env.DATABASE_URL) throw new Error("DATABASE_URL is required");
 
   const prodPool = new Pool({ connectionString: process.env.PROD_DATABASE_URL });
+  prodPool.on("connect", (client) => {
+    client.query("SET default_transaction_read_only = on");
+  });
   const testPool = new Pool({ connectionString: process.env.DATABASE_URL });
   await ensureBackupGate(testPool, flags.dryRun);
-
-  await prodPool.query("SET default_transaction_read_only = on");
 
   const prodReader = createProdReader(prodPool);
   const testWriter = createTestWriter(testPool);

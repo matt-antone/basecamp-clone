@@ -114,6 +114,11 @@ if (!URL) {
     const tComments = await pool.query(`SELECT body FROM ${TEST_SCHEMA}.comments`);
     expect(tComments.rows.map((r) => r.body)).toEqual(["cmt"]);
 
+    const beforeLogs = await pool.query(
+      `SELECT count(*)::int AS n FROM ${TEST_SCHEMA}.reconcile_logs WHERE action = 'inserted'`,
+    );
+    const before_logs_inserted = beforeLogs.rows[0].n;
+
     const before = await pool.query(`SELECT (SELECT count(*) FROM ${TEST_SCHEMA}.project_files) AS f,
                                             (SELECT count(*) FROM ${TEST_SCHEMA}.threads) AS t,
                                             (SELECT count(*) FROM ${TEST_SCHEMA}.comments) AS c`);
@@ -122,6 +127,12 @@ if (!URL) {
                                            (SELECT count(*) FROM ${TEST_SCHEMA}.threads) AS t,
                                            (SELECT count(*) FROM ${TEST_SCHEMA}.comments) AS c`);
     expect(after.rows[0]).toEqual(before.rows[0]);
+
+    // Re-run inserted zero new rows, including in reconcile_logs.
+    const logs = await pool.query(
+      `SELECT count(*)::int AS n FROM ${TEST_SCHEMA}.reconcile_logs WHERE action = 'inserted'`,
+    );
+    expect(logs.rows[0].n).toBe(before_logs_inserted);
 
     rmSync(out, { recursive: true, force: true });
   }, 120000);

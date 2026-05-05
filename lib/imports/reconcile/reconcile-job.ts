@@ -22,6 +22,13 @@ export async function startJob(
   pool: Pool,
   opts: { dryRun: boolean },
 ): Promise<JobLogger> {
+  if (opts.dryRun) {
+    return {
+      jobId: "dry-run",
+      async log() { /* no-op */ },
+      async finish() { /* no-op */ },
+    };
+  }
   const r = await pool.query(
     `INSERT INTO reconcile_jobs (status, dry_run) VALUES ('running', $1) RETURNING id`,
     [opts.dryRun],
