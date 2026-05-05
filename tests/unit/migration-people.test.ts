@@ -9,7 +9,6 @@ vi.mock("@/lib/imports/bc2-transformer", () => ({
     localProfileId: `profile-${p.id}`,
     isLegacy: false,
   })),
-  reconcileLegacyProfile: vi.fn(async () => false),
 }));
 
 function stubReader(people: unknown[]): DumpReader {
@@ -45,5 +44,21 @@ describe("migratePeople", () => {
     expect(inserts).toHaveLength(2);
     const logs = calls.filter((c) => c.sql.startsWith("insert into import_logs"));
     expect(logs.every((l) => l.values[5] === "dump")).toBe(true);
+  });
+
+  it("logs failure path with dataSource when resolvePerson throws", async () => {
+    const { resolvePerson } = await import("@/lib/imports/bc2-transformer");
+    (resolvePerson as ReturnType<typeof vi.fn>).mockImplementationOnce(async () => {
+      throw new Error("boom");
+    });
+    const { calls, q } = fakeQuery();
+    const reader = stubReader([{ id: 7, email_address: "x@y.com", name: "X" }]);
+    const summary = await migratePeople({ reader, q, jobId: "job-2" });
+    expect(summary).toEqual({ success: 0, failed: 1 });
+    const logs = calls.filter(c => c.sql.startsWith("insert into import_logs"));
+    expect(logs).toHaveLength(1);
+    expect(logs[0].values[3]).toBe("failed");
+    expect(logs[0].values[4]).toBe("boom");
+    expect(logs[0].values[5]).toBe("dump");
   });
 });

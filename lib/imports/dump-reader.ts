@@ -1,6 +1,7 @@
 import { promises as fs } from "fs";
 import * as path from "path";
 import { Bc2Client } from "./bc2-client";
+import type { Bc2Person } from "./bc2-fetcher";
 
 export interface DumpSource<T = unknown> {
   source: "dump" | "api";
@@ -17,7 +18,7 @@ export const TOPICABLE_TO_SEGMENT: Record<string, string> = {
 };
 
 export interface DumpReader {
-  people(): Promise<DumpSource>;
+  people(): Promise<DumpSource<Bc2Person[]>>;
   activeProjects(): Promise<DumpSource>;
   archivedProjects(): Promise<DumpSource>;
   topics(projectId: number): Promise<DumpSource>;
@@ -42,11 +43,11 @@ async function readIfExists(absPath: string): Promise<unknown | null> {
   }
 }
 
-async function fetchPaginated(client: Bc2Client, firstPath: string): Promise<unknown[]> {
-  const out: unknown[] = [];
+async function fetchPaginated<T>(client: Bc2Client, firstPath: string): Promise<T[]> {
+  const out: T[] = [];
   let next: string | null = firstPath;
   while (next) {
-    const res = await client.get<unknown[]>(next);
+    const res: { body: T[]; nextUrl: string | null } = await client.get<T[]>(next);
     if (Array.isArray(res.body)) out.push(...res.body);
     next = res.nextUrl;
   }
@@ -67,7 +68,7 @@ export function createDumpReader(opts: DumpReaderOptions): DumpReader {
 
   return {
     people() {
-      return tryDump("people.json", () => fetchPaginated(client, "/people.json"));
+      return tryDump("people.json", () => fetchPaginated<Bc2Person>(client, "/people.json")) as Promise<DumpSource<Bc2Person[]>>;
     },
     activeProjects() {
       return tryDump("projects/active.json", () =>

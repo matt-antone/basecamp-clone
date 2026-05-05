@@ -1,6 +1,5 @@
 // lib/imports/migration/people.ts
 import { resolvePerson } from "../bc2-transformer";
-import type { Bc2Person } from "../bc2-fetcher";
 import { logRecord, type Query, type DataSource } from "./jobs";
 import type { DumpReader } from "../dump-reader";
 
@@ -15,7 +14,7 @@ export async function migratePeople(args: {
 
   const peopleResult = await reader.people();
   const dataSource: DataSource = peopleResult.source;
-  const people = (peopleResult.body ?? []) as Bc2Person[];
+  const people = peopleResult.body ?? [];
 
   for (const person of people) {
     try {
