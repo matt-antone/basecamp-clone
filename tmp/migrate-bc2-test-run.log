@@ -1,0 +1,1655 @@
+[BC2 Migration] mode=full projects=all
+Resolving people...
+  8 people resolved
+Fetching projects...
+Pre-fetched 125 known clients for resolver
+Pre-pass: collecting projects for dup disambiguation...
+Pre-pass: fetched 3691 projects, 61 duplicates assigned suffixes
+  ...50 fetched
+  ...100 fetched
+  skipped orphan: bc2 12449980 "24 Hr HomeCare: 001-Book Jacket/Bookmark"
+  skipped orphan: bc2 17490625 "Alliance Business Solutions"
+  skipped orphan: bc2 14107635 "Avivo Domain Names"
+  ...150 fetched
+  ...200 fetched
+  ...250 fetched
+  ...300 fetched
+  ...350 fetched
+  skipped orphan: bc2 15081406 "Cynthia Cohn (Realtor) Information"
+  skipped orphan: bc2 18186485 "Dr. Richard Onofrio Foundation Letterhead"
+  skipped orphan: bc2 12450066 "EcoTech: 001-Energy Int'l Logo"
+  ...400 fetched
+  skipped orphan: bc2 13663293 "Falconvision.com updates"
+  skipped orphan: bc2 14312106 "Freeborn Proposal"
+  ...450 fetched
+  ...500 fetched
+  ...550 fetched
+  ...600 fetched
+  skipped orphan: bc2 12450413 "Huntsman: Email Change"
+  ...650 fetched
+  ...700 fetched
+  ...750 fetched
+  ...800 fetched
+  ...850 fetched
+  ...900 fetched
+  ...950 fetched
+  ...1000 fetched
+  ...1050 fetched
+  ...1100 fetched
+  ...1150 fetched
+  skipped orphan: bc2 18681846 "Legacy Notes"
+  skipped orphan: bc2 12859408 "Levato (Summit LA) Logo & Stationery Package"
+  skipped orphan: bc2 12836341 "Levato (SummitLA) Website"
+  ...1200 fetched
+  skipped orphan: bc2 19770284 "Match My Sound Info"
+  skipped orphan: bc2 14113918 "MediaTemple Server Upgrade"
+  auto-created client: Merrill (Merrill) for bc2 13659547
+  auto-created client: Merrill (Merrill) for bc2 13794401
+  auto-created client: Merrill (Merrill) for bc2 13794403
+  ...1250 fetched
+  ...1300 fetched
+  ...1350 fetched
+  ...1400 fetched
+  ...1450 fetched
+  ...1500 fetched
+  skipped orphan: bc2 18049673 "New Nemecek Logo On Site"
+  ...1550 fetched
+  ...1600 fetched
+  ...1650 fetched
+  ...1700 fetched
+  ...1750 fetched
+  ...1800 fetched
+  ...1850 fetched
+  ...1900 fetched
+  ...1950 fetched
+  ...2000 fetched
+  ...2050 fetched
+  ...2100 fetched
+  ...2150 fetched
+  ...2200 fetched
+  ...2250 fetched
+  ...2300 fetched
+  ...2350 fetched
+  ...2400 fetched
+  ...2450 fetched
+  ...2500 fetched
+  ...2550 fetched
+  ...2600 fetched
+  ...2650 fetched
+  ...2700 fetched
+  ...2750 fetched
+  ...2800 fetched
+  ...2850 fetched
+  ...2900 fetched
+  ...2950 fetched
+  ...3000 fetched
+  ...3050 fetched
+  ...3100 fetched
+  skipped orphan: bc2 19336775 "R2LG-003: Training w/Matt"
+  auto-created client: Rainbow (Rainbow) for bc2 12890647
+  auto-created client: Rainbow (Rainbow) for bc2 12890659
+  auto-created client: Rainbow (Rainbow) for bc2 12890664
+  auto-created client: S (S) for bc2 14579143
+  auto-created client: S (S) for bc2 17327695
+  auto-created client: S (S) for bc2 17328176
+  skipped orphan: bc2 14938996 "S&S: ToDo"
+  ...3150 fetched
+  auto-created client: Senior (Senior) for bc2 14302578
+  skipped orphan: bc2 15321425 "SeniorSupporters: ToDo"
+  skipped orphan: bc2 14772399 "Serra Meadows Information"
+  skipped orphan: bc2 16467186 "Shalom Institute: Infographic"
+  skipped orphan: bc2 12804403 "Sheila Ardalan PowerPoint Presentation"
+  ...3200 fetched
+  ...3250 fetched
+  ...3300 fetched
+  ...3350 fetched
+  ...3400 fetched
+  ...3450 fetched
+  skipped orphan: bc2 17004712 "Theater D"
+  ...3500 fetched
+  ...3550 fetched
+  ...3600 fetched
+  ...3650 fetched
+  skipped orphan: bc2 14049017 "Website Template"
+  3668 projects resolved
+
+Wrote orphans CSV (23 rows): /Volumes/External/Glyphix Dropbox/Development Files/Under Development/Project Manager/basecamp-clone/tmp/bc2-import-orphans.csv
+Wrote import summary: /Volumes/External/Glyphix Dropbox/Development Files/Under Development/Project Manager/basecamp-clone/tmp/bc2-import-summary.json
+Migrating threads and comments...
+  [   1/3668] ALG-005: Website Updates  4 threads  2 comments
+  [   2/3668] BRGS-075: ITV Full Page Ad for Valley's Top Law Firms  4 threads  0 comments
+  [   3/3668] BRGS-076: Remove Attorney Danny Ivanov  2 threads  0 comments
+  [   4/3668] EPGGB-007: Newsletter II  15 threads  6 comments
+  [   5/3668] EPGGB-011: Add New Attorney (Amtoj Randhawa) To Site  4 threads  0 comments
+  [   6/3668] EPGGB-012: Update Ad for David Glass  8 threads  8 comments
+  [   7/3668] EPGGB-013: Add Attorney Josh Morrison to Site  3 threads  0 comments
+  [   8/3668] EPGGB-014: Remove Attorney Rich Schaefer from Site  1 threads  0 comments
+  [   9/3668] EPGGB-015: Enenstein LinkedIn Project  4 threads  6 comments
+  [  10/3668] EPGGB-016: Add New Attorney, R. McKibbin, to Site  2 threads  0 comments
+  [  11/3668] EPGGB-017: Add New Attorney Elena K. to Site  4 threads  0 comments
+  [  12/3668] GX-Project Manager Project  7 threads  0 comments
+  [  13/3668] JFLA-444: Invitation Graphic & Save the Date  13 threads  2 comments
+  [  14/3668] JFLA-449: Pico Blvd. Billboard Update  3 threads  3 comments
+  [  15/3668] JFLA-450: Website Changes  5 threads  2 comments
+  [  16/3668] JFLA-451: Westside Billboards - IVF  2 threads  0 comments
+  [  17/3668] JFLA-452: Promissory Note Update  2 threads  2 comments
+  [  18/3668] JFLA-453: Student Loan Mailer to Donors  2 threads  0 comments
+  [  19/3668] JFLA-454: Summer Mailing  0 threads  0 comments
+  [  20/3668] JFLA-455: Rosh Hashanah Card  1 threads  0 comments
+  [  21/3668] MON-502: Add Media Page to Site  5 threads  9 comments
+  [  22/3668] NEM-055: SFVBA Half-Page Ad  1 threads  1 comments
+  [  23/3668] POMS - Website Software Update  1 threads  0 comments
+  [  24/3668] Poms-1414: Purple Mushroom Package (Vikki Stone)  39 threads  15 comments
+  [  25/3668] Poms-1423: CVUSD Employee Benefits Booklet Update  5 threads  1 comments
+  [  26/3668] Poms-1439: Industry Specific Landing Pages (Jessica Bonilla)  5 threads  7 comments
+  [  27/3668] Poms-1441: Corporate Brochure (Jessica Bonilla)  5 threads  5 comments
+  [  28/3668] Poms-1443: Risk Control PPT Template (Maria Brunel)  3 threads  0 comments
+  [  29/3668] Poms-1454: President's Club Invitation '26 (Jessica Bonilla)  5 threads  0 comments
+  [  30/3668] Poms-1463: To Your Health NL for March ’26 (Cara Rhyner)  7 threads  1 comments
+  [  31/3668] Poms-1464: Bio Formatting for Torrez, Gilman, & Foley  4 threads  0 comments
+  [  32/3668] Poms-1465: Ampla Health Case Study  4 threads  0 comments
+  [  33/3668] Poms-1466: Sexual Harassment Avoidance Webinars '26  3 threads  2 comments
+  [  34/3668] Poms-1468: Heritage Land OE Posters  1 threads  0 comments
+  [  35/3668] Poms-1469: AMPLA Health OE Benefit Book Covers  4 threads  2 comments
+  [  36/3668] Poms-1471: NMPSIA Daylight Savings Time E-blast  4 threads  0 comments
+  [  37/3668] Poms-1472: Goodwill Video (Jessica Bonilla)  12 threads  8 comments
+  [  38/3668] Poms-1473: BJ Leaders of Influence Tribute Full Page Ad  5 threads  0 comments
+  [  39/3668] Poms-1474: IIPP/WPVP PPT Deck Branding (Virginia Pajarito)  5 threads  0 comments
+  [  40/3668] Poms-1475: Chris Orozco Bio Sheet (Chris Orozco)  2 threads  0 comments
+  [  41/3668] Poms-1476: Generic Stewardship Report Sample  3 threads  4 comments
+  [  42/3668] Poms-1477: Go Rentals Package (José Rojas)  20 threads  6 comments
+  [  43/3668] Poms-1478: Coverage Review Changes (Vikki Stone)  3 threads  0 comments
+  [  44/3668] Poms-1479: Insurance/Risk Graphic Clean Up & Pomsify  7 threads  5 comments
+  [  45/3668] Poms-1480: LinkedIn Banner for Vikki Stone  6 threads  2 comments
+  [  46/3668] Poms-1481: Employee Benefit Org Chart Update  3 threads  0 comments
+  [  47/3668] Poms-1482: New Client Pitch Word Conversion RUSH (Angie Richards)  3 threads  1 comments
+  [  48/3668] Poms-1483: Cal OSHA Reporting Forms RUSH (Maria Brunel)  10 threads  1 comments
+  [  49/3668] Poms-1484: Traffic Safety NL for April '26  4 threads  1 comments
+  [  50/3668] Poms-1485: POPS Brand Guide  8 threads  4 comments
+  [  51/3668] Poms-1486: Meat Industry Document Formatting x2  6 threads  2 comments
+  [  52/3668] Poms-1487: Employee Benefit Landscape Guide PPT Branding & Formatting  3 threads  0 comments
+  [  53/3668] Poms-1488: Phone Chargers (Jessica Bonilla)  3 threads  4 comments
+  [  54/3668] Poms-1489: Bios x11 (Virginia Pajarito)  11 threads  1 comments
+  [  55/3668] Poms-1490: LABJ/ITV Full-Page Ad for Insurance Brokerage Lists Edition  6 threads  0 comments
+  [  56/3668] Poms-1491: Aerial Lift Certificates & Cards for William S. Hart UHSD (Tessa Babcock)  4 threads  0 comments
+  [  57/3668] Poms-1492: Safety Spotlights on Office Safety, Preventing Overexertion, and Working in Noise  4 threads  0 comments
+  [  58/3668] Poms-1493: Safety Spotlights on Distracted Driving  3 threads  0 comments
+  [  59/3668] Poms-1494: LABJ Non-Profit Awards E-blast (URGENT)  11 threads  2 comments
+  [  60/3668] Poms-1495: Mid-Year Compliance E-blast  4 threads  1 comments
+  [  61/3668] Poms-1496: Serious Injuries/Cal OSHA Doc Rebrand to Poms  2 threads  0 comments
+  [  62/3668] Poms-1497: ItV Full Page Ad  3 threads  1 comments
+  [  63/3668] Poms-1498: PPT Deck Cover Only (Angie Richards)  3 threads  2 comments
+  [  64/3668] Poms-1499: Poms Emp. Handbook & 14 State Addenda Document Formatting  11 threads  6 comments
+  [  65/3668] Poms-1500: Poms Pulse Homepage Updates for April '26  6 threads  1 comments
+  [  66/3668] Poms-1501: Two Full-Page Ads for LABJ  3 threads  1 comments
+  [  67/3668] Poms-1502: Conejo Cares NL for Q2 '26  7 threads  1 comments
+  [  68/3668] Poms-1503: Pomsify Executive Session PPT Deck  5 threads  0 comments
+  [  69/3668] Poms-1504: Pomsify Benefits Team PPT Deck  6 threads  0 comments
+  [  70/3668] Poms-1505: LABJ Full-Page Ad for LA500 Issue  4 threads  1 comments
+  [  71/3668] Poms-1506: CVUSD RFP Response Formatting  12 threads  3 comments
+  [  72/3668] Poms-1507: Tonya Carrell Truck Insurance One Sheet  5 threads  0 comments
+  [  73/3668] Poms-1508: Poms PRO Video Feedback  2 threads  1 comments
+  [  74/3668] Poms-1509: NMPSIA Co-Branded PPT & NM LH Template  5 threads  3 comments
+  [  75/3668] Poms-1510: Add Chris Wilson to Teams Page  2 threads  0 comments
+  [  76/3668] POMS-1511 Scissor Lift Certificates and Cards for Wm. S. Hart Union HSD  4 threads  0 comments
+  [  77/3668] POMS-1512: TMS Updates 2026  5 threads  0 comments
+  [  78/3668] Poms-1513: NM HR NL for May '26  2 threads  1 comments
+  [  79/3668] Poms-1514: ???  1 threads  0 comments
+  [  80/3668] Poms-1515: Website Audit  1 threads  0 comments
+  [  81/3668] Poms-1516: Add Ben Maurer Article to Site  1 threads  0 comments
+  [  82/3668] Poms-1517: Ben Maurer LinkedIn Graphic  2 threads  1 comments
+  [  83/3668] Poms-1518: Traffic Safety NL for May '26  1 threads  0 comments
+  [  84/3668] Poms-1519: CVUSD OE Message  8 threads  1 comments
+  [  85/3668] Poms-1520: To Your Health NL for May '26  1 threads  0 comments
+  [  86/3668] Poms-1521: School Lunch Hero Appreciation Day E-blast  1 threads  0 comments
+  [  87/3668] Poms-1522: Tustin USD IIPP Doc Formatting  3 threads  0 comments
+  [  88/3668] Poms-1523: Goodwill So Cal Flyer Update  2 threads  0 comments
+  [  89/3668] Poms-1524: TMS Update on Poms Pulse  1 threads  0 comments
+  [  90/3668] Poms-1525: PPT Deck Redesigns  1 threads  0 comments
+  [  91/3668] Poms-1526: NM/El Niño Prop. Ins. Risk Doc Formatting  2 threads  0 comments
+  [  92/3668] Poms-1527: Villa Esparanza Booklet  3 threads  0 comments
+  [  93/3668] Poms-1528: Restoration Risk Services One Sheet  2 threads  0 comments
+  [  94/3668] Poms-1529: Employee Benefit Org Chart Update  1 threads  0 comments
+  [  95/3668] RCS-001: Direct Mail Postcard Campaign  33 threads  17 comments
+  [  96/3668] SKA-088: Add Two New Practice Area Pages on Site  9 threads  8 comments
+  [  97/3668] SKA-089: Podcast Name Change  2 threads  1 comments
+  [  98/3668] SKA-090: Website Updates  1 threads  1 comments
+  [  99/3668] SKA-091: Badge Replacement  1 threads  1 comments
+  [ 100/3668] Walk-008: Resort Signage  8 threads  0 comments
+  [ 101/3668] AATA-001: Half Page Ad  15 threads  8 comments
+  [ 102/3668] AATA-002: One Sheet  19 threads  5 comments
+  [ 103/3668] AATA-003: Tabletop Pull Up Banner  11 threads  3 comments
+  [ 104/3668] AATA-004: 1/2 Page Ad Without AXIS Info  5 threads  3 comments
+  [ 105/3668] ABI-001: Positioning Document  9 threads  2 comments
+  [ 106/3668] ABI-002: Logo  20 threads  13 comments
+  [ 107/3668] ABI-003: Brochure/Collateral  0 threads  0 comments
+  [ 108/3668] ABS-001: Positioning Document  3 threads  0 comments
+  [ 109/3668] ACK-002: Stationery  5 threads  5 comments
+  [ 110/3668] AHC-003: Business Card Reprint (Hillel)  2 threads  0 comments
+  [ 111/3668] AHC-004: New Business Cards (Schwartz & Kohan)  6 threads  0 comments
+  [ 112/3668] Alectio-002: Investor Teaser Website  2 threads  0 comments
+  [ 113/3668] Alectio-003: Extended Pitch Deck  1 threads  0 comments
+  [ 114/3668] ALG-001: Website Update  24 threads  19 comments
+  [ 115/3668] ALG-002: Simple Logo  12 threads  2 comments
+  [ 116/3668] ALG-003: Bio Page  2 threads  4 comments
+  [ 117/3668] ALG-004: Todd Allen SUPER LAWYER!  2 threads  2 comments
+  [ 118/3668] AMA-001: Holiday Card  13 threads  0 comments
+  [ 119/3668] AMEN-001: Website  20 threads  13 comments
+  [ 120/3668] AMEN-002: CGS Subsidiaries  4 threads  2 comments
+  [ 121/3668] AOM-002: Correspondence Production  6 threads  0 comments
+  [ 122/3668] AoM-003: Letterhead & Window Envelope & Digital Letterhead  2 threads  0 comments
+  [ 123/3668] BallDyn-001: Banner Art  4 threads  0 comments
+  [ 124/3668] BBAY-001: Logo  18 threads  12 comments
+  [ 125/3668] BEE-001: Temp Website  21 threads  22 comments
+  [ 126/3668] BEE-002: Micro Sites  7 threads  6 comments
+  [ 127/3668] BEE-003: Social Ads  7 threads  3 comments
+  [ 128/3668] BEE-004: Website Update  14 threads  13 comments
+  [ 129/3668] BEE-006: Text Changes on Site  3 threads  1 comments
+  [ 130/3668] BEE-007: Beecan University Logo & Website  36 threads  38 comments
+  [ 131/3668] BEE-010: URL Hosting & Redirect  4 threads  2 comments
+  [ 132/3668] BEE-011: Website PR Project  3 threads  3 comments
+  [ 133/3668] BEE-012: Text Changes on Site.  2 threads  1 comments
+  [ 134/3668] Beecan-008: Add BU Link on Beecan Health Site  6 threads  2 comments
+  [ 135/3668] Beecan-009 Add Application Page  18 threads  4 comments
+  [ 136/3668] Beecan-010: Site Changes & Updates  7 threads  14 comments
+  [ 137/3668] Beecan-011: FaceBook Ad Campaign  2 threads  0 comments
+  [ 138/3668] BER-017: Trade Show Booth  22 threads  13 comments
+  [ 139/3668] BER-018: Booth Table Graphic  2 threads  3 comments
+  [ 140/3668] BER-019: Berbay Holiday Card  30 threads  12 comments
+  [ 141/3668] BER-020 & 021: Sulmeyer Kupetz Postcard & Email File  11 threads  5 comments
+  [ 142/3668] BER-022: Holiday Card 2019  22 threads  8 comments
+  [ 143/3668] Bird Marella - Website Updates  5 threads  3 comments
+  [ 144/3668] Bird-ToDo: New Image for Ariel  1 threads  0 comments
+  [ 145/3668] Bird: Ariel Neuman Blog  1 threads  0 comments
+  [ 146/3668] BirdMarella-ToDo: Header Photo Fix  1 threads  2 comments
+  [ 147/3668] BladeGuard  1 threads  0 comments
+  [ 148/3668] BladeGuard site recovery  1 threads  0 comments
+  [ 149/3668] BladeGuard-001: Logo  7 threads  1 comments
+  [ 150/3668] BladeGuard-002: Website  38 threads  30 comments
+  [ 151/3668] BladeGuard-003: Packaging  11 threads  4 comments
+  [ 152/3668] BladeGuard-004: Trade Show Booth  11 threads  4 comments
+  [ 153/3668] BladeGuard-005: How-To Video  12 threads  10 comments
+  [ 154/3668] BladeGuard-006: Misc. TS Needs  9 threads  2 comments
+  [ 155/3668] BladeGuard-007: Sales Sheet (Print Collateral)  16 threads  8 comments
+  [ 156/3668] BladeGuard-008: Temp Packaging Header  5 threads  2 comments
+  [ 157/3668] BladeGuard-ToDo: Selector Choice Fix  2 threads  1 comments
+  [ 158/3668] Bloom-001: Svago Chair Ad (WSJ & NYT)  11 threads  5 comments
+  [ 159/3668] Bloom-002: Svago Chair Ad II  8 threads  6 comments
+  [ 160/3668] Bloom-003: Svago Ad III  9 threads  4 comments
+  [ 161/3668] Bloom-004: Cozzia Project  37 threads  85 comments
+  [ 162/3668] Bloom-005: Cozzia Contest Landing Page  23 threads  47 comments
+  [ 163/3668] BRD - Blog Updates  2 threads  2 comments
+  [ 164/3668] BRD - Mobile home page updates  3 threads  0 comments
+  [ 165/3668] BRD Website Performance Check  2 threads  3 comments
+  [ 166/3668] BRD-016: Ariel Neuman Blog  5 threads  0 comments
+  [ 167/3668] BRD-021: Photo Retouching  2 threads  0 comments
+  [ 168/3668] BRD-022: Photo Retouching (Drooks)  2 threads  0 comments
+  [ 169/3668] BRD-023: Photo Retouching (Neuman)  2 threads  0 comments
+  [ 170/3668] BRD-024: YiR 2016  27 threads  5 comments
+  [ 171/3668] BRD-025: New Partner Announcement (Van Dyk)  11 threads  3 comments
+  [ 172/3668] BRD-026: Year in Review 2017  32 threads  14 comments
+  [ 173/3668] BRD-027: Holiday Card  16 threads  14 comments
+  [ 174/3668] BRD-028: Wine Bags  7 threads  2 comments
+  [ 175/3668] BRD-029: Korean & Mandarin Pages  2 threads  0 comments
+  [ 176/3668] BRD-029: Pocket Folder Reorder  1 threads  2 comments
+  [ 177/3668] BRD-030: Server Issues  2 threads  3 comments
+  [ 178/3668] BRD-031: Server Errors  2 threads  1 comments
+  [ 179/3668] BRD-032: Website Reskin  2 threads  0 comments
+  [ 180/3668] BRD-033: Logo Redesign  10 threads  7 comments
+  [ 181/3668] BRD-034: Ad Template  3 threads  0 comments
+  [ 182/3668] BRD-035: KIWA Congratulations Ad  5 threads  5 comments
+  [ 183/3668] BRD-036: Inner City Law Tribute Book Ads  14 threads  13 comments
+  [ 184/3668] BRD-037: Ad for Ekwan & Gary  13 threads  5 comments
+  [ 185/3668] BRD-038: IAKL Ad  4 threads  10 comments
+  [ 186/3668] BRD-039: CPAF Gala Ad  5 threads  2 comments
+  [ 187/3668] BRD-039: Website Audit & Home Page GUI  10 threads  3 comments
+  [ 188/3668] BRD-040: YiR 2018  50 threads  12 comments
+  [ 189/3668] BRD-041: Stationery  21 threads  10 comments
+  [ 190/3668] BRD-042: Daily Journal Ad (Hernán Vera)  9 threads  1 comments
+  [ 191/3668] BRD-043: Douglas Award Dinner Ad  1 threads  1 comments
+  [ 192/3668] BRD-044: WJC Tribute Ad  5 threads  3 comments
+  [ 193/3668] BRD-045: Website Redesign  49 threads  54 comments
+  [ 194/3668] BRD-046: Holiday Card 2018  7 threads  5 comments
+  [ 195/3668] BRD-047: Partner Announcement  25 threads  17 comments
+  [ 196/3668] BRD-048: Bet Tzedek Tribute Ad 2019  5 threads  2 comments
+  [ 197/3668] BRD-049: Headshots x 8  4 threads  4 comments
+  [ 198/3668] BRD-050: Presentation Pocket Folders  6 threads  4 comments
+  [ 199/3668] BRD-051: Print CSS  13 threads  13 comments
+  [ 200/3668] BRD-052: Add Admission Dates  3 threads  1 comments
+  [ 201/3668] BRD-053: Cal-APABA Ad  5 threads  1 comments
+  [ 202/3668] BRD-054: SABA Ad  14 threads  3 comments
+  [ 203/3668] BRD-055: Ad Templates  12 threads  2 comments
+  [ 204/3668] BRD-056: KABA Ad  5 threads  2 comments
+  [ 205/3668] BRD-057: Photoshop Gopi  6 threads  1 comments
+  [ 206/3668] BRD-058: Paul S. Chan Tribute Ad  7 threads  1 comments
+  [ 207/3668] BRD-059: CCBA Tribute Ad  10 threads  0 comments
+  [ 208/3668] BRD-060: Trailblazers Healthcare Law Ad  7 threads  1 comments
+  [ 209/3668] BRD-061: ACC Tribute Ad  5 threads  0 comments
+  [ 210/3668] BRD-062: SCCLA Tribute Ad  4 threads  2 comments
+  [ 211/3668] BRD-063: ICLC Ads  7 threads  6 comments
+  [ 212/3668] BRD-064: Year in Review 2019  50 threads  20 comments
+  [ 213/3668] BRD-065: Principal Announcement  24 threads  5 comments
+  [ 214/3668] BRD-066: Privacy Policy Notification  3 threads  1 comments
+  [ 215/3668] BRD-067: YiR 2020  40 threads  4 comments
+  [ 216/3668] BRD-ToDo: Add Attorneys & Photos to Site  4 threads  2 comments
+  [ 217/3668] BRD-ToDo: Business Card Sample  1 threads  3 comments
+  [ 218/3668] BRD-ToDo: Favicon  2 threads  0 comments
+  [ 219/3668] BRD-ToDo: Image File Replacements  2 threads  1 comments
+  [ 220/3668] BRD-ToDo: Logo Files in Different Formats  3 threads  0 comments
+  [ 221/3668] BRD-ToDo: Photo Retouch (Lee & Solomon)  6 threads  1 comments
+  [ 222/3668] BRD-ToDo: Photoshop (Jen C. Won)  11 threads  8 comments
+  [ 223/3668] BRD-ToDo: Resize 12 Images  3 threads  0 comments
+  [ 224/3668] BRD-ToDo: Website Assist  3 threads  0 comments
+  [ 225/3668] BRD: 020-Tim Yoo Photo Retouching  2 threads  3 comments
+  [ 226/3668] BRGS-001: Print Ad  29 threads  10 comments
+  [ 227/3668] BRGS-002: Website  50 threads  46 comments
+  [ 228/3668] BRGS-003: Print Ads II  19 threads  23 comments
+  [ 229/3668] BRGS-004: Add New Attorney Page  4 threads  6 comments
+  [ 230/3668] BRGS-005: Site Changes  3 threads  1 comments
+  [ 231/3668] BRGS-006: Email Reply Text  3 threads  0 comments
+  [ 232/3668] BRGS-007: Add Attorney to Site  5 threads  3 comments
+  [ 233/3668] BRGS-008: Add Attorney to Site (Olga Peña)  3 threads  3 comments
+  [ 234/3668] BRGS-009: Add Attorney to Site  4 threads  1 comments
+  [ 235/3668] BRGS-010: Add Attorney to Site  4 threads  3 comments
+  [ 236/3668] BRGS-011: SFVBJ Ads for 2022  50 threads  35 comments
+  [ 237/3668] BRGS-012: Site Fix  3 threads  9 comments
+  [ 238/3668] BRGS-012: Website Updates  3 threads  2 comments
+  [ 239/3668] BRGS-013: Women of Influence Ad (Hren)  5 threads  1 comments
+  [ 240/3668] BRGS-014: Add New Attorney (S. Dawson) to Site  8 threads  14 comments
+  [ 241/3668] BRGS-015: SFVBJ Ads for 2023  25 threads  35 comments
+  [ 242/3668] BRGS-016: Add Compliance Matters to Website  4 threads  0 comments
+  [ 243/3668] BRGS-017: 2 New Compliance Matters  2 threads  0 comments
+  [ 244/3668] BRGS-018: VERY Minor Text Edits on Site  1 threads  4 comments
+  [ 245/3668] BRGS-019: Compliance Matter Posting  2 threads  2 comments
+  [ 246/3668] BRGS-020: Compliance Matters Post on AI Guidance  2 threads  1 comments
+  [ 247/3668] BRGS-021: Update Olga Peña Bio Copy  3 threads  1 comments
+  [ 248/3668] BRGS-022: CM Post (EEOC Covid-19 Updates)  2 threads  0 comments
+  [ 249/3668] BRGS-023: CM Post on "Freelance Worker Protections"  2 threads  1 comments
+  [ 250/3668] BRGS-024: SFVBJ 1/4 Page Ad for John Manier  5 threads  0 comments
+  [ 251/3668] BRGS-025: Add New Attorney (Kelley Fox) to Site  4 threads  2 comments
+  [ 252/3668] BRGS-026: CM Posting on New NLRB Decision (8.28.23)  2 threads  0 comments
+  [ 253/3668] BRGS-027: Add New Attorney (Amanda Koziol) to Site  4 threads  4 comments
+  [ 254/3668] BRGS-028: CM Post for NLRB Union Rep Process (9.06.23)  3 threads  1 comments
+  [ 255/3668] BRGS-029: CM Post on Criminal Record Changes  2 threads  1 comments
+  [ 256/3668] BRGS-030: Upgrade Site to Tina  2 threads  0 comments
+  [ 257/3668] BRGS-031: Replace Attorney Bio Photos (Eric & Keith)  4 threads  1 comments
+  [ 258/3668] BRGS-032: 1/4 Page Ad for SFVBJ w/Phil Reznik  2 threads  2 comments
+  [ 259/3668] BRGS-033: 1/4 Page ad w/Amanda Koziol for 10.23  2 threads  0 comments
+  [ 260/3668] BRGS-034: Add Updated Badge to Site  3 threads  1 comments
+  [ 261/3668] BRGS-035: New Attorney Image (Danny Ivanov)  3 threads  0 comments
+  [ 262/3668] BRGS-036: 1/4 Page Ad for Kelley Fox  3 threads  0 comments
+  [ 263/3668] BRGS-037: 1/4 Page Ad for Keith Rossman  3 threads  0 comments
+  [ 264/3668] BRGS-038: Full Page Book of Lists Ad  9 threads  7 comments
+  [ 265/3668] BRGS-039: SFVBJ Full Page Ad  4 threads  1 comments
+  [ 266/3668] BRGS-040: LABJ Tribute Ad for Trusted Advisors  6 threads  2 comments
+  [ 267/3668] BRGS-041: Yellow Man Ad  3 threads  0 comments
+  [ 268/3668] BRGS-042: LABJ Valley 200 - 2 Full Page Ads  7 threads  15 comments
+  [ 269/3668] BRGS-043: Add Attorney - David R. Comfort  5 threads  3 comments
+  [ 270/3668] BRGS-044: Add David Lyon to Site  2 threads  3 comments
+  [ 271/3668] BRGS-045: DLyon Photo  5 threads  5 comments
+  [ 272/3668] BRGS-046: Book of Lists Full Page Ad  10 threads  3 comments
+  [ 273/3668] BRGS-047: Add New Attorney to Site (Charron Varona)  4 threads  5 comments
+  [ 274/3668] BRGS-048: Add New Attorney to Site (Benjamin Russell)  5 threads  2 comments
+  [ 275/3668] BRGS-049: Photo Swap (Matt Golper)  4 threads  0 comments
+  [ 276/3668] BRGS-050: Valley Employment Roundtable Ad (Full Page)  4 threads  0 comments
+  [ 277/3668] BRGS-051: Website Changes  5 threads  2 comments
+  [ 278/3668] BRGS-052: LABJ Valley Economic Forum Full Page Ad  4 threads  1 comments
+  [ 279/3668] BRGS-053: Website Changes/Updates  7 threads  6 comments
+  [ 280/3668] BRGS-054: Add New Attorney to Site (Alec DiMario)  7 threads  3 comments
+  [ 281/3668] BRGS-055: Update Photo (D. Fishman)  4 threads  0 comments
+  [ 282/3668] BRGS-056: New Image for Stephanie Kantor  3 threads  0 comments
+  [ 283/3668] BRGS-057: Full Page Ad - Inside the Valley (Top Law Firm)  8 threads  1 comments
+  [ 284/3668] BRGS-058: Valley 200 Ads (2 Full-Page) and Logo Request  7 threads  5 comments
+  [ 285/3668] BRGS-059: MotherF******* Favicon  4 threads  2 comments
+  [ 286/3668] BRGS-060: New Attorney to Site (J. Lyons)  6 threads  7 comments
+  [ 287/3668] BRGS-061: Super Lawyer Badge Replacement  3 threads  5 comments
+  [ 288/3668] BRGS-062: Website Issue (Lose Atty, Update Atty Count)  4 threads  2 comments
+  [ 289/3668] BRGS-063: LABJ Full-Page Ad (Women's Symposium Issue)  9 threads  3 comments
+  [ 290/3668] BRGS-064: New Attorney to Site (Giron)  6 threads  3 comments
+  [ 291/3668] BRGS-065: ITV Full-Page Ad  4 threads  1 comments
+  [ 292/3668] BRGS-066: Add New Attorney to Site (Megan Sadler)  4 threads  3 comments
+  [ 293/3668] BRGS-067: New Attorney & Updated Photos  3 threads  1 comments
+  [ 294/3668] BRGS-068: Full page Ad Book of Lists  6 threads  0 comments
+  [ 295/3668] BRGS-070: Remove Attorney (D. Comfort)  3 threads  2 comments
+  [ 296/3668] BRGS-071: 3 Full Page Ads for Inside the Valley  11 threads  7 comments
+  [ 297/3668] BRGS-072: Add Best Law Firm Badge to Site  2 threads  1 comments
+  [ 298/3668] BRGS-073: Add "Best Lawyers" Badge to Amanda Koziol's Bio Page  3 threads  2 comments
+  [ 299/3668] BRGS-074: LA Magazine Top Attorney Award Ad  2 threads  1 comments
+  [ 300/3668] BRU-001: Product Label  10 threads  0 comments
+  [ 301/3668] BSI-001: Website  31 threads  16 comments
+  [ 302/3668] BSP-001: Add Page to Existing Site  10 threads  6 comments
+  [ 303/3668] BT-001: Logo & Business Cards & LH & Envelope  28 threads  24 comments
+  [ 304/3668] BT-002: Folder w/Inserts  12 threads  9 comments
+  [ 305/3668] BT-003: Directory Ads  9 threads  15 comments
+  [ 306/3668] BT-004: Ad to Pull-Up Banner  7 threads  4 comments
+  [ 307/3668] BT-005: Gift (Calendar) Cover Art  5 threads  2 comments
+  [ 308/3668] BT-006: Banner Ad  5 threads  2 comments
+  [ 309/3668] BT-007: Update LH Artwork  3 threads  1 comments
+  [ 310/3668] BT-ToDo: PSD File  2 threads  2 comments
+  [ 311/3668] Cal-LPF-003: One Sheet Overview  10 threads  15 comments
+  [ 312/3668] Cal-LPF-004: Rate Card  7 threads  4 comments
+  [ 313/3668] Cal-LPF-005: DM Email Campaign  5 threads  4 comments
+  [ 314/3668] Cal-LPF-006: Note Card  4 threads  9 comments
+  [ 315/3668] CAL-LPF-007: Ad Program Coding  2 threads  0 comments
+  [ 316/3668] CalLPF-001: Logo  9 threads  2 comments
+  [ 317/3668] CalLPF-002: Website  28 threads  35 comments
+  [ 318/3668] CalLPF-003: Business Card  8 threads  3 comments
+  [ 319/3668] CAMG-001: Website  27 threads  28 comments
+  [ 320/3668] CAMG-002: Eblast  25 threads  10 comments
+  [ 321/3668] CAMG-002: Logo  6 threads  1 comments
+  [ 322/3668] CAMG-003: Capabilities Brochure  13 threads  7 comments
+  [ 323/3668] CAMG-004: Motion Metrics  11 threads  8 comments
+  [ 324/3668] CAMG-005: Superhero Billboards  12 threads  5 comments
+  [ 325/3668] CAMG-006: Flint Billboard  4 threads  3 comments
+  [ 326/3668] CAMG-007: Motion Metrics Brochure  9 threads  7 comments
+  [ 327/3668] CAMG-008: A-List Magazine Ad  8 threads  10 comments
+  [ 328/3668] CAMG-009: Motion Metrics PPT Edit & Clean-Up  1 threads  0 comments
+  [ 329/3668] CAMG-011: Eblast (Motion Metrics)  14 threads  7 comments
+  [ 330/3668] CAMG-012: Website Eblast  12 threads  3 comments
+  [ 331/3668] CAMG-013: Superhero Billboards  14 threads  4 comments
+  [ 332/3668] CAMG-014: CAMG Brochure  2 threads  0 comments
+  [ 333/3668] CAMG-015: Corp Eblast Series  5 threads  5 comments
+  [ 334/3668] CAMG-016: Motion Metrics E-blast  2 threads  0 comments
+  [ 335/3668] CAMG-017: Pedo Priest Billboard  13 threads  8 comments
+  [ 336/3668] CAMG-018: Ellis Law Billboard  22 threads  7 comments
+  [ 337/3668] CAMG-019: CAMG 360  26 threads  20 comments
+  [ 338/3668] CAMG-020: CAMG 360 Digital  1 threads  0 comments
+  [ 339/3668] CAMG-021: CAMG 360 Landing Page  11 threads  21 comments
+  [ 340/3668] CAMG-022: Legal Circle / CenterStage Project (ALL)  27 threads  28 comments
+  [ 341/3668] CAMG-022a Legal Circle Info Depot  1 threads  0 comments
+  [ 342/3668] CAMG-023: Ellis Law Billboard (¡Con Español!)  6 threads  0 comments
+  [ 343/3668] CAMG-024: CAMG Legal Circle PPT Slide  5 threads  2 comments
+  [ 344/3668] CAMG-025: Ellis Law Premier Board  4 threads  0 comments
+  [ 345/3668] CAMG-026: Ben Crump Billboard Campaign  5 threads  2 comments
+  [ 346/3668] CAMG-027: Ellis Bus Wrap  14 threads  7 comments
+  [ 347/3668] CarterJacobs-001: Naming  5 threads  2 comments
+  [ 348/3668] CGS-001: Naming & Logo  9 threads  2 comments
+  [ 349/3668] CGS-002: Amenifit Standards Guide/Brand Book  5 threads  3 comments
+  [ 350/3668] CGSInfo/positioning and creative brief project  10 threads  1 comments
+  [ 351/3668] Cibola-001: MAP  5 threads  2 comments
+  [ 352/3668] Cohn-001: Logo Redesign  15 threads  1 comments
+  [ 353/3668] Cohn-002: Website  27 threads  18 comments
+  [ 354/3668] Cohn-003: Marketing Collateral  45 threads  16 comments
+  [ 355/3668] Cohn-004: Website Fixes  2 threads  0 comments
+  [ 356/3668] COZ-001: Auto Email and Daily Log  12 threads  7 comments
+  [ 357/3668] COZ-002: Update to Existing Artwork  11 threads  7 comments
+  [ 358/3668] ECJ Blog Post  3 threads  1 comments
+  [ 359/3668] ECJ Site Assistance  3 threads  0 comments
+  [ 360/3668] ECJ-136: Blog Header Redesign  5 threads  9 comments
+  [ 361/3668] ECJ-137: Holiday Card 2016  19 threads  6 comments
+  [ 362/3668] ECJ-138: Responsive Video Edit  4 threads  0 comments
+  [ 363/3668] ECJ-140 VICA Ad (Land Use group)  20 threads  8 comments
+  [ 364/3668] ECJ-141: Super Lawyers 2017  8 threads  2 comments
+  [ 365/3668] ECJ-142: Bet Tzedek Tribute Ad  10 threads  1 comments
+  [ 366/3668] ECJ-143: Ad Resize (VICA)  5 threads  0 comments
+  [ 367/3668] ECJ-144: Internal Newsletter  7 threads  3 comments
+  [ 368/3668] ECJ-MailChimp Issues  2 threads  3 comments
+  [ 369/3668] ECJ-ToDo  2 threads  1 comments
+  [ 370/3668] ECJ-ToDo  2 threads  1 comments
+  [ 371/3668] ECJ-ToDo: Add Category Title  2 threads  2 comments
+  [ 372/3668] ECJ-ToDo: Replace RDP Files  2 threads  1 comments
+  [ 373/3668] ECJ-ToDo: Site Issues  1 threads  2 comments
+  [ 374/3668] EKO-001: ADA Website  5 threads  4 comments
+  [ 375/3668] Elkins-009: Update Office Address on Site  4 threads  1 comments
+  [ 376/3668] ElkinsLaw-001: Website (GxCore)  20 threads  21 comments
+  [ 377/3668] ElkinsLaw-002: ID System  32 threads  18 comments
+  [ 378/3668] ElkinsLaw-003: Website Article Printing  1 threads  1 comments
+  [ 379/3668] ElkinsLaw-004: Business Cards  1 threads  0 comments
+  [ 380/3668] ElkinsLaw-005: No. 10 Eps & Mailing Labels  2 threads  1 comments
+  [ 381/3668] ElkinsLaw-006: Site Fixe(s)  2 threads  3 comments
+  [ 382/3668] ElkinsLaw-007: Site Update  3 threads  1 comments
+  [ 383/3668] ElkinsLaw-008: Site Fix/Update  6 threads  3 comments
+  [ 384/3668] ElkinsLaw-009: Updates  3 threads  1 comments
+  [ 385/3668] ElkinsLaw-ToDo  3 threads  3 comments
+  [ 386/3668] EPG-001: Logo, Stationery Package & Standards Guide  15 threads  7 comments
+  [ 387/3668] EPG-002: Divorcing Well Magazine Ad  6 threads  2 comments
+  [ 388/3668] EPG-003: Glass Promo Sheet  8 threads  4 comments
+  [ 389/3668] EPG-004: Year in Review  19 threads  5 comments
+  [ 390/3668] EPG-005: Super / Rising Star LinkedIn Graphics  5 threads  3 comments
+  [ 391/3668] EPG-006: Update LinkedIn Graphic  9 threads  0 comments
+  [ 392/3668] EPG-007: Logo Expansion Exploration  5 threads  1 comments
+  [ 393/3668] EPGGB-001: Name Change / Logo Update (URGENT)  13 threads  9 comments
+  [ 394/3668] EPGGB-002: Enenstein Bio Update  2 threads  1 comments
+  [ 395/3668] EPGGB-003: Lit v. Ferder PPT Deck Formatting  5 threads  0 comments
+  [ 396/3668] EPGGB-004: Add Reiner News Item to Site  2 threads  1 comments
+  [ 397/3668] EPGGB-005: Add Erin Grey's "Lawyers of Distinction 2026" Plaque to News Page  2 threads  1 comments
+  [ 398/3668] EPGGB-006: Remove Attorney From Site (Bao Pham)  2 threads  2 comments
+  [ 399/3668] EPGGB-008: Add New Attorney (Stephen Britt) to Site  3 threads  2 comments
+  [ 400/3668] EPGGB-009: Remove Attorney Adrian Canzoneri  2 threads  1 comments
+  [ 401/3668] EPGGB-010: Upate Hakjoon Joos' Bio Page  2 threads  1 comments
+  [ 402/3668] EPGR-008: :60 Video  5 threads  4 comments
+  [ 403/3668] EPGR-009: Year in Review '23  12 threads  16 comments
+  [ 404/3668] EPGR-010: Two Ads Divorcing Well Magazine  5 threads  4 comments
+  [ 405/3668] EPGR-011: Website Upgrade to Next JS  18 threads  24 comments
+  [ 406/3668] EPGR-012: Client Changes to Website  2 threads  1 comments
+  [ 407/3668] EPGR-013: Google Issue  4 threads  2 comments
+  [ 408/3668] EPGR-014: Add Attorney to Site (Lauri Martin)  12 threads  15 comments
+  [ 409/3668] EPGR-015: YiR '24  13 threads  12 comments
+  [ 410/3668] EPGR-016: Add New Attorney to Site (Bao Pham)  4 threads  2 comments
+  [ 411/3668] EPGR-017: Add Videos to Site  4 threads  3 comments
+  [ 412/3668] EPGR-018: Hourglass Podcast Website  50 threads  27 comments
+  [ 413/3668] EPGR-019: Glass Bio Edits  2 threads  1 comments
+  [ 414/3668] EPGR-020: Enenstein Bio Edits  2 threads  1 comments
+  [ 415/3668] EPGR-021: QR Code Issues  3 threads  1 comments
+  [ 416/3668] EPGR-021: Website Changes  8 threads  12 comments
+  [ 417/3668] EPGR-022: Intranet Project  2 threads  1 comments
+  [ 418/3668] EPGR-023: Add New Attorney on Site (Newhide)  5 threads  5 comments
+  [ 419/3668] EPGR-024: Glass Bio Update  4 threads  7 comments
+  [ 420/3668] EPGR-025: Add 3 New Attys to Site (M. Budiono, A. Canzoneri, and A. Medlock)  23 threads  24 comments
+  [ 421/3668] EPGR-026: Website Changes/Updates  4 threads  7 comments
+  [ 422/3668] EPGR-027: Add Lorena N. Kompanian to Site  4 threads  1 comments
+  [ 423/3668] EPGR-028: Enenstein Newsletter  32 threads  12 comments
+  [ 424/3668] EPGR-029: Remove Lauri K. Martin Tomorrow  2 threads  2 comments
+  [ 425/3668] EPGR-030: Erin Grey Headshot Update  4 threads  1 comments
+  [ 426/3668] EPGR-031: Remove Carole Arzan on 10.31.25  3 threads  1 comments
+  [ 427/3668] EPGR-032: Super Laywer Badge  2 threads  1 comments
+  [ 428/3668] EPGR-033: Remove Lorena N. Kompanian on 10.03.25.  3 threads  1 comments
+  [ 429/3668] EPGR-034: Glass Bio & Photo Update on Site  7 threads  2 comments
+  [ 430/3668] EPGR-035: Remove Howard Kern from Website Today  2 threads  2 comments
+  [ 431/3668] EPGR-036: Headshot & Bio Update for Silvana Naguib  4 threads  3 comments
+  [ 432/3668] EPGR-037: New Attorney to Site (Hakjoon Joo) on 11.19.25  4 threads  0 comments
+  [ 433/3668] EPGR-038: Hourglass Podcast News Posting  2 threads  1 comments
+  [ 434/3668] EPGR-039: Silvana Naguib Title Change  3 threads  0 comments
+  [ 435/3668] ESD-001: Referral Card Redesign  3 threads  0 comments
+  [ 436/3668] Fox-001: Hugo Restaurant ADA Report  3 threads  0 comments
+  [ 437/3668] FullSail-001: Website  2 threads  2 comments
+  [ 438/3668] GAON-001: Bus Shelter Art  2 threads  0 comments
+  [ 439/3668] GEN-001: Genesis Builders Logo  17 threads  12 comments
+  [ 440/3668] GEN-002: Website  50 threads  61 comments
+  [ 441/3668] GEN-003: Flier  6 threads  2 comments
+  [ 442/3668] Genesis Builders Project Notes  19 threads  8 comments
+  [ 443/3668] Get Dismissed-022: Website Updates  11 threads  2 comments
+  [ 444/3668] Get Dismissed-023: New Landing Pages  7 threads  2 comments
+  [ 445/3668] Get Dismissed-024: Billboard(s)  9 threads  2 comments
+  [ 446/3668] Get Dismissed-025: Direct Mail  18 threads  4 comments
+  [ 447/3668] Get Dismissed-026: Email Follow-Up  16 threads  3 comments
+  [ 448/3668] Get Dismissed-027: Sales Scripts  5 threads  1 comments
+  [ 449/3668] Get Dismissed-028: Trade Show Handout  11 threads  4 comments
+  [ 450/3668] Get Dismissed-029: Custom Bikini  14 threads  1 comments
+  [ 451/3668] Get Dismissed-030: Custom Tank Top  1 threads  0 comments
+  [ 452/3668] GetDismissed  3 threads  2 comments
+  [ 453/3668] GetDismissed-031: CASE Conference Materials  12 threads  2 comments
+  [ 454/3668] GetDismissed-034: Home Page Revision  8 threads  1 comments
+  [ 455/3668] GetDismissed-035: Trade Show Materials II (Truckers!)  14 threads  2 comments
+  [ 456/3668] GetDismissed-036: CTA Banner Ad  6 threads  2 comments
+  [ 457/3668] GetDismissed-037: CTA Flyer  5 threads  0 comments
+  [ 458/3668] GetDismissed-038: RideShareGuy.com Banner Ad  7 threads  0 comments
+  [ 459/3668] GetDismissed-039: More Banner Ads  4 threads  0 comments
+  [ 460/3668] GetDismissed-040: Email Template (Mail Chimp)  12 threads  10 comments
+  [ 461/3668] GetDismissed-041: Social Media Icon Update  5 threads  4 comments
+  [ 462/3668] GetDismissed-042: Business Card (Salie)  6 threads  1 comments
+  [ 463/3668] GetDismissed-043: Business Cards (Siflinger)  7 threads  1 comments
+  [ 464/3668] GetDismissed-044: Postcard  9 threads  3 comments
+  [ 465/3668] GetDismissed-045: Fence Banners  13 threads  2 comments
+  [ 466/3668] GetDismissed-046: Canopy/Tent  8 threads  1 comments
+  [ 467/3668] GetDismissed-047: Customizable Flier  5 threads  3 comments
+  [ 468/3668] GetDismissed-048: Banner Additions  2 threads  0 comments
+  [ 469/3668] GetDismissed-049: Business Cards (Martinez & Crosby)  8 threads  2 comments
+  [ 470/3668] GetDismissed-050: Trade Show Ad  5 threads  3 comments
+  [ 471/3668] GetDismissed-051: New Postcard  3 threads  3 comments
+  [ 472/3668] GetDismissed-052: Book Sequel  21 threads  5 comments
+  [ 473/3668] GetDismissed-053: Website Programming  4 threads  0 comments
+  [ 474/3668] GetDismissed-054: Business Cards (Miller, Morris & Blank)  6 threads  3 comments
+  [ 475/3668] GetDismissed-055 Insurance Partnership Flyer  3 threads  3 comments
+  [ 476/3668] GetDismissed-056: Website Refresh  5 threads  1 comments
+  [ 477/3668] GetDismissed-057: Art for T-Shirts & Hats  10 threads  4 comments
+  [ 478/3668] GetDismissed-058: Business Cards (Gastwirth & Miller)  5 threads  2 comments
+  [ 479/3668] GetDismissed-ToDo: Social Media Icons  5 threads  1 comments
+  [ 480/3668] GetDismissed: Benefits/Member Benefits Landing Pages  3 threads  1 comments
+  [ 481/3668] GG-021: Temp Home Page Graphic  3 threads  4 comments
+  [ 482/3668] Goodrich-001: Logo & Stationery Package  34 threads  24 comments
+  [ 483/3668] Goodrich-002: Brochure  19 threads  16 comments
+  [ 484/3668] Goodrich-003: Legacy Planning Tool  19 threads  13 comments
+  [ 485/3668] Goodrich-004: White Papers and One Sheets  11 threads  6 comments
+  [ 486/3668] Goodrich-005: Stationary Update  23 threads  4 comments
+  [ 487/3668] Goodrich-006: Brochure & Legacy Planning Changes  24 threads  12 comments
+  [ 488/3668] Goodrich-007: Corporate Brochure Update 2021  9 threads  1 comments
+  [ 489/3668] Goodrich-008: White Papers  16 threads  14 comments
+  [ 490/3668] Goodrich-009: Strategy and Services Sheet  5 threads  0 comments
+  [ 491/3668] Grant-001: Taglines  6 threads  4 comments
+  [ 492/3668] Greenberg 60th Anniversary  1 threads  0 comments
+  [ 493/3668] Greenberg Presentation  2 threads  1 comments
+  [ 494/3668] Greenberg-001: Strategy Document  4 threads  0 comments
+  [ 495/3668] Greenberg-002: Variety Ad  18 threads  5 comments
+  [ 496/3668] Greenberg-003: Logo  26 threads  12 comments
+  [ 497/3668] Greenberg-004: Variety Ad  13 threads  0 comments
+  [ 498/3668] Greenberg-005: LABJ Ad (Wealthiest Angelenos)  15 threads  7 comments
+  [ 499/3668] Greenberg-006: Power Lawyer List Ad  9 threads  6 comments
+  [ 500/3668] Greenberg-007: 100 Most Powerful Individuals Ad  14 threads  6 comments
+  [ 501/3668] Greenberg-008: Website Design  44 threads  37 comments
+  [ 502/3668] Greenberg-010: E-Newsletter Design  2 threads  0 comments
+  [ 503/3668] Greenberg-011: Holiday Card  39 threads  46 comments
+  [ 504/3668] Greenberg-012: Variety Deal Maker Ad  5 threads  7 comments
+  [ 505/3668] Greenberg-013: Marketing Collateral  20 threads  11 comments
+  [ 506/3668] Greenberg-014: Enewsletter Template  7 threads  6 comments
+  [ 507/3668] Greenberg-015: Full Page Ad (Pioneer of the Year)  10 threads  7 comments
+  [ 508/3668] Greenberg-016: Variety Ad for Eskenazi and Moore  5 threads  5 comments
+  [ 509/3668] Greenberg-017: Power Lawyer Ad  5 threads  1 comments
+  [ 510/3668] Greenberg-018: Hollywood Reporter Ad  4 threads  6 comments
+  [ 511/3668] Greenberg-019: LABJ Ad (Eskenazi)  3 threads  2 comments
+  [ 512/3668] Greenberg-020: Wealthiest Angelenos 2018  6 threads  16 comments
+  [ 513/3668] Greenberg-021: LABJ Women's Summit Ad  11 threads  7 comments
+  [ 514/3668] Greenberg-022: Food & Beverage Roundtable Ad  7 threads  2 comments
+  [ 515/3668] Greenberg-023: Cablefax Ad  7 threads  6 comments
+  [ 516/3668] Greenberg-024: Holiday Card 2018  25 threads  19 comments
+  [ 517/3668] Greenberg-025: Variety Dealmakers Ad  3 threads  3 comments
+  [ 518/3668] Greenberg-026: IP Law Roundtable Ad  6 threads  5 comments
+  [ 519/3668] Greenberg-027: Fashion & Beauty Award  5 threads  0 comments
+  [ 520/3668] Greenberg-028: LABJ Book of Lists Ad  16 threads  6 comments
+  [ 521/3668] Greenberg-029: THR Power Lawyers Ad  13 threads  9 comments
+  [ 522/3668] Greenberg-030: Variety Ad  4 threads  1 comments
+  [ 523/3668] Greenberg-031: Power Lawyers List  10 threads  4 comments
+  [ 524/3668] Greenberg-032: ACG Business Conference Ad  9 threads  3 comments
+  [ 525/3668] Greenberg-033: 2019 Holiday Card (Video)  32 threads  31 comments
+  [ 526/3668] Greenberg-034: LABJ Labor & Employment Ad  9 threads  1 comments
+  [ 527/3668] Greenberg-035: Two RUSH LABJ Ads  4 threads  5 comments
+  [ 528/3668] Greenberg-036: Holiday Card (Print)  17 threads  8 comments
+  [ 529/3668] Greenberg-037: Ad Update  7 threads  1 comments
+  [ 530/3668] Greenberg-047b: Holiday Card '23  22 threads  21 comments
+  [ 531/3668] Greenberg-048: 65th Logo Update  7 threads  7 comments
+  [ 532/3668] Greenberg-ToDo: Font Library  3 threads  0 comments
+  [ 533/3668] Greenberg-ToDo: Header Options  3 threads  1 comments
+  [ 534/3668] Greenberg: Account Management  4 threads  0 comments
+  [ 535/3668] GX 2109 Holiday Card  1 threads  1 comments
+  [ 536/3668] GX ADA Compliance One Sheet  8 threads  4 comments
+  [ 537/3668] GX Capabilities (Short)  4 threads  10 comments
+  [ 538/3668] Gx CMO Focus Forum  9 threads  6 comments
+  [ 539/3668] GX Cycling Club Logo  3 threads  5 comments
+  [ 540/3668] GX Elephant in the Room  4 threads  1 comments
+  [ 541/3668] Gx Holiday Card 2016  4 threads  3 comments
+  [ 542/3668] GX Intro Video  3 threads  6 comments
+  [ 543/3668] Gx Mailings  2 threads  1 comments
+  [ 544/3668] GX Server Performance  0 threads  0 comments
+  [ 545/3668] Gx Site Redo  1 threads  0 comments
+  [ 546/3668] Gx Year in Review  12 threads  12 comments
+  [ 547/3668] GX: Ad Samples  4 threads  4 comments
+  [ 548/3668] GX: BLIP Slides  0 threads  0 comments
+  [ 549/3668] GX: GxMap Video  6 threads  3 comments
+  [ 550/3668] GX: IT  0 threads  0 comments
+  [ 551/3668] Gx: NCFP RFP  6 threads  9 comments
+  [ 552/3668] GX: New Biz  6 threads  2 comments
+  [ 553/3668] Gx: Original Mixer  1 threads  0 comments
+  [ 554/3668] GX: Send Ahead  5 threads  11 comments
+  [ 555/3668] GX: Website  7 threads  6 comments
+  [ 556/3668] GX: Website Redesign  1 threads  0 comments
+  [ 557/3668] GxCore 3 - Development  3 threads  2 comments
+  [ 558/3668] GxCore Concepts  0 threads  0 comments
+  [ 559/3668] GxSentry Program  11 threads  12 comments
+  [ 560/3668] GXSentry- WordPress 5 updates  2 threads  2 comments
+  [ 561/3668] Harder-ToDo: Letterhead Update  1 threads  3 comments
+  [ 562/3668] Harder/Stonerock Notes  2 threads  1 comments
+  [ 563/3668] Haroses-001: Packaging  39 threads  39 comments
+  [ 564/3668] Haroses-002: Brand Book  9 threads  13 comments
+  [ 565/3668] Haroses-003: Sales Sheet  6 threads  5 comments
+  [ 566/3668] Haroses-004: Design Presentation  3 threads  1 comments
+  [ 567/3668] Haroses-005: Passover Insert Card  7 threads  5 comments
+  [ 568/3668] Haroses-006: Logo Style Guide  2 threads  0 comments
+  [ 569/3668] Haroses-007: Packaging Changes  4 threads  2 comments
+  [ 570/3668] HFLS-001: Ad  10 threads  7 comments
+  [ 571/3668] HFLS-002: Photo Swap  2 threads  2 comments
+  [ 572/3668] HFLS-003: Ad Revision  5 threads  0 comments
+  [ 573/3668] HFLS-004: Poster  2 threads  2 comments
+  [ 574/3668] HFLS-005: Ad Resize  4 threads  2 comments
+  [HFLS-007: Poster] messages unavailable — skipping (fetch failed)
+  [ 575/3668] HFLS-007: Poster  1 threads  0 comments
+  [ 576/3668] HFLS-008: Ad Revision  4 threads  0 comments
+  [ 577/3668] HFLS-009: Harlem Ad  6 threads  0 comments
+  [ 578/3668] HFLS-010: Flyer Update  4 threads  0 comments
+  [ 579/3668] HFLS-011: Flyer Update  9 threads  1 comments
+  [ 580/3668] HFLS-012: Hispanic Ad  8 threads  2 comments
+  [ 581/3668] HFLS-013: Fidelity Payment Flyer  4 threads  0 comments
+  [ 582/3668] HFLS-014: Resize  4 threads  0 comments
+  thread 95539895 FAILED: Connection terminated unexpectedly
+  [ 583/3668] HFLS-015: AOK Flyer  20 threads  3 comments
+  [HFLS-016: AOK Flyers (Español)] messages unavailable — skipping (fetch failed)
+  [ 584/3668] HFLS-016: AOK Flyers (Español)  0 threads  0 comments
+  [HFLS-018: AOK Flyer Revisions (Eng. & Span.)] messages unavailable — skipping (fetch failed)
+  [ 585/3668] HFLS-018: AOK Flyer Revisions (Eng. & Span.)  4 threads  0 comments
+  thread 97538191 FAILED: Connection terminated unexpectedly
+  [ 586/3668] HFLS-019: Update Flyers  10 threads  2 comments
+  [ 587/3668] HFLS-021: Update Ads w/New Logo  3 threads  0 comments
+  [ 588/3668] HFLS-022: Ad Resize to Poster  3 threads  0 comments
+  [ 589/3668] HFLS-023: Ad Resize  5 threads  1 comments
+  [ 590/3668] HFLS-024: Update Flyer (w/Russian Translation)  8 threads  2 comments
+  [ 591/3668] HFLS-025: Ad Resize  4 threads  0 comments
+  [ 592/3668] HFLS-026: Boropark24.com Banner Ad  6 threads  0 comments
+  [ 593/3668] HFLS-028: E-Ad (2 Sizes)  5 threads  0 comments
+  [ 594/3668] HFLS-029: Ad Resize (Izzy's BBQ, CHYE)  4 threads  0 comments
+  [ 595/3668] HFLS-030: Ad Changes Add WAHI Logo  8 threads  4 comments
+  [ 596/3668] HFLS-031: Ad to Poster  5 threads  0 comments
+  [ 597/3668] HFLS-032: Ad Resize  4 threads  1 comments
+  [ 598/3668] HFLS-033: $ Change  6 threads  0 comments
+  [ 599/3668] HFLS-20: Flyer Revisons  4 threads  1 comments
+  [ 600/3668] HMA - Template Update  2 threads  1 comments
+  [ 601/3668] HMA - Website Updates  3 threads  1 comments
+  [ 602/3668] HMA URL Redirect  2 threads  0 comments
+  [ 603/3668] HMA-016: Business Card Revision  4 threads  3 comments
+  [ 604/3668] HMA-019: Coasters  2 threads  0 comments
+  [ 605/3668] HMA-020: Stationery Update  16 threads  6 comments
+  [ 606/3668] HMA-021: Custom Legal Pads Reorder  1 threads  2 comments
+  [ 607/3668] HMA-022: Logo Update  14 threads  5 comments
+  [ 608/3668] HMA-17a: Legal Pads  5 threads  1 comments
+  [ 609/3668] HMA-To Do  2 threads  0 comments
+  [ 610/3668] HMA-To Do: Charles Harder Retouch  2 threads  0 comments
+  [ 611/3668] HMA-ToDo: Photo Manipulation  1 threads  0 comments
+  [ 612/3668] HMA: Website Update  2 threads  1 comments
+  [ 613/3668] HOCH-001: Website  16 threads  28 comments
+  [ 614/3668] HRD-001: New Letterhead (H Only)  4 threads  0 comments
+  [ 615/3668] HRD-002: Custom Legal & Note Pads  2 threads  3 comments
+  [ 616/3668] HRD-003: LH Update  4 threads  2 comments
+  [ 617/3668] HRD-004: Legal Pad Reorder  3 threads  0 comments
+  [ 618/3668] HRD-005: Letterhead Block Update  7 threads  5 comments
+  [ 619/3668] HRD-006: Letterhead Update (Yes, Again.)  3 threads  3 comments
+  [ 620/3668] HRD-007: Mailing Labels  10 threads  8 comments
+  [ 621/3668] HRD-008: Bookmark  9 threads  6 comments
+  [ 622/3668] HRD-024: Letterhead Update  6 threads  5 comments
+  [ 623/3668] HRD-025: Announcement Card and Email  2 threads  0 comments
+  [ 624/3668] HRD-026: Update Items with New Logo/Name  23 threads  4 comments
+  [ 625/3668] HRD-027: Envelope Design  4 threads  0 comments
+  [ 626/3668] HRD-028: Custom Legal Pad Update & Reorder  7 threads  3 comments
+  [ 627/3668] HRD-029: Notepads (5.5" x 8.5")  3 threads  2 comments
+  [ 628/3668] HRD-030: LH Update (Yes, Again!)  5 threads  5 comments
+  [ 629/3668] HRD-031: Logo File w/Address  3 threads  4 comments
+  [ 630/3668] HRD-032: Photo Fix on Site  7 threads  3 comments
+  [ 631/3668] HRD-033: Website Update  41 threads  48 comments
+  [ 632/3668] HRD-034: Add New Attorney to Site  8 threads  0 comments
+  [ 633/3668] HRD-035: Letterhead Update  10 threads  1 comments
+  [ 634/3668] HRD-036: New Attorney Profile Image  6 threads  2 comments
+  [ 635/3668] HRD-037: New Hero Image on Site  3 threads  2 comments
+  [ 636/3668] HRD-038: Harder Bio Link Preview Image Change  1 threads  1 comments
+  [ 637/3668] IF-001: Direct Mail Piece  4 threads  0 comments
+  [ 638/3668] IMP-001: M.A.P.  28 threads  17 comments
+  [ 639/3668] IMP-002: Website  3 threads  0 comments
+  [ 640/3668] IMP-003: Analytica Trade Show Booth  8 threads  3 comments
+  [ 641/3668] Implen Characters Discussion  6 threads  10 comments
+  [ 642/3668] Implen Proposal  2 threads  0 comments
+  [ 643/3668] InFocus - 005 - Email Setup  2 threads  1 comments
+  [ 644/3668] InFocus - 007: Website Updates & Commerce  14 threads  4 comments
+  [ 645/3668] Infocus - Remove 2 day legal & 3 day CCE  1 threads  1 comments
+  [ 646/3668] InFocus-004: Exam Cover Sheets  7 threads  2 comments
+  [ 647/3668] InFocus-006: PowerPoint Template  10 threads  2 comments
+  [ 648/3668] InFocus-008: Book Covers  5 threads  0 comments
+  [ 649/3668] InFocus-009: Brochure  15 threads  8 comments
+  [ 650/3668] InFocus: 002c-Animated Question  14 threads  3 comments
+  [ 651/3668] JDC-001: Burbank Apartment Project  9 threads  6 comments
+  [ 652/3668] JFLA - Replace Portal Link  1 threads  0 comments
+  [ 653/3668] JFLA - Site Update  1 threads  1 comments
+  [ 654/3668] JFLA - SMS Setup  1 threads  4 comments
+  [ 655/3668] JFLA 2024 Project List  4 threads  0 comments
+  [ 656/3668] JFLA E-Blasts For September  6 threads  3 comments
+  [ 657/3668] JFLA Homeless Information  2 threads  1 comments
+  [ 658/3668] JFLA Media Campaign 21/22  27 threads  23 comments
+  [ 659/3668] JFLA Upcoming Project Information  2 threads  1 comments
+  [ 660/3668] JFLA-???: Feit No Gala Invitation  1 threads  0 comments
+  [ 661/3668] JFLA-000: H B Landing Page & Donor Change  2 threads  1 comments
+  [ 662/3668] JFLA-000: Table Change  3 threads  2 comments
+  [ 663/3668] JFLA-001: Direct Mail Campaign  32 threads  15 comments
+  [ 664/3668] JFLA-002: College Paper Ads  19 threads  13 comments
+  [ 665/3668] JFLA-003: Eblasts  4 threads  4 comments
+  [ 666/3668] JFLA-004: Stationery Redesign  22 threads  14 comments
+  [ 667/3668] JFLA-005: No Gala Invitation  35 threads  8 comments
+  [ 668/3668] JFLA-006: Lefferman (Let's Grow Together) Invitation  18 threads  6 comments
+  [ 669/3668] JFLA-007: Remit Envelope  7 threads  0 comments
+  [ 670/3668] JFLA-008: Posters  7 threads  10 comments
+  [ 671/3668] JFLA-009: College Ads (Plan B)  9 threads  1 comments
+  [ 672/3668] JFLA-010: Remit Envelopes  7 threads  1 comments
+  [ 673/3668] JFLA-011: Lefferman Event Posters  14 threads  13 comments
+  [ 674/3668] JFLA-012: No Gala Eblast  3 threads  0 comments
+  [ 675/3668] JFLA-013: Lobby Sign  1 threads  1 comments
+  [ 676/3668] JFLA-014: Letterhead (Black Only)  3 threads  1 comments
+  [ 677/3668] JFLA-015: Lefferman Invite (Digital Version)  3 threads  3 comments
+  [ 678/3668] JFLA-016: Valley Posters  1 threads  1 comments
+  [ 679/3668] JFLA-017: Jewish Journal Ad (Plan B)  4 threads  3 comments
+  [ 680/3668] JFLA-018: Annual Report / YiR 2018  39 threads  21 comments
+  [ 681/3668] JFLA-019: Private Invitation  5 threads  3 comments
+  [ 682/3668] JFLA-020: Website Redesign  40 threads  23 comments
+  [ 683/3668] JFLA-021: Dentist Campaign  24 threads  18 comments
+  [ 684/3668] JFLA-022: New Poster  8 threads  0 comments
+  [ 685/3668] JFLA-023: Donor Letter & Remit Envelopes  10 threads  5 comments
+  [ 686/3668] JFLA-024: Digital Letterhead  3 threads  0 comments
+  [ 687/3668] JFLA-025: Rosh Hashanah Card/Mailing  14 threads  6 comments
+  [ 688/3668] JFLA-026: Sukkot Card/Mailing  12 threads  5 comments
+  [ 689/3668] JFLA-027: Reverse Tzedakah Box  6 threads  4 comments
+  [ 690/3668] JFLA-028: Financial Flyer  11 threads  9 comments
+  [ 691/3668] JFLA-030: RH Card & Sukkot Flyer Emailable  2 threads  2 comments
+  [ 692/3668] JFLA-031: Letterhead Update  7 threads  6 comments
+  [ 693/3668] JFLA-032: Mayim Letter & Constant Contact  8 threads  8 comments
+  [ 694/3668] JFLA-033: Source Poster & Postcard  20 threads  20 comments
+  [ 695/3668] JFLA-034: Horvitz Invitation  9 threads  5 comments
+  [ 696/3668] JFLA-035: Tribute Card  15 threads  16 comments
+  [ 697/3668] JFLA-036: Video Edits (x3)  3 threads  0 comments
+  [ 698/3668] JFLA-037: Poster Resize  3 threads  0 comments
+  [ 699/3668] JFLA-038: Email Campaign (New Loans)  2 threads  0 comments
+  [ 700/3668] JFLA-039: Homeless College Student Posters  19 threads  9 comments
+  [ 701/3668] JFLA-040: By the Numbers Flyer  4 threads  3 comments
+  [ 702/3668] JFLA-041: Homeless Student Flyer (Internal Use Only)  4 threads  7 comments
+  [ 703/3668] JFLA-042: College Ad (CSLA Only)  3 threads  1 comments
+  [ 704/3668] JFLA-043: Jewish Institution Flyer  5 threads  3 comments
+  [ 705/3668] JFLA-044: E-Blast Template (Constant Contact)  11 threads  2 comments
+  [ 706/3668] JFLA-045: Adult Homeless Poster  6 threads  1 comments
+  [ 707/3668] JFLA-046: Hillel Well Story Mailing  10 threads  8 comments
+  [ 708/3668] JFLA-047: Jewish Life Letter  11 threads  5 comments
+  [ 709/3668] JFLA-048: Letterhead Changes  3 threads  1 comments
+  [ 710/3668] JFLA-049: Digital Letterhead  2 threads  1 comments
+  [ 711/3668] JFLA-050: Email Postcards II  3 threads  0 comments
+  [ 712/3668] JFLA-051: Gala Invitation  50 threads  23 comments
+  [ 713/3668] JFLA-052: Passover Card 2019  26 threads  10 comments
+  [ 714/3668] JFLA-053: Loan Infographic  3 threads  0 comments
+  [ 715/3668] JFLA-054: Mayim Social Media Banners  3 threads  1 comments
+  [ 716/3668] JFLA-055: Add Click Tracking to JFLA Site  2 threads  0 comments
+  [ 717/3668] JFLA-056: Investment Letter Revisions  6 threads  1 comments
+  [ 718/3668] JFLA-057: Add Live Chat to Site  2 threads  0 comments
+  [ 719/3668] JFLA-058: Extravaganza Program  14 threads  5 comments
+  [ 720/3668] JFLA-059: Mayim Congratulations Video  14 threads  3 comments
+  [ 721/3668] JFLA-060: Extravaganza Posters  16 threads  5 comments
+  [ 722/3668] JFLA-061: Annual Report 2019  35 threads  20 comments
+  [ 723/3668] JFLA-062: Federation Donors Project  11 threads  5 comments
+  [ 724/3668] JFLA-063: Feit Event Info  50 threads  25 comments
+  [ 725/3668] JFLA-064: Rosh Hashanah Card/Coupon 2019  23 threads  5 comments
+  [ 726/3668] JFLA-065: Loan Info Cards  8 threads  3 comments
+  [ 727/3668] JFLA-066: Cedars Flyer  8 threads  4 comments
+  [ 728/3668] JFLA-067: Investment Flyer(s) Updates  3 threads  2 comments
+  [ 729/3668] JFLA-068: Invest in JFLA Flyer  14 threads  5 comments
+  [ 730/3668] JFLA-069: No. 9 Return Envelope  2 threads  0 comments
+  [ 731/3668] JFLA-070: Feit Gala Miscellaneous Work  23 threads  17 comments
+  [ 732/3668] JFLA-071: Feit Gala Invitation  19 threads  12 comments
+  [ 733/3668] JFLA-072: College Loan Business Card  3 threads  0 comments
+  [ 734/3668] JFLA-073: Feit Gala Website Page  2 threads  1 comments
+  [ 735/3668] JFLA-074: Letterhead Update  4 threads  1 comments
+  [ 736/3668] JFLA-075: Student Loan Page News  3 threads  1 comments
+  [ 737/3668] JFLA-076: Cedars Flyer II  11 threads  2 comments
+  [ 738/3668] JFLA-077: Facing Homelessness Graphic  16 threads  6 comments
+  [ 739/3668] JFLA-078: Change A Life Campaign  3 threads  0 comments
+  [ 740/3668] JFLA-079: Loan Info Infographic  10 threads  1 comments
+  [ 741/3668] JFLA-080: Individual Loan Eblasts  5 threads  2 comments
+  [ 742/3668] JFLA-081: Save the Date Email (Homeless Benefit)  19 threads  5 comments
+  [ 743/3668] JFLA-082: Homeless Benefit Invitation, Envelope, Response Card & Insert  30 threads  8 comments
+  [ 744/3668] JFLA-083: Homeless Benefit Landing Page & Payment Form  23 threads  27 comments
+  [ 745/3668] JFLA-084: Homeless Benefit Honorary Committee Email  10 threads  3 comments
+  [ 746/3668] JFLA-085: Section 8 Flyer  6 threads  2 comments
+  [ 747/3668] JFLA-086: Section 8 Loan on Site  2 threads  1 comments
+  [ 748/3668] JFLA-087: Feit Gala Event Signage  15 threads  6 comments
+  [ 749/3668] JFLA-088: Feit Gala Program  22 threads  4 comments
+  [ 750/3668] JFLA-089: Year End Letter  15 threads  6 comments
+  [ 751/3668] JFLA-090: Small Business Loan PDFs  11 threads  1 comments
+  [ 752/3668] JFLA-091: Slides from Posters  9 threads  1 comments
+  [ 753/3668] JFLA-092: Feit Gala Homepage Update  4 threads  4 comments
+  [ 754/3668] JFLA-093: New Loan Type on Site  6 threads  0 comments
+  [ 755/3668] JFLA-094: Homeless Benefit Invitation Eblast  11 threads  2 comments
+  [ 756/3668] JFLA-095: Homeless Statistics E-blast  8 threads  2 comments
+  [ 757/3668] JFLA-096: Homeless Benefit Poster  6 threads  1 comments
+  [ 758/3668] JFLA-097: Business Cards  3 threads  0 comments
+  [ 759/3668] JFLA-098: Homelessness Benefit Program  8 threads  1 comments
+  [ 760/3668] JFLA-099: New Home Page Info  14 threads  11 comments
+  [ 761/3668] JFLA-100: Flyer Update  4 threads  0 comments
+  [ 762/3668] JFLA-101: Cedars Flyer II Update  3 threads  0 comments
+  [ 763/3668] JFLA-102: Passover 2020 Email Blast  3 threads  1 comments
+  [ 764/3668] JFLA-103: Interest Free Direct Program  6 threads  0 comments
+  [ 765/3668] JFLA-104: Free Loan Direct Program  2 threads  0 comments
+  [ 766/3668] JFLA-105: Free Loan Direct Brochure  5 threads  0 comments
+  [ 767/3668] JFLA-106: Fostering Hope Logo  7 threads  5 comments
+  [ 768/3668] JFLA-107: Home Page Graphic  7 threads  3 comments
+  [ 769/3668] JFLA-108: Passover Fundraising Letter  11 threads  6 comments
+  [ 770/3668] JFLA-109: Passover Email  2 threads  0 comments
+  [ 771/3668] JFLA-110: #10 Envelope Reorder  3 threads  1 comments
+  [ 772/3668] JFLA-111: Home Page Changes  3 threads  2 comments
+  [ 773/3668] JFLA-112: ValPak Advertising  12 threads  1 comments
+  [ 774/3668] JFLA-113: :30 Commercial  17 threads  21 comments
+  [ 775/3668] JFLA-114: Press Release  2 threads  0 comments
+  [ 776/3668] JFLA-115: New Loan Info on Landing Page  3 threads  1 comments
+  [ 777/3668] JFLA-116: Small Business Loan Flyer  7 threads  1 comments
+  [ 778/3668] JFLA-117: Rosh Hashanah Card  18 threads  11 comments
+  [ 779/3668] JFLA-118: Summer Mailing  13 threads  5 comments
+  [ 780/3668] JFLA-119: Institutional Loan Flyer  6 threads  0 comments
+  [ 781/3668] JFLA-120: BET/OWN :30 Cable Spot  6 threads  0 comments
+  [ 782/3668] JFLA-121: Val-Pak Envelope Art  5 threads  2 comments
+  [ 783/3668] JFLA-122: David Ryu DM Postcard  10 threads  2 comments
+  [ 784/3668] JFLA-123: Add ITIN Number Link & New Page  3 threads  3 comments
+  [ 785/3668] JFLA-124: Mission Statement Poster  4 threads  6 comments
+  [ 786/3668] JFLA-125: RH Eblast  5 threads  1 comments
+  [ 787/3668] JFLA-126: October Fundraising Mailer  10 threads  0 comments
+  [ 788/3668] JFLA-127: Annual Report  34 threads  15 comments
+  [ 789/3668] JFLA-128: Site Update  8 threads  12 comments
+  [ 790/3668] JFLA-129: Housing Commercial II  16 threads  7 comments
+  [ 791/3668] JFLA-130: David Ryu Eblast  11 threads  2 comments
+  [ 792/3668] JFLA-131: Stationery Update  10 threads  1 comments
+  [ 793/3668] JFLA-132: Thomas Flyer  13 threads  2 comments
+  [ 794/3668] JFLA-133: Ryu Flyer Update  7 threads  2 comments
+  [ 795/3668] JFLA-134: Info Graphics  6 threads  4 comments
+  [ 796/3668] JFLA-135: Banner Ads  2 threads  0 comments
+  [ 797/3668] JFLA-136: Envelope Reorder  3 threads  0 comments
+  [ 798/3668] JFLA-137: T-Shirt Design  11 threads  13 comments
+  [ 799/3668] JFLA-138: Student Loan Mailer  2 threads  0 comments
+  [ 800/3668] JFLA-139: End of Year Letter  9 threads  5 comments
+  [ 801/3668] JFLA-140: T-Shirts II  4 threads  0 comments
+  [ 802/3668] JFLA-141: Envelope Reorder  3 threads  0 comments
+  [ 803/3668] JFLA-142 Coffee Cups  5 threads  2 comments
+  [ 804/3668] JFLA-143: Drive-in Movie E-Blast Invitation  2 threads  1 comments
+  [ 805/3668] JFLA-144: Virtual Fundraiser 2021  29 threads  20 comments
+  [ 806/3668] JFLA-145: Essential Worker Donation Letter  7 threads  6 comments
+  [ 807/3668] JFLA-146: LH Rerun  3 threads  0 comments
+  [ 808/3668] JFLA-147: Focus Group Graphic Options  16 threads  18 comments
+  [ 809/3668] JFLA-148: Covid Response Report  14 threads  18 comments
+  [ 810/3668] JFLA-149: Expansion to OC & SB Counties  4 threads  1 comments
+  [ 811/3668] JFLA-150: Rachel's Covid Video  17 threads  11 comments
+  [ 812/3668] JFLA-151: Passover Email  8 threads  0 comments
+  [ 813/3668] JFLA-152: Site Changes for SEO  6 threads  0 comments
+  [ 814/3668] JFLA-153: Spring Fundraiser  4 threads  2 comments
+  [ 815/3668] JFLA-154: Add SB Info to Site  3 threads  5 comments
+  [ 816/3668] JFLA-155: Mid-Year Mailing  19 threads  6 comments
+  [ 817/3668] JFLA-156: Shalom Santa Barbara Ad  11 threads  5 comments
+  [ 818/3668] JFLA-157: Gala (Wonder Women)  3 threads  0 comments
+  [ 819/3668] JFLA-158: Montecito Journal Ad  6 threads  2 comments
+  [ 820/3668] JFLA-159: Annual Report (2020)  46 threads  9 comments
+  [ 821/3668] JFLA-159: Blogs on Site  5 threads  0 comments
+  [ 822/3668] JFLA-160: SB Cable Media Buy  4 threads  0 comments
+  [ 823/3668] JFLA-161: Rosh Hashana Card 2021  14 threads  3 comments
+  [ 824/3668] JFLA-162: Promo Video for Website & Social Media  12 threads  10 comments
+  [ 825/3668] JFLA-163: Add Donor Advised Funds Widget  3 threads  0 comments
+  [ 826/3668] JFLA-164: Save the Date E-blast  17 threads  3 comments
+  [ 827/3668] JFLA-165: Big Money  11 threads  2 comments
+  [ 828/3668] JFLA-166: Homepage logos  2 threads  0 comments
+  [ 829/3668] JFLA-167: Rosh Hashanah E-Blast  11 threads  4 comments
+  [ 830/3668] JFLA-168: Add Videos  3 threads  0 comments
+  [ 831/3668] JFLA-169: LH & No 10 Envelopes  10 threads  0 comments
+  [ 832/3668] JFLA-170: E-blast Header Change  7 threads  2 comments
+  [ 833/3668] JFLA-171: End of Year Letter  8 threads  3 comments
+  [ 834/3668] JFLA-172: Wonder Women Gala Web Page(s)  14 threads  13 comments
+  [ 835/3668] JFLA-173: WW Gala Invitation  17 threads  3 comments
+  [ 836/3668] JFLA-174: #10 Return Address Envelopes (1-color)  3 threads  1 comments
+  [ 837/3668] JFLA-175: Billboards  13 threads  5 comments
+  [ 838/3668] JFLA-176: Board Membership Letter  5 threads  5 comments
+  [ 839/3668] JFLA-177: DM Postcard Campaign  17 threads  8 comments
+  [ 840/3668] JFLA-178: Loan Recipient Referral Letter  11 threads  1 comments
+  [ 841/3668] JFLA-179: Annual Report on Website  2 threads  0 comments
+  [ 842/3668] JFLA-180: Letterhead Update  6 threads  1 comments
+  [ 843/3668] JFLA-182: Feit Social Media Banners  9 threads  1 comments
+  [ 844/3668] JFLA-183: Planned Giving Envelopes  6 threads  0 comments
+  [ 845/3668] JFLA-184: Wonder Women Gala Program  23 threads  4 comments
+  [ 846/3668] JFLA-185: Feit Gala Invitations & More  20 threads  25 comments
+  [ 847/3668] JFLA-186: WW Gala Adding Sponsors to Site  2 threads  0 comments
+  [ 848/3668] JFLA-187: Map of Loans by City Council Districts  22 threads  9 comments
+  [ 849/3668] JFLA-188: App Scope Document  9 threads  3 comments
+  [ 850/3668] JFLA-188a: Changes to JFLA App  21 threads  18 comments
+  [ 851/3668] JFLA-190: WW Gala Date Change E-blast & Postcard  14 threads  4 comments
+  [ 852/3668] JFLA-191: Digital Board  2 threads  0 comments
+  [ 853/3668] JFLA-192: #9 Remit Envelope Update  9 threads  1 comments
+  [ 854/3668] JFLA-193: Passover E-blast 2022  4 threads  0 comments
+  [ 855/3668] JFLA-194: E-birthday Card  6 threads  3 comments
+  [ 856/3668] JFLA-195: Banner Ad Based Landing Page  5 threads  3 comments
+  [ 857/3668] JFLA-196: WW Gala Table Tents & Sponsor Poster  16 threads  0 comments
+  [ 858/3668] JFLA-197: Site Update  3 threads  5 comments
+  [ 859/3668] JFLA-198: Mid-Year Mailing  7 threads  2 comments
+  [ 860/3668] JFLA-199: Billboards Phase II (SFV)  4 threads  0 comments
+  [ 861/3668] JFLA-199: Website Login Process Update  6 threads  2 comments
+  [ 862/3668] JFLA-200: Cable Spots in SFV  2 threads  0 comments
+  [ 863/3668] JFLA-200: Feit Gala Program  14 threads  2 comments
+  [ 864/3668] JFLA-201: Add Donor Privacy Policy to Site  2 threads  2 comments
+  [ 865/3668] JFLA-201: Shalom Santa Barbara Ad 2022  5 threads  1 comments
+  [ 866/3668] JFLA-202: Envelope Reorder  3 threads  1 comments
+  [ 867/3668] JFLA-203: Pop Up Survey Added to Site  7 threads  6 comments
+  [ 868/3668] JFLA-205: Small Business Directory E-blast  3 threads  1 comments
+  [ 869/3668] JFLA-206: Feit Testimonial E-blast  9 threads  0 comments
+  [ 870/3668] JFLA-208: Feit Auction E-mail  14 threads  7 comments
+  [ 871/3668] JFLA-209: Annual Report 2022 (E-blast)  49 threads  8 comments
+  [ 872/3668] JFLA-210: Postcard Update  3 threads  0 comments
+  [ 873/3668] JFLA-211: SEM Banner Ads  6 threads  2 comments
+  [ 874/3668] JFLA-212: Rosh Hashanah Card 2022  8 threads  8 comments
+  [ 875/3668] JFLA-213: Rosh Hashanah E-blast  3 threads  0 comments
+  [ 876/3668] JFLA-214: September Business Collab E-blast  12 threads  9 comments
+  [ 877/3668] JFLA-215: #10 Envelope Reorder  4 threads  0 comments
+  [ 878/3668] JFLA-216: #9 Remit Envelope Update  9 threads  1 comments
+  [ 879/3668] JFLA-217: Beverly Hills DM Campaign  3 threads  1 comments
+  [ 880/3668] JFLA-218: Media Campaign Q4-2022  8 threads  3 comments
+  [ 881/3668] JFLA-219: EoY Letter & E-blast  18 threads  0 comments
+  [ 882/3668] JFLA-220: Gala 2023  4 threads  3 comments
+  [ 883/3668] JFLA-221: Save-The-Date Gala 2022 E-blast  8 threads  0 comments
+  [ 884/3668] JFLA-222: JLiving Magazine Print & Digital Ads  11 threads  3 comments
+  [ 885/3668] JFLA-223: LA Times / Constant Contact E-blast  3 threads  0 comments
+  [ 886/3668] JFLA-224: 11.15 Business Collab E-vite  3 threads  0 comments
+  [ 887/3668] JFLA-225: Performance Review Forms (2 Fillable PDFs)  7 threads  0 comments
+  [ 888/3668] JFLA-226: Site Updates  15 threads  20 comments
+  [ 889/3668] JFLA-228: E-blast to Recent Borrowers  4 threads  2 comments
+  [ 890/3668] JFLA-229: Pre-School Loan Icon & Site Page  7 threads  2 comments
+  [ 891/3668] JFLA-230: Young Israel Hanukkah Flyer  7 threads  5 comments
+  [ 892/3668] JFLA-231: Jewish Outreach Email  6 threads  4 comments
+  [ 893/3668] JFLA-232: NEW Social Media Campaign  11 threads  4 comments
+  [ 894/3668] JFLA-233: Business Collab Logo  5 threads  1 comments
+  [ 895/3668] JFLA-234: Media Buy Q1&2 '23  4 threads  1 comments
+  [ 896/3668] JFLA-235: Business Card (Rachel)  8 threads  0 comments
+  [ 897/3668] JFLA-236: New Stationery  5 threads  1 comments
+  [ 898/3668] JFLA-237: Loan Wolves Movie Screening Invitation  18 threads  4 comments
+  [ 899/3668] JFLA-238: Feit Non-Gala Invitation  36 threads  13 comments
+  [ 900/3668] JFLA-239: Loan Wolves Screening Program  10 threads  1 comments
+  [ 901/3668] JFLA-240: Not the Feit Non-Gala, a Different Non-Gala  6 threads  0 comments
+  [ 902/3668] JFLA-241: Geographic Backend Pages on Site  3 threads  5 comments
+  [ 903/3668] JFLA-242: Feit 4 Kidz Page on Site  12 threads  7 comments
+  [ 904/3668] JFLA-243: Non-Gala is Back!  14 threads  27 comments
+  [ 905/3668] JFLA-244: Non-Event Gala E-blast  8 threads  1 comments
+  [ 906/3668] JFLA-245: JFLA120 Initial Creative  11 threads  5 comments
+  [ 907/3668] JFLA-246: Digital Letterhead  4 threads  0 comments
+  [ 908/3668] JFLA-247: 120 Anniversary Digital Letterhead  4 threads  0 comments
+  [ 909/3668] JFLA-248: Thank You Card Reorder  7 threads  2 comments
+  [ 910/3668] JFLA-249: Site Update to Tina  8 threads  8 comments
+  [ 911/3668] JFLA-251: 120th Anniversary Sponsorship PPT Deck  3 threads  3 comments
+  [ 912/3668] JFLA-252: 120th Anniversary Sponsorship 1 Sheet  17 threads  16 comments
+  [ 913/3668] JFLA-253: Custom Printed Boxes  9 threads  4 comments
+  [ 914/3668] JFLA-254: 2nd Sheets Print Order  5 threads  2 comments
+  [ 915/3668] JFLA-255: App Screen PDF Presentation  4 threads  0 comments
+  [ 916/3668] JFLA-256: 120th Anniversary LH Update  6 threads  2 comments
+  [ 917/3668] JFLA-257: 120th Anniversary :30 Spot  11 threads  5 comments
+  [ 918/3668] JFLA-258: Business Cards - Jodie Snyder  6 threads  1 comments
+  [ 919/3668] JFLA-259: Rosh Hashanah Card & E-blast in CC 2023  18 threads  10 comments
+  [ 920/3668] JFLA-260: Add Chat Function and Disclaimer to Site  3 threads  4 comments
+  [ 921/3668] JFLA-261: Student Loan Page Update  2 threads  1 comments
+  [ 922/3668] JFLA-262: JLiving RH Ad  8 threads  12 comments
+  [ 923/3668] JFLA-263: Logo for Giveaway Item  4 threads  0 comments
+  [ 924/3668] JFLA-264: Update Personal Loans Copy  3 threads  1 comments
+  [ 925/3668] JFLA-265: 120th Anniversary Bookmark  9 threads  3 comments
+  [ 926/3668] JFLA-266: App Webpage  6 threads  7 comments
+  [ 927/3668] JFLA-267: App Press Release  2 threads  0 comments
+  [ 928/3668] JFLA-268: Logo for App Store  5 threads  15 comments
+  [ 929/3668] JFLA-269: App Page w/Out Words, Just Graphics  3 threads  0 comments
+  [ 930/3668] JFLA-270: Tribute Ad for Adeena Bleich  7 threads  0 comments
+  [ 931/3668] JFLA-271: Landing Page for Beth Jacob Event  8 threads  6 comments
+  [ 932/3668] JFLA-272: Beth Jacob Event Flyer  7 threads  8 comments
+  [ 933/3668] JFLA-273: SEO Work for Q4 '23  2 threads  0 comments
+  [ 934/3668] JFLA-274: Backstage Magazine Banner Ads  8 threads  5 comments
+  [ 935/3668] JFLA-276: 120th Anniversary & App Retractable Banners  8 threads  8 comments
+  [ 936/3668] JFLA-277: 1/4 Page Ads in Jewish Journal  13 threads  3 comments
+  [ 937/3668] JFLA-278: National Conference PPT Presentation  6 threads  2 comments
+  [ 938/3668] JFLA-279: 120th Anniversary Landing Page  8 threads  3 comments
+  [ 939/3668] JFLA-280: Letterhead Update Q-3 '23  11 threads  3 comments
+  [ 940/3668] JFLA-281: Social Media Icons Update  4 threads  2 comments
+  [ 941/3668] JFLA-282: Specs for Android, NextDoor & OfferUp Ads  5 threads  4 comments
+  [ 942/3668] JFLA-283: Urgent Funding Request for Striking Workers Mailing  10 threads  5 comments
+  [ 943/3668] JFLA-284: Stationery Request  5 threads  2 comments
+  [ 944/3668] JFLA-285: Billboards Q4-2023  10 threads  7 comments
+  [ 945/3668] JFLA-286: Beth Jacob Event Info on Home Page  2 threads  0 comments
+  [ 946/3668] JFLA-287: End of Year Letter - '23  2 threads  0 comments
+  [ 947/3668] JFLA-288: Newsletter Masthead  8 threads  3 comments
+  [ 948/3668] JFLA-289: Champions Program  4 threads  5 comments
+  [ 949/3668] JFLA-290: Digital LH Update  3 threads  0 comments
+  [ 950/3668] JFLA-291: Update site with links to app  4 threads  2 comments
+  [ 951/3668] JFLA-292: Jewish Journal E-blast  4 threads  0 comments
+  [ 952/3668] JFLA-293: 15 Sec Video  4 threads  4 comments
+  [ 953/3668] JFLA-293: Add New Loan Type  Other Changes  5 threads  0 comments
+  [ 954/3668] JFLA-294: Loan Cap Changes on Site  3 threads  3 comments
+  [ 955/3668] JFLA-295: Business Collab Sponsorship Mailing  5 threads  0 comments
+  [ 956/3668] JFLA-296: 120th Anniversary Logo Switch on Site  3 threads  1 comments
+  [ 957/3668] JFLA-297: Letterhead w/NEW 120th Logo  3 threads  1 comments
+  [ 958/3668] JFLA-298: 120th Envelopes  5 threads  2 comments
+  [ 959/3668] JFLA-299: Small Business Mailer  21 threads  14 comments
+  [ 960/3668] JFLA-300: New Constant Contact Headers  4 threads  0 comments
+  [ 961/3668] JFLA-301: Social Media Banners w/New Tag Line  4 threads  3 comments
+  [ 962/3668] JFLA-302: Site Update & Social Media Image (Ways to Give/Guarantor Guardians)  6 threads  2 comments
+  [ 963/3668] JFLA-303: Webwork History Guardian Guarantors  6 threads  4 comments
+  [ 964/3668] JFLA-304: Insider Impact E-Newsletter Components x3  6 threads  15 comments
+  [ 965/3668] JFLA-305: LinkedIn Banner Ads for Teacher Loans  3 threads  9 comments
+  [ 966/3668] JFLA-306: Outdoor Q2-'24  13 threads  19 comments
+  [ 967/3668] JFLA-307: Timeline Mailer  37 threads  30 comments
+  [ 968/3668] JFLA-308: A Night of Comedy Invitation (May Event)  19 threads  10 comments
+  [ 969/3668] JFLA-309: Digital LH Update  3 threads  0 comments
+  [ 970/3668] JFLA-310: DAF Website Update  0 threads  0 comments
+  [ 971/3668] JFLA-311: Passover '24 Holiday Card  15 threads  13 comments
+  [ 972/3668] JFLA-312: Style Guide  2 threads  1 comments
+  [ 973/3668] JFLA-313: Web Work (Miscellaneous)  3 threads  0 comments
+  [ 974/3668] JFLA-314: Add Video  2 threads  0 comments
+  [ 975/3668] JFLA-315: Business Cards (Mimi)  4 threads  2 comments
+  [ 976/3668] JFLA-316: Changes to DAF on Site  3 threads  2 comments
+  [ 977/3668] JFLA-317: Customized Water Bottles  11 threads  4 comments
+  [ 978/3668] JFLA-318: Timeline Brochure Mods (And Ad) for Jewish Journal  22 threads  19 comments
+  [ 979/3668] JFLA-319: Shalom Santa Barbara Magazine Ad  4 threads  1 comments
+  [ 980/3668] JFLA-320: News Business Card (Zoe)  5 threads  4 comments
+  [ 981/3668] JFLA-321: Digital LH Update  4 threads  0 comments
+  [ 982/3668] JFLA-322: Letterhead (Printed)  5 threads  1 comments
+  [ 983/3668] JFLA-323: Annual/Impact Report 2024  43 threads  36 comments
+  [ 984/3668] JFLA-324: US Bank Ad  6 threads  3 comments
+  [ 985/3668] JFLA-325: Apply JFLA Branding to PPT Deck (10 slides)  5 threads  6 comments
+  [ 986/3668] JFLA-326: Camp JCA Postcard  10 threads  11 comments
+  [ 987/3668] JFLA-327: Advisory Committee PowerPoint  10 threads  2 comments
+  [ 988/3668] JFLA-328: Camp Moshava Alevy Postcard  8 threads  6 comments
+  [ 989/3668] JFLA-329: 70 Faces Media Banner Ad  6 threads  2 comments
+  [ 990/3668] JFLA-330: Jewish Home 1/4 Page Ad  5 threads  9 comments
+  [ 991/3668] JFLA-331: "Hardening" the Site  2 threads  1 comments
+  [ 992/3668] JFLA-332: Photo Attribution  4 threads  1 comments
+  [ 993/3668] JFLA-333: Constant Contact E-blast (Hillel List)  3 threads  2 comments
+  [ 994/3668] JFLA-334: Envelopes  5 threads  1 comments
+  [ 995/3668] JFLA-335: Bet Tzedek Postcard  10 threads  11 comments
+  [ 996/3668] JFLA-336: Jewish Community Constant Contact  2 threads  0 comments
+  [ 997/3668] JFLA-337: Nurse Oriented Landing Page & Banner Ads  15 threads  13 comments
+  [ 998/3668] JFLA-339: Billboards Q4-'24  10 threads  11 comments
+  [ 999/3668] JFLA-340: Mission Statement Zoom Background  4 threads  2 comments
+  [1000/3668] JFLA-341: Wilshire Blvd. Temple E-blast  8 threads  4 comments
+  [1001/3668] JFLA-342: Chabad of Moorpark Postcard  13 threads  1 comments
+  [1002/3668] JFLA-343: Stephen Wise Postcard  12 threads  6 comments
+  [1003/3668] JFLA-344: Add CS Logo to Site and Social Media Graphic  4 threads  4 comments
+  [1004/3668] JFLA-345: Non-Profit Landing Page  5 threads  5 comments
+  [1005/3668] JFLA-346: Banner Ads for Personal Loans  7 threads  2 comments
+  [1006/3668] JFLA-347: Skirball Banner Ad  6 threads  0 comments
+  [1007/3668] JFLA-348: Birthday Card  3 threads  0 comments
+  [1008/3668] JFLA-349: Business Cards (J. Farr)  4 threads  2 comments
+  [1009/3668] JFLA-350: Jewish Journal Ad for Teachers  8 threads  4 comments
+  [1010/3668] JFLA-351: Homepage Fire Blurb  5 threads  3 comments
+  [1011/3668] JFLA-352: Wildfire Relief Page  8 threads  4 comments
+  [1012/3668] JFLA-354: New Loan Programs  12 threads  8 comments
+  [1013/3668] JFLA-355: Business Cards (J. Yomtov)  5 threads  2 comments
+  [1014/3668] JFLA-356: Envelope Reorder  6 threads  0 comments
+  [1015/3668] JFLA-357: Altadena Billboard  6 threads  1 comments
+  [1016/3668] JFLA-358: Teacher Ad Copy Update/Flyer  5 threads  3 comments
+  [1017/3668] JFLA-359: Passover Card 2025  14 threads  13 comments
+  [1018/3668] JFLA-360: More Website Updates (Custom Dropdowns  4 threads  2 comments
+  [1019/3668] JFLA-361: Billboard (Square on Pico Blvd.)  15 threads  8 comments
+  [1020/3668] JFLA-362: Jewish Homes Magazine Ad  6 threads  5 comments
+  [1021/3668] JFLA-363: Interest Rate Billboard E-blast (CC)  4 threads  1 comments
+  [1022/3668] JFLA-364: Radio (KCRW & KPCC)  2 threads  0 comments
+  [1023/3668] JFLA-365: Wildfire Loan E-blast (Weekly x5)  9 threads  2 comments
+  [1024/3668] JFLA-366: Update Survey Box to Promote Loan Funds  3 threads  2 comments
+  [1025/3668] JFLA-367: Add Interest Rate Graphic to Homepage  4 threads  5 comments
+  [1026/3668] JFLA-368: Feit Solicitation DM Letter  25 threads  5 comments
+  [1027/3668] JFLA-369: Banner / Social Media Ads for IVF/Fire/Student Loans  8 threads  6 comments
+  [1028/3668] JFLA-370: UCLA Full Page Ad & Banner Ads  7 threads  4 comments
+  [1029/3668] JFLA-371: :30 Fire Loan Fund Video  7 threads  5 comments
+  [1030/3668] JFLA-372: Fire Restoration Companies Flyer  7 threads  2 comments
+  [1031/3668] JFLA-373: Fertility Clinic Postcard Follow-Up  17 threads  6 comments
+  [1032/3668] JFLA-374: Fire Loan Flyer  7 threads  2 comments
+  [1033/3668] JFLA-375: Nurse's Loan Flyer  6 threads  5 comments
+  [1034/3668] JFLA-376: CSI Secret Page on Site  7 threads  0 comments
+  [1035/3668] JFLA-377: Student Loan E-blasts (2)  6 threads  2 comments
+  [1036/3668] JFLA-378: Update to JFLA-341: WBT E-blast  3 threads  1 comments
+  [1037/3668] JFLA-379: IVF Loan Fund Video  11 threads  5 comments
+  [1038/3668] JFLA-380: Fire Loan Flyer - Alt Version  3 threads  2 comments
+  [1039/3668] JFLA-381: Student Loan Radio Spot (NPR)  3 threads  0 comments
+  [1040/3668] JFLA-382: Notecard Reorder  5 threads  4 comments
+  [1041/3668] JFLA-383: Restore Gap Year Loan Fund on Site  4 threads  1 comments
+  [1042/3668] JFLA-384: New Business Card (Rebecca Rosansky)  4 threads  0 comments
+  [1043/3668] JFLA-385: Jewish Life Flyer Update  3 threads  0 comments
+  [1044/3668] JFLA-386: Homepage Change (Fire to Vocational School Loans)  4 threads  7 comments
+  [1045/3668] JFLA-387: Government Grants E-blast  6 threads  0 comments
+  [1046/3668] JFLA-388: Student Loan Consolidation E-blast  3 threads  0 comments
+  [1047/3668] JFLA-389: Kohn Letter Layout  5 threads  0 comments
+  [1048/3668] JFLA-390: Pop-Up Show Booth  12 threads  10 comments
+  [1049/3668] JFLA-391: Summer Campaign (Mailing / Landing Page / CC E-blast)  37 threads  35 comments
+  [1050/3668] JFLA-392: Security Loan Update E-blast  9 threads  1 comments
+  [1051/3668] JFLA-393: Jewish Homes 1/4 Page Ad on Security Loans  12 threads  4 comments
+  [1052/3668] JFLA-394: Mission Statement Poster  2 threads  1 comments
+  [1053/3668] JFLA-395: Add Non-Profit/Security Loans to Dropdown Menu  3 threads  0 comments
+  [1054/3668] JFLA-396: Outdoor (Pico Blvd. Board)  4 threads  1 comments
+  [1055/3668] JFLA-397: "Be The Yes/Be Our Yes" Logo  7 threads  5 comments
+  [1056/3668] JFLA-398: JCF DAF Flyer  36 threads  19 comments
+  [1057/3668] JFLA-399: Jewish Journal Full-Page Ad  10 threads  4 comments
+  [1058/3668] JFLA-400: Jewish Film Festival Ad  2 threads  0 comments
+  [1059/3668] JFLA-401: Jewish Life Flyer Update  4 threads  1 comments
+  [1060/3668] JFLA-402: New Loan Fund Page for Pet Care  3 threads  1 comments
+  [1061/3668] JFLA-403: Pet Care Loan Fund CC E-blast  3 threads  0 comments
+  [1062/3668] JFLA-404: New Homepage Layout  10 threads  14 comments
+  [1063/3668] JFLA-405: Rosh Hashanah Card '25  18 threads  5 comments
+  [1064/3668] JFLA-406: Impact (Annual) Report '25  47 threads  44 comments
+  [1065/3668] JFLA-407: More Website Updates  5 threads  5 comments
+  [1066/3668] JFLA-408: Form Assembly Embed Code  2 threads  0 comments
+  [1067/3668] JFLA-409: Rosh Hashanah E-Blast  2 threads  0 comments
+  [1068/3668] JFLA-410: "Be The Yes" Page on Site  2 threads  0 comments
+  [1069/3668] JFLA-411: "Be Our Yes" E-blast  7 threads  4 comments
+  [1070/3668] JFLA-412: Three Minute Intro to JFLA Video  8 threads  5 comments
+  [1071/3668] JFLA-416: Trade/Vocational School Loan Flyer  6 threads  6 comments
+  [1072/3668] JFLA-417: SBCC Banner Ad & More  2 threads  0 comments
+  [1073/3668] JFLA-418: Guarantor Thank You Card  8 threads  1 comments
+  [1074/3668] JFLA-419: AI Chat Restoration & Updates  4 threads  1 comments
+  [1075/3668] JFLA-420: Community College Ads  8 threads  4 comments
+  [1076/3668] JFLA-421: Guarantor Swag  11 threads  1 comments
+  [1077/3668] JFLA-422: Pico Blvd. Billboard for Tech/Vocational Schools  12 threads  3 comments
+  [1078/3668] JFLA-423: 1/4 Page Ads for We Are In America Magazine  4 threads  2 comments
+  [1079/3668] JFLA-424: Chanukkah Card '25  9 threads  3 comments
+  [1080/3668] JFLA-425: Meta Description Updates  2 threads  1 comments
+  [1081/3668] JFLA-426: DAF Page on Site / Jan2026  4 threads  4 comments
+  [1082/3668] JFLA-427: Referral Form  4 threads  0 comments
+  [1083/3668] JFLA-428: End of Year Letter '25  18 threads  0 comments
+  [1084/3668] JFLA-429: Constant Contact BOY Graphics & Images  4 threads  2 comments
+  [1085/3668] JFLA-430: Loan Acceptance Docs x3  5 threads  0 comments
+  [1086/3668] JFLA-431: Additional BoY Graphics  5 threads  2 comments
+  [1087/3668] JFLA-432: US Bank Matching Funds Header Graphic  7 threads  0 comments
+  [1088/3668] JFLA-433: BoY Graphics III  6 threads  1 comments
+  [1089/3668] JFLA-434: New Billboard for IVF Loans  6 threads  3 comments
+  [1090/3668] JFLA-435: BoY Graphics IV  3 threads  0 comments
+  [1091/3668] JFLA-436: BoY Graphics V  10 threads  4 comments
+  [1092/3668] JFLA-437: :30 CNN Cable Spot on Loans for Seniors  15 threads  7 comments
+  [1093/3668] JFLA-438: Algolia  2 threads  1 comments
+  [1094/3668] JFLA-439: Our Impact Page on Site  3 threads  2 comments
+  [1095/3668] JFLA-440: Content Update to Improve AI Search  2 threads  1 comments
+  [1096/3668] JFLA-440: Wildfire Stewardship LH & Envelope  2 threads  2 comments
+  [1097/3668] JFLA-441: Passover Card '26  13 threads  1 comments
+  [1098/3668] JFLA-442: KCRW Dedicated E-Blast  12 threads  1 comments
+  [1099/3668] JFLA-443: Mgmt/Employee Review Forms x3 in Word  5 threads  0 comments
+  [1100/3668] JFLA-445: KCLU Banner Ads  5 threads  0 comments
+  [1101/3668] JFLA-446: More Meta Descriptions for Site  3 threads  1 comments
+  [1102/3668] JFLA-447: Thank You Card (Blank) Reorder  3 threads  1 comments
+  [1103/3668] JFLA-448: We Are in America Advertorial  2 threads  0 comments
+  [1104/3668] JFLA-Miscellaneous Time  2 threads  0 comments
+  [1105/3668] JFLA-ToDo: Logo  2 threads  0 comments
+  [1106/3668] JFLA-ToDo: Logo on Static Cling Sheet  3 threads  0 comments
+  [1107/3668] JFLA: Board Meeting PPT Deck  8 threads  5 comments
+  [1108/3668] JFLA: Board Meeting PPT Deck - August 2022  10 threads  8 comments
+  [1109/3668] JFLA.ORG  2 threads  9 comments
+  [1110/3668] JFLA029-School Flyer  4 threads  0 comments
+  [1111/3668] JUS-001: Website Update  15 threads  16 comments
+  [1112/3668] JUS-002: Direct Mail Piece  6 threads  2 comments
+  [1113/3668] JUS-003: Catalog/Consumer Response Brochure  1 threads  0 comments
+  [1114/3668] JUS-004: Corporate Brochure  28 threads  32 comments
+  [1115/3668] Justice Design Group MAP  9 threads  10 comments
+  [1116/3668] Justice Design Notes  3 threads  0 comments
+  [1117/3668] Keystone-001: Control Tumbler Images  6 threads  3 comments
+  [1118/3668] Keystone-002: Tumblers (Alt Background)  4 threads  1 comments
+  [1119/3668] Keystone-003: JDS Polar Camel tumbler  5 threads  2 comments
+  [1120/3668] Keystone-004: YETI 20's w/Alt Background  3 threads  1 comments
+  [1121/3668] Keystone-005: Two More Tumblers  8 threads  1 comments
+  [1122/3668] Keystone-006: Even More Tumblers  11 threads  11 comments
+  [1123/3668] Keystone-007: Image Clean Up  7 threads  2 comments
+  [1124/3668] Keystone-008: New Tumbler & More Square Top  7 threads  0 comments
+  [1125/3668] KEYSTONE-009: Tumbler & Cooler  3 threads  0 comments
+  [1126/3668] Keystone-010: Tumbler Modifications and 2 New Versions  23 threads  8 comments
+  [1127/3668] Keystone-011: Photoshop Images  6 threads  6 comments
+  [1128/3668] Keystone-012: Black & Metallic Tumbler Renders (20 oz)  14 threads  14 comments
+  [1129/3668] Keystone-014: Tumblers! Tumblers! Tumblers!  8 threads  5 comments
+  [1130/3668] KKB-019a: Partner Announcement Eblast  3 threads  0 comments
+  [1131/3668] KKB-020: Business Card Master  2 threads  0 comments
+  [1132/3668] KKB-020: Stationery Reorder  2 threads  0 comments
+  [1133/3668] KKB-023: Business Card (Ilko)  6 threads  2 comments
+  [1134/3668] KKB-024: Mailing Label Reorder  2 threads  0 comments
+  [1135/3668] KKB-025: Business Cards (Chan & Rojany)  5 threads  0 comments
+  [1136/3668] KKB-026: New Hire Announcement  20 threads  8 comments
+  [1137/3668] KKB-027: Business Card (Nevarez)  5 threads  0 comments
+  [1138/3668] KKB-028: Announcement (Digital version)  2 threads  1 comments
+  [1139/3668] KKB-029: Business Cards (Chan & Weiser)  2 threads  2 comments
+  [1140/3668] KKB-030: Letterhead Reorder  2 threads  1 comments
+  [1141/3668] KKB-031: Stationery Item Reorder  4 threads  2 comments
+  [1142/3668] KKB-032: New Partner Announcement (Mia)  19 threads  6 comments
+  [1143/3668] KKB-033: New Business Card (Lewicki)  6 threads  1 comments
+  [1144/3668] KKB-034: New Business Cards  3 threads  1 comments
+  [1145/3668] KKB-035: Stationery Reorder  3 threads  1 comments
+  [1146/3668] KKB-037: New Business Card (Hartman)  4 threads  0 comments
+  [1147/3668] KKB: Old Jobs  1 threads  0 comments
+  [1148/3668] Leve Family Foundation Site Update  1 threads  1 comments
+  [1149/3668] Leve-001: Foundation Website  16 threads  16 comments
+  [1150/3668] Leve-002: Foundation Site Changes  1 threads  0 comments
+  [1151/3668] Leve-003: Foundation Site Changes  2 threads  0 comments
+  [1152/3668] MAP-050: Enewsletter Special Edition  4 threads  1 comments
+  [1153/3668] MAP-051: Retractable Banner & Postcard  9 threads  10 comments
+  [1154/3668] MAP-052: International Logo  4 threads  5 comments
+  [1155/3668] MAP-053: MAP International Website  18 threads  9 comments
+  [1156/3668] MAP-054: Stationery (Print & Digital)  8 threads  3 comments
+  [1157/3668] MAP-055: Announcement  5 threads  1 comments
+  [1158/3668] MAP-055: Social Media Ad (We're Hiring!)  7 threads  5 comments
+  [1159/3668] MAP-056: Email from Tes  5 threads  3 comments
+  [1160/3668] MAP-057: Payment Portal  3 threads  3 comments
+  [1161/3668] MAP-058: Proposal Template  21 threads  7 comments
+  [1162/3668] MAP-059: QuickFee Landing Page  3 threads  0 comments
+  [1163/3668] MAP-060: E-Newsletter Addition  3 threads  1 comments
+  [1164/3668] MAP-061: Add Payment Portal to Site  4 threads  7 comments
+  [1165/3668] MAP-062: New Services Flyers  6 threads  0 comments
+  [1166/3668] MAP-064: CyberSecure Website  20 threads  8 comments
+  [1167/3668] MAP-065: ADA Audit  6 threads  3 comments
+  [1168/3668] MAP-066: Main Site JV Update  8 threads  2 comments
+  [1169/3668] MAP-067: 401(k) DM Campaign  3 threads  2 comments
+  [1170/3668] MAP-068: MailChimp Template Fix (?)  3 threads  1 comments
+  [1171/3668] MAP-069: Digital LH w/Both Addresses  2 threads  1 comments
+  [1172/3668] MAP-070: Two New Flyers  6 threads  0 comments
+  [1173/3668] MAP-071: Banner Resize  2 threads  1 comments
+  [1174/3668] MAP-072: JV Digital Letterhead  5 threads  2 comments
+  [1175/3668] MAP-073: 401(k) Audit DM (8.01.19)  1 threads  2 comments
+  [1176/3668] MAP-074: MAP Cybersecure One Sheet  17 threads  1 comments
+  [1177/3668] MAP-075: MAP International Site Changes  3 threads  1 comments
+  [1178/3668] MAP-076: Newsletter Change  7 threads  2 comments
+  [1179/3668] MAP-077: Incentax R&D Credit Services One Sheet  9 threads  2 comments
+  [1180/3668] MAP-078: Incentax Cost Segregation One Sheet  9 threads  3 comments
+  [1181/3668] MAP-079: Website Photo Posting Tutorial  1 threads  0 comments
+  [1182/3668] MAP-080: Tax Credits Website  21 threads  8 comments
+  [1183/3668] MAP-081: Careers Form on Main Site  12 threads  15 comments
+  [1184/3668] MAP-082: Add Forbes Logo Everywhere  8 threads  8 comments
+  [1185/3668] MAP-083: Federal Empowerment Zone Flyer  9 threads  2 comments
+  [1186/3668] MAP-084: CyberSecurity Tile on Newsletter  3 threads  1 comments
+  [1187/3668] MAP-085: Business Card Ideas  8 threads  4 comments
+  [1188/3668] MAP-086: New Payment Portal Option  2 threads  1 comments
+  [1189/3668] MAP-086: Zoom Background  3 threads  2 comments
+  [1190/3668] MAP-087: 401(k) E-blast  7 threads  0 comments
+  [1191/3668] MAP-088: Newsletter Change II  6 threads  0 comments
+  [1192/3668] MAP-089: CalCPA Logo Design & Add to Site  7 threads  2 comments
+  [1193/3668] MAP-090: More Website Work  3 threads  2 comments
+  [1194/3668] MAP-091: Holiday Card (Email)  5 threads  7 comments
+  [1195/3668] MAP-092: Regional Project  5 threads  4 comments
+  [1196/3668] MAP-094: Add Forbes Logo to Promo Pieces  14 threads  1 comments
+  [1197/3668] MAP-095: RoadMAP Podcast Links on Site  3 threads  1 comments
+  [1198/3668] MAP-096: Letterhead Update  13 threads  9 comments
+  [1199/3668] MAP-097: SquareSpace Site  4 threads  0 comments
+  [1200/3668] MAP-098: Social Media CPA Primer Branding  6 threads  0 comments
+  [1201/3668] MAP-098: Zoom Background  8 threads  0 comments
+  [1202/3668] MAP-099: Podcast on Newsletter & Website  6 threads  2 comments
+  [1203/3668] MAP-100: Social Media Art  4 threads  7 comments
+  [1204/3668] MAP-101: Site Update to JAMstack  5 threads  1 comments
+  [1205/3668] MAP-103: New Newsletter Template  22 threads  8 comments
+  [1206/3668] MAP-104: Tes' Awards  4 threads  3 comments
+  [1207/3668] MAP-105: Endscreen Animation  5 threads  2 comments
+  [1208/3668] MAP-105: Name Change Project  26 threads  11 comments
+  [1209/3668] MAP-107: New Employee Offer Proposal  5 threads  2 comments
+  [1210/3668] MAP-108: Minor Site Changes  2 threads  1 comments
+  [1211/3668] MAP-Scheduler Problem  3 threads  0 comments
+  [1212/3668] MAP-ToDo: Blog Posts  2 threads  2 comments
+  [1213/3668] MAP-ToDo: Image Issues  1 threads  3 comments
+  [1214/3668] MAP-ToDo: Template Update  5 threads  1 comments
+  [1215/3668] MAP: Template Update  2 threads  2 comments
+  [1216/3668] MDI-005: New Ads  5 threads  0 comments
+  [1217/3668] MDI-007: Great Service Ad  3 threads  5 comments
+  [1218/3668] MDI-008: New Ads  13 threads  3 comments
+  [1219/3668] MDI-009: Direct Mail Flyer  5 threads  2 comments
+  [1220/3668] Merrill Lynch-001: Tracy Group Name  16 threads  12 comments
+  [1221/3668] Merrill Lynch-002: Introduction Book  10 threads  9 comments
+  [1222/3668] Merrill Lynch-003: Pitch Book  0 threads  0 comments
+  [1223/3668] Metabalign-003: Website Dev  4 threads  2 comments
+  [1224/3668] Metabalign-Naming & Logo  15 threads  8 comments
+  [1225/3668] MIA Complete Stationery Package  2 threads  0 comments
+  [1226/3668] MIA To Do: Add New Employee Bio to Site  5 threads  0 comments
+  [1227/3668] MIA-018: SFVBJ Tribute Ad for Kevin Holmes  8 threads  0 comments
+  [1228/3668] MIA-020: 25th Anniversary Logo, Newsletter Header & Email Signature  15 threads  11 comments
+  [1229/3668] MIA-021: Journal Ads  14 threads  7 comments
+  [1230/3668] MIA-022: Managing Partner Announcement  4 threads  0 comments
+  [1231/3668] MIA-023: Add Consulting Services Page to Site  3 threads  0 comments
+  [1232/3668] MIA-024: Consulting Services Brochure  14 threads  9 comments
+  [1233/3668] MIA-025: Add Scholarship Page to Site.  8 threads  4 comments
+  [1234/3668] MIA-026: Save the Date Card  12 threads  6 comments
+  [1235/3668] MIA-027: Digital Invitation  11 threads  3 comments
+  [1236/3668] MIA-028: Anniversary Gift  13 threads  9 comments
+  [1237/3668] MIA-029: Brand Graphic  10 threads  3 comments
+  [1238/3668] MIA-030: Holiday Card (Digital)  10 threads  10 comments
+  [1239/3668] MIA-031: Audit Info Sheet  16 threads  13 comments
+  [1240/3668] MIA-032: Holiday Gift Art  6 threads  4 comments
+  [1241/3668] MIA-033: Tribute Ad (Tes)  6 threads  2 comments
+  [1242/3668] MIA-034: Valencia Office  6 threads  6 comments
+  [1243/3668] MIA-035: Logo & ID System Update  20 threads  12 comments
+  [1244/3668] MIA-036: Website Redesign  31 threads  32 comments
+  [1245/3668] MIA-037: New Employee Announcement  9 threads  1 comments
+  [1246/3668] MIA-038: Core Values Graphic Update  4 threads  2 comments
+  [1247/3668] MIA-039: Digital Letterhead & Report Cover  5 threads  1 comments
+  [1248/3668] MIA-041: Audit Info Sheet Update  1 threads  1 comments
+  [1249/3668] MIA-041: Audit Sheet Update  6 threads  8 comments
+  [1250/3668] MIA-042: Coffee Mug Art  3 threads  4 comments
+  [1251/3668] MIA-043: Announcement  13 threads  5 comments
+  [1252/3668] MIA-044: Announcement (Digital Version)  5 threads  3 comments
+  [1253/3668] MIA-044: Screens for Lobby Signage  3 threads  0 comments
+  [1254/3668] MIA-045: 401(k) Mailing II  2 threads  1 comments
+  [1255/3668] MIA-045: Open House Invitation (Digital Only)  7 threads  10 comments
+  [1256/3668] MIA-046: Social Media Banners/Avatars  6 threads  1 comments
+  [1257/3668] MIA-047: Newsletter Sign-Up Option  1 threads  1 comments
+  [1258/3668] MIA-048: Remnant Space Ad  3 threads  4 comments
+  [1259/3668] MIA-049: Digital Sign Animation  2 threads  0 comments
+  [1260/3668] MIA-To Do: Add New Employee to Website  6 threads  1 comments
+  [1261/3668] MIA-ToDo  2 threads  2 comments
+  [1262/3668] MIA-ToDo: 25th Anniversary Graphic Change  3 threads  1 comments
+  [1263/3668] MIA-ToDo: Adwords?  2 threads  0 comments
+  [1264/3668] MIA-ToDo: Fix Email Template  1 threads  1 comments
+  [1265/3668] MIA-ToDo: Sign Art  4 threads  3 comments
+  [1266/3668] MIA-ToDo: Social Media Help  1 threads  0 comments
+  [1267/3668] MISRA-001: Logo  14 threads  4 comments
+  [1268/3668] ML-001: Chipps Group Positioning Document  2 threads  1 comments
+  [1269/3668] MMR-023: Photo Manipulations 3  12 threads  5 comments
+  [1270/3668] MMR-024: Photo Manipulations 4  13 threads  12 comments
+  [1271/3668] MMR-025: Video Edits  2 threads  0 comments
+  [1272/3668] MMR-026: Tumbler Image Manipulations  8 threads  4 comments
+  [1273/3668] MMR-027: DeVry Video Edits  16 threads  2 comments
+  [1274/3668] MMR-028: Video Edits (Boveda)  3 threads  0 comments
+  [1275/3668] MMR-029: Candy Bar Wrappers  21 threads  4 comments
+  [1276/3668] MMR-030: Video/Radio Edits  15 threads  7 comments
+  [1277/3668] MMR-031: Wine Label  4 threads  0 comments
+  [1278/3668] MMR-032: Shelf Tags  13 threads  2 comments
+  [1279/3668] MMR-033: Haircare Boxes (Optimum)  2 threads  0 comments
+  [1280/3668] MMR-034: Dyson Air Filter Box/Website  14 threads  5 comments
+  [1281/3668] MMR-035: Amazon-Like Product Pages  13 threads  5 comments
+  [1282/3668] MMR-036: Tumbler Redux  11 threads  1 comments
+  [1283/3668] MMR-037: Tumbler III  3 threads  2 comments
+  [1284/3668] MMR-038: Taza Can Holder  2 threads  2 comments
+  [1285/3668] MMR-039: Tumbler IV  19 threads  7 comments
+  [1286/3668] MMR-040: Action Figure Box Changes  11 threads  12 comments
+  [1287/3668] MMR-041: Lending Club Images  17 threads  20 comments
+  [1288/3668] MMR-042: Popcorn Video Edit/Creation  7 threads  1 comments
+  [1289/3668] MMR-043: Toy Cars (DP vs. CC)  37 threads  32 comments
+  [1290/3668] MMR-044: BANG Energy Drink Labels  5 threads  2 comments
+  [1291/3668] MMR-045: Monster Energy Drink Can Labels  22 threads  9 comments
+  [1292/3668] MMR-046: Bang Energy Drink  17 threads  17 comments
+  [1293/3668] MMR-047: Reign Energy Drink Cans  8 threads  5 comments
+  [1294/3668] MMR-048: Energy Drink Labels/Photos?  5 threads  1 comments
+  [1295/3668] MMR-049: Search Result & Landing Page Modifications  16 threads  38 comments
+  [1296/3668] MMR-049A: Images 1804 2002 2204 2402  2 threads  1 comments
+  [1297/3668] MMR-049B: Images 604, 802, 4204, 4402)  9 threads  4 comments
+  [1298/3668] MMR-049C: Images 1004, 1202, 1404, 1602, 4604A&B 4802  7 threads  6 comments
+  [1299/3668] MMR-049D: Images 2604A&B, 2802, 3004A&B, 3202  4 threads  4 comments
+  [1300/3668] MMR-049E: Images 3404, 3602, 3804A&B, 4002  5 threads  1 comments
+  [1301/3668] MMR-049F: Images 104, 204, 302, 402  4 threads  6 comments
+  [1302/3668] MMR-049G: Images 1602, 1804, 2002, 2202_A&B  1 threads  0 comments
+  [1303/3668] MMR-050: Search & Landing Page Modifications  3 threads  0 comments
+  [1304/3668] MMR-050A Quality Inn (Washington)  5 threads  2 comments
+  [1305/3668] MMR-050B Holiday Inn Express  3 threads  0 comments
+  [1306/3668] MMR-050C Crowne Plaza  3 threads  0 comments
+  [1307/3668] MMR-050D: Courtyard by Marriott  6 threads  1 comments
+  [1308/3668] MMR-050E: Hilton Garden Inn  4 threads  1 comments
+  [1309/3668] MMR-050F: Hilton  4 threads  1 comments
+  [1310/3668] MMR-050G: Quality Inn (Nevada)  5 threads  1 comments
+  [1311/3668] MMR-050H: Hyatt Place  5 threads  2 comments
+  [1312/3668] MMR-050I: Holiday Inn Express  6 threads  1 comments
+  [1313/3668] MMR-050J: Red Roof Inn  5 threads  0 comments
+  [1314/3668] MMR-051: Inhaler 360 Images  28 threads  25 comments
+  [1315/3668] MMR-052: Rifle Images  50 threads  27 comments
+  [1316/3668] MMS-001: Landing Page  27 threads  19 comments
+  [1317/3668] MMS-002: Social Media Post  3 threads  0 comments
+  [1318/3668] MMS-003: Video Script  2 threads  0 comments
+  [1319/3668] MMS-004: Website Copy Edits  3 threads  0 comments
+  [1320/3668] MMS-005: Email Drip Campaign  9 threads  5 comments
+  [1321/3668] MMS-006: Sweetwater Lesson Page Copy  3 threads  0 comments
+  [1322/3668] MMS-007: MTNA Show Email Campaign (x3)  18 threads  8 comments
+  [1323/3668] MON - Post Launch Updates  0 threads  0 comments
+  [1324/3668] MON Security Updates  2 threads  1 comments
+  [1325/3668] MON-422: Ventura Canyon Signs  7 threads  3 comments
+  [1326/3668] MON-423: Business Cards  5 threads  0 comments
+  [1327/3668] MON-447: Tampa Ave. Brochure  4 threads  0 comments
+  [1328/3668] MON-448: Business Card Imprint (Wilson)  3 threads  0 comments
+  [1329/3668] MON-450: Site Addition  1 threads  3 comments
+  [1330/3668] MON-450a: Amestoy Estates Web Info Update  3 threads  5 comments
+  [1331/3668] MON-451: New Homes Slideshow on Website  10 threads  5 comments
+  [1332/3668] MON-452: Fireman Poster  2 threads  3 comments
+  [1333/3668] MON-453: Amestoy Estates Sales Sheet  16 threads  12 comments
+  [1334/3668] MON-454 5333 Video  2 threads  0 comments
+  [1335/3668] MON-455: The Village at Welby Signage  14 threads  9 comments
+  [1336/3668] MON-456: The Village at Welby Website  27 threads  32 comments
+  [1337/3668] MON-457: Business Cards  7 threads  1 comments
+  [1338/3668] MON-458: Project List Update  10 threads  4 comments
+  [1339/3668] MON-458: Welby Print Marketing  40 threads  24 comments
+  [1340/3668] MON-459: Building Signs  3 threads  2 comments
+  [1341/3668] MON-459: Tampa Construction Sign  4 threads  2 comments
+  [1342/3668] MON-460: Tampa Temp Page  4 threads  2 comments
+  [1343/3668] MON-461: Main Site Changes  4 threads  4 comments
+  [1344/3668] MON-462: Welby eBlast Template  8 threads  6 comments
+  [1345/3668] MON-463: Serra Meadows  3 threads  2 comments
+  [1346/3668] MON-464: Highland Park Project  3 threads  7 comments
+  [1347/3668] MON-467: Encino Verde  17 threads  8 comments
+  [1348/3668] MON-468: Tampa Site Plan/Floor Plans  13 threads  6 comments
+  [1349/3668] MON-469: Encino Verde Sales Sheets  13 threads  2 comments
+  [1350/3668] MON-470: Serra Meadows Site/Floor Plans  50 threads  30 comments
+  [1351/3668] MON-470: Welby Slideshow  1 threads  3 comments
+  [1352/3668] MON-471: Serra Meadows Signage  7 threads  1 comments
+  [1353/3668] MON-472: Serra Meadows Directional Signage  1 threads  0 comments
+  [1354/3668] MON-473: Serra Meadows Eblast  2 threads  0 comments
+  [1355/3668] MON-474: Serra Meadows Website  35 threads  25 comments
+  [1356/3668] MON-475: Envelope Reorder  2 threads  0 comments
+  [1357/3668] MON-476: Encino Verde Adwords Campaign  8 threads  26 comments
+  [1358/3668] MON-476: For Rent Sign  9 threads  4 comments
+  [1359/3668] MON-477: Serra Meadows E-Blasts  9 threads  1 comments
+  [1360/3668] MON-477: Tampa Full Website  5 threads  2 comments
+  [1361/3668] MON-478: Serra Meadows Ad  10 threads  16 comments
+  [1362/3668] MON-478: Serra Meadows Sign Rider  4 threads  2 comments
+  [1363/3668] MON-479: Business Cards (Ed Young)  3 threads  0 comments
+  [1364/3668] MON-479: Serra Meadows (Zillow)  4 threads  1 comments
+  [1365/3668] MON-480: Serra Meadows Unit Signage  11 threads  12 comments
+  [1366/3668] MON-481: Serra Meadows Feather Flags  4 threads  0 comments
+  [1367/3668] MON-482: Serra Meadows Option Pricing Sheet  11 threads  3 comments
+  [1368/3668] MON-483: MontageDev DCCC Addition  3 threads  6 comments
+  [1369/3668] MON-483: Serra Meadows DM Postcard  8 threads  4 comments
+  [1370/3668] MON-484: Serra Meadows Floorplans (For Jeff)  2 threads  1 comments
+  [1371/3668] MON-485: Serra Meadows Exit Interview  6 threads  1 comments
+  [1372/3668] MON-486: New Postcard (Condo Owners)  8 threads  1 comments
+  [1373/3668] MON-487: Phase 2 Website Changes  22 threads  26 comments
+  [1374/3668] MON-488: SM Direct Mail Postcard (Two-Story)  5 threads  1 comments
+  [1375/3668] MON-489: Serra Meadows Referral Program  6 threads  2 comments
+  [1376/3668] MON-490: Geofencing Project  6 threads  2 comments
+  [1377/3668] MON-491: Serra Meadows DM Moylan Postcard  9 threads  3 comments
+  [1378/3668] MON-492: PPT for Garcia Ranch  9 threads  6 comments
+  [1379/3668] MON-493: New Business Cards (Ben Kennedy / Larry Ross)  7 threads  3 comments
+  [1380/3668] Mon-494: Make Site ADA Compliant & Way More  10 threads  4 comments
+  [1381/3668] MON-495: Oak Tree Development Updates  17 threads  11 comments
+  [1382/3668] MON-496: Add Victoria Apartments to Site  2 threads  2 comments
+  [1383/3668] MON-497: Update site to use Node 20  2 threads  0 comments
+  [1384/3668] MON-498: New SLO Student Housing Project to Add to Site  1 threads  1 comments
+  [1385/3668] MON-499: Project List Update  2 threads  1 comments
+  [1386/3668] MON-500: Website Updates  1 threads  1 comments
+  [1387/3668] MON-501: Website Updates  13 threads  9 comments
+  [1388/3668] MON-ToDo: Tampa E-Blast  2 threads  0 comments
+  [1389/3668] MON-ToDo: Welby & Tampa Web Work  2 threads  3 comments
+  [1390/3668] Montage at Serra Meadows  9 threads  3 comments
+  [1391/3668] Montage Dev Site  3 threads  3 comments
+  [1392/3668] Montage: Tampa Ave Buy-In Brochure  5 threads  1 comments
+  [1393/3668] MontageDev.Com  0 threads  0 comments
+  [1394/3668] MRLG-003: Business Cards  2 threads  2 comments
+  [1395/3668] MRLG-004: Add Photos To Website  10 threads  0 comments
+  [1396/3668] MRLG-ToDo  1 threads  4 comments
+  [1397/3668] MVO - Block Countries  2 threads  2 comments
+  [1398/3668] MVO-019: Website Addition  6 threads  1 comments
+  [1399/3668] MVO-020: Site Text Update  2 threads  0 comments
+  [1400/3668] MVO-021: Website Speed Up  3 threads  0 comments
+  [1401/3668] MVO-023: Website Refresh  12 threads  11 comments
+  [1402/3668] MVO-024: Ad Campaign  18 threads  10 comments
+  [1403/3668] MVO-025: Add New Lawyer  6 threads  1 comments
+  [1404/3668] MVO-026: Site Change  1 threads  2 comments
+  [1405/3668] MVO-027: New Employee On Site  5 threads  2 comments
+  [1406/3668] MVO-028: ADA Compliance (By Ciment)  7 threads  2 comments
+  [1407/3668] MVO-029: Add New Paralegal  7 threads  5 comments
+  [1408/3668] MVO-030: Add New Page  2 threads  3 comments
+  [1409/3668] MVO-031: PowerPoint Deck  4 threads  1 comments
+  [1410/3668] MVO-032: Constant Contact Update  5 threads  0 comments
+  [1411/3668] MVO-033: Lose Cara  2 threads  1 comments
+  [1412/3668] MVO-033: Zoom Background  2 threads  0 comments
+  [1413/3668] MVO-040: Add Attribution Byline to Blawgs  3 threads  0 comments
+  [1414/3668] MVO-041: Consulting Website  6 threads  6 comments
+  [1415/3668] MVO-042: LH Block Update  2 threads  0 comments
+  [1416/3668] MVO-043: SSL Certificate for Ojai Site  3 threads  0 comments
+  [1417/3668] MVO-044: Address Update on Site & LH Block  8 threads  8 comments
+  [1418/3668] MVO-045: Website Edits  2 threads  1 comments
+  [1419/3668] MVO-To Do: Add PDF to Site  2 threads  0 comments
+  [1420/3668] MVO-ToDo  2 threads  2 comments
+  [1421/3668] MVO-ToDo: Add New Article to Site  3 threads  3 comments
+  [1422/3668] MVO-ToDo: Change Payment Link  3 threads  1 comments
+  [1423/3668] MVO-ToDo: Daily Journal PDF Post to Site  3 threads  1 comments
+  [1424/3668] MVO-ToDo: Lose Date on Blogs  2 threads  0 comments
+  [1425/3668] MVO-ToDo: Lose Melissa  2 threads  1 comments
+  [1426/3668] MVO-ToDo: New Employee Info  1 threads  2 comments
+  [1427/3668] MVO-ToDo: New Letterhead Block  5 threads  0 comments
+  [1428/3668] MVO-ToDo: Nina Shayan  1 threads  3 comments
+  [1429/3668] MVO-ToDo: Site Corrections  3 threads  1 comments
+  [1430/3668] MVO-ToDo: Update Letterhead Block  5 threads  1 comments
+  [1431/3668] MVO: Ojai Page  3 threads  1 comments
+  [1432/3668] Myerson-014: Whole Life Mailer  19 threads  13 comments
+  [1433/3668] Myerson-015: Insurance 101 Deck  17 threads  3 comments
+  [1434/3668] Myerson-016: Naming  5 threads  3 comments
+  [1435/3668] NAV-002: Website  44 threads  39 comments
+  [1436/3668] NAV-003: PowerPoint Template  2 threads  0 comments
+  [1437/3668] NAV-004: Letterhead (Digital)  1 threads  0 comments
+  [1438/3668] NAV-004: TD Ameritrade Logo  2 threads  0 comments
+  [1439/3668] NAV-005: E-Newsletter Banner  10 threads  2 comments
+  [1440/3668] NAV-007: Add AutoPlay to video from Header button  3 threads  1 comments
+  [1441/3668] NAV-008: Welcome Package  13 threads  16 comments
+  [1442/3668] NAV-009: White Papers  5 threads  0 comments
+  [1443/3668] NAV-010: Missing Images  2 threads  1 comments
+  [1444/3668] NAV-010: Site Upgrade  8 threads  0 comments
+  [1445/3668] NAV-011: Site Updates and Fixes  3 threads  2 comments
+  [1446/3668] NAV-012: Composite Image for Scott Gaynor  3 threads  0 comments
+  [1447/3668] Nav-013: Proactive Site Updates  5 threads  5 comments
+  [1448/3668] NAV-014: Blog Page Updates  4 threads  2 comments
+  [1449/3668] NAV-015: Google Tracking Tag Added to Site  2 threads  0 comments
+  [1450/3668] Navalign Move Host to Netlify  2 threads  2 comments
+  [1451/3668] Navalign-001: Logo  10 threads  4 comments
+  [1452/3668] Navalign-003: Stationery Package  16 threads  3 comments
+  [1453/3668] Navalign-ToDo: Style Guide  2 threads  1 comments
+  [1454/3668] NEL-024: Timeline Poster  32 threads  8 comments
+  [1455/3668] NEL-025: Ad Resize  5 threads  0 comments
+  [1456/3668] NEL-026: Holiday Card  9 threads  0 comments
+  [1457/3668] NEL-027: Top 10 Mailer  14 threads  6 comments
+  [1458/3668] NEL-028: Elections Over Interactive Page  4 threads  0 comments
+  [1459/3668] NEL-029: Interactive Timeline  10 threads  8 comments
+  [1460/3668] NEL-030: TrumpCare Book  30 threads  12 comments
+  [1461/3668] NEL-032: TrumpCare Book Website  14 threads  12 comments
+  [1462/3668] NEL-033: TrumpCare Book Reorder  3 threads  0 comments
+  [1463/3668] NEL-034: TrumpCare E-Book  7 threads  0 comments
+  [1464/3668] NEL-035: Ad Resize  6 threads  1 comments
+  [1465/3668] NEL-036: TrumpCare Poster  3 threads  2 comments
+  [1466/3668] NEL-037: MMLG Files to Marquis  1 threads  0 comments
+  [1467/3668] NEL-038: Timeline Poster Note Copy  8 threads  3 comments
+  [1468/3668] NEL-039: TrumpCare Site Changes  5 threads  4 comments
+  [1469/3668] NEL-ToDo  4 threads  7 comments
+  [1470/3668] NEL-ToDo: One Sheet Files  1 threads  1 comments
+  [1471/3668] NEM-001: Ad Campaign  5 threads  0 comments
+  [1472/3668] NEM-002: Ad Template  2 threads  0 comments
+  [1473/3668] NEM-003: Website Update  10 threads  19 comments
+  [1474/3668] NEM-004: DM Postcards  2 threads  0 comments
+  [1475/3668] NEM-005: Add Attorneys to Stie  5 threads  1 comments
+  [1476/3668] NEM-006: Logo Redesign  24 threads  10 comments
+  [1477/3668] NEM-007: 1/2 Page Ad  9 threads  4 comments
+  [1478/3668] NEM-008: Billing Statement  5 threads  3 comments
+  [1479/3668] NEM-009: Two New Attorney to Site  6 threads  1 comments
+  [1480/3668] NEM-010: Holiday Card 2021  25 threads  22 comments
+  [1481/3668] NEM-011: Revise Attorney Photo on Site  7 threads  2 comments
+  [1482/3668] NEM-012: Ad Resize  6 threads  0 comments
+  [1483/3668] NEM-013: Postcard Update  2 threads  0 comments
+  [1484/3668] NEM-014: Ad Revision(s)  5 threads  0 comments
+  [1485/3668] NEM-015: ASCDC Ad  5 threads  0 comments
+  [1486/3668] Nem-017: OCBA Judges' Night Tribute Ad  6 threads  2 comments
+  [1487/3668] NEM-018: Logo Modification  8 threads  1 comments
+  [1488/3668] NEM-019: Attorney Photos  2 threads  1 comments
+  [1489/3668] NEM-020: ASCDC Ad  6 threads  3 comments
+  [1490/3668] NEM-021: SFVBA Ad  9 threads  1 comments
+  [1491/3668] NEM-022: LACBA Ad  5 threads  4 comments
+  [1492/3668] NEM-023: BH Bar Ass'n Ad  6 threads  1 comments
+  [1493/3668] NEM-024: Add New Attorney to Site  3 threads  1 comments
+  [1494/3668] NEM-025: SFVBA BoA Installation Gala Ad  5 threads  0 comments
+  [1495/3668] NEM-026: Update Template  5 threads  2 comments
+  [1496/3668] NEM-027: Photo Composite for Howard Smith  4 threads  2 comments
+  [1497/3668] NEM-028: Add ACH/Credit Card Payments to Site  3 threads  5 comments
+  [1498/3668] NEM-029: ASCDC Banner Ad  5 threads  4 comments
+  [1499/3668] NEM-030: Tribute Ad  7 threads  3 comments
+  [1500/3668] NEM-031: Add New Attorney to Site (Kyle Besa)  4 threads  5 comments
+  [1501/3668] NEM-032: Careers Page  6 threads  1 comments
+  [1502/3668] NEM-033: BHBA Tribute Ad for Marta A. & Genie H.  7 threads  3 comments
+  [1503/3668] NEM-033: Tina Update  1 threads  0 comments
+  [1504/3668] NEM-034: Photos for New Attorney  3 threads  0 comments
+  [1505/3668] NEM-035: Banner Ad  2 threads  1 comments
+  [1506/3668] NEM-036: Daily Journal's Top Lawyers '24 Ad  10 threads  4 comments
+  [1507/3668] NEM-037: New Ad Design  15 threads  11 comments
+  [1508/3668] NEM-038: ASCDC Print Tribute Ad  6 threads  4 comments
+  [1509/3668] NEM-039: BHBA Installation Gala Ad  6 threads  2 comments
+  [1510/3668] NEM-040: Badge Functionality  3 threads  0 comments
+  [1511/3668] NEM-041: Pansky/Markle Redirect to NC Site  23 threads  18 comments
+  [1512/3668] NEM-042: Pansky Announcement Card  6 threads  0 comments
+  [1513/3668] NEM-043: Daily Journal Full-Page Ad  12 threads  2 comments
+  [1514/3668] NEM-044: New Attorney Photos (H. Islam, J. Cahn & P. Maher)  7 threads  4 comments
+  [1515/3668] NEM-045: Add Two New Practice Areas to Site  3 threads  2 comments
+  [1516/3668] NEM-046: Verdict Magazine Ad  3 threads  2 comments
+  [1517/3668] NEM-047: Letter-Size Ad  8 threads  0 comments
+  [1518/3668] NEM-048: LABJ "Fun" Ad  8 threads  16 comments
+  [1519/3668] NEM-049: Logo Alt for Giveaway Item  8 threads  2 comments
+  [1520/3668] NEM-050: BHBA Installation Dinner Ad  7 threads  4 comments
+  [1521/3668] NEM-051: Restore James Hepworth to Website  4 threads  1 comments
+  [NEM-052: Daily Journal Half-Page Tribute Ad & Banner] messages unavailable — skipping (fetch failed)
+  [1522/3668] NEM-052: Daily Journal Half-Page Tribute Ad & Banner  2 threads  1 comments
+  [1523/3668] NEM-053: 2nd Annual "Meet the Civil Division Judges" BHBA Ad  7 threads  5 comments
+  [1524/3668] NEM-054: Add Attorneys to Site  4 threads  7 comments
+  [1525/3668] Nemecek & Cole Information  3 threads  1 comments
+  [1526/3668] NH-031: Book Marks  12 threads  4 comments
+  [1527/3668] NH-040: 2016 Campaign Update  2 threads  0 comments
+  [1528/3668] NH-041: One Sheet  19 threads  11 comments
+  [1529/3668] NH-041: Year in Review  50 threads  29 comments
+  [1530/3668] NH-042: MMLG One Sheet  10 threads  9 comments
+  [1531/3668] NH-042: MMLG One Sheet Reorder  2 threads  0 comments
