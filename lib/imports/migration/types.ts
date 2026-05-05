@@ -1,6 +1,6 @@
 // lib/imports/migration/types.ts
 
-export type Phase = "people" | "projects" | "threads" | "files" | "all";
+type Phase = "people" | "projects" | "threads" | "files" | "all";
 export type ProjectFilter = "active" | "archived" | "all";
 
 export interface CliFlags {

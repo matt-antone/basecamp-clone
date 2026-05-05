@@ -8,7 +8,7 @@ export interface DumpSource<T = unknown> {
   body: T;
 }
 
-export const TOPICABLE_TO_SEGMENT: Record<string, string> = {
+const TOPICABLE_TO_SEGMENT: Record<string, string> = {
   Message: "messages",
   Todolist: "todolists",
   CalendarEvent: "calendar_events",
@@ -26,7 +26,7 @@ export interface DumpReader {
   attachments(projectId: number): Promise<DumpSource<Bc2Attachment[]>>;
 }
 
-export interface DumpReaderOptions {
+interface DumpReaderOptions {
   dumpDir: string;
   client: Bc2Client;
   errors: Set<string>;
