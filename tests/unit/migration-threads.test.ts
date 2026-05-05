@@ -1,5 +1,5 @@
 // tests/unit/migration-threads.test.ts
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import { migrateThreadsAndComments } from "@/lib/imports/migration/threads";
 import type { Query } from "@/lib/imports/migration/jobs";
 import type { DumpReader } from "@/lib/imports/dump-reader";
@@ -53,6 +53,10 @@ function fakeQuery() {
 }
 
 describe("migrateThreadsAndComments", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
   it("imports Message topics, skips CalendarEvent with logged skip", async () => {
     const { calls, q } = fakeQuery();
     const reader = stubReader();

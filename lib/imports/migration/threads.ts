@@ -48,7 +48,20 @@ export async function migrateThreadsAndComments(args: {
   let failed = 0;
   let skipped = 0;
 
-  const topicsRes = await reader.topics(project.bc2Id);
+  let topicsRes;
+  try {
+    topicsRes = await reader.topics(project.bc2Id);
+  } catch (err) {
+    await logRecord(q, {
+      jobId,
+      recordType: "thread",
+      sourceId: String(project.bc2Id),
+      status: "failed",
+      message: `topics_fetch_failed: ${err instanceof Error ? err.message : String(err)}`,
+      dataSource: "api",
+    });
+    return { threads: { success: 0, failed: 1, skipped: 0 } };
+  }
   const topics = (Array.isArray(topicsRes.body) ? topicsRes.body : []) as Bc2TopicSummary[];
   const topicsDataSource: DataSource = topicsRes.source;
 
@@ -71,7 +84,7 @@ export async function migrateThreadsAndComments(args: {
     try {
       const detailRes = await reader.topicDetail(project.bc2Id, t.type, t.id);
       detailDataSource = detailRes.source;
-      const detail = ((detailRes.body ?? {}) as Bc2ThreadDetail) || ({} as Bc2ThreadDetail);
+      const detail = (detailRes.body ?? {}) as Bc2ThreadDetail;
 
       // Idempotency: re-use mapped thread if present
       const existing = await q<{ local_thread_id: string }>(
@@ -140,6 +153,7 @@ export async function migrateThreadsAndComments(args: {
             message: err instanceof Error ? err.message : String(err),
             dataSource: detailDataSource,
           });
+          failed++;
         }
       }
 
