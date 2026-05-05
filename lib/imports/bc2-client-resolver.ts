@@ -10,7 +10,7 @@ export interface KnownClient {
 export type MatchedBy = "code" | "name" | "auto-create-pending" | "none";
 export type Confidence = "high" | "medium" | "low";
 
-export interface ResolvedTitle {
+interface ResolvedTitle {
   clientId: string | null;
   matchedBy: MatchedBy;
   code: string | null;

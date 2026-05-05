@@ -2,7 +2,7 @@
 
 import { authedJsonFetch, ensureAccessToken } from "@/lib/browser-auth";
 
-export type UploadAttachmentArgs = {
+type UploadAttachmentArgs = {
   token: string;
   onToken: (token: string | null) => void;
   projectId: string;
