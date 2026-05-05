@@ -1,7 +1,7 @@
 import { promises as fs } from "fs";
 import * as path from "path";
 import { Bc2Client } from "./bc2-client";
-import type { Bc2Person, Bc2Project } from "./bc2-fetcher";
+import type { Bc2Attachment, Bc2Person, Bc2Project } from "./bc2-fetcher";
 
 export interface DumpSource<T = unknown> {
   source: "dump" | "api";
@@ -23,7 +23,7 @@ export interface DumpReader {
   archivedProjects(): Promise<DumpSource<Bc2Project[]>>;
   topics(projectId: number): Promise<DumpSource>;
   topicDetail(projectId: number, topicableType: string, topicableId: number): Promise<DumpSource>;
-  attachments(projectId: number): Promise<DumpSource>;
+  attachments(projectId: number): Promise<DumpSource<Bc2Attachment[]>>;
 }
 
 export interface DumpReaderOptions {
@@ -100,8 +100,8 @@ export function createDumpReader(opts: DumpReaderOptions): DumpReader {
     attachments(projectId) {
       const rel = `by-project/${projectId}/attachments.json`;
       return tryDump(rel, () =>
-        fetchPaginated(client, `/projects/${projectId}/attachments.json`),
-      );
+        fetchPaginated<Bc2Attachment>(client, `/projects/${projectId}/attachments.json`),
+      ) as Promise<DumpSource<Bc2Attachment[]>>;
     },
   };
 }
