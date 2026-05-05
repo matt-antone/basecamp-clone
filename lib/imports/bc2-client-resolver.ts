@@ -118,16 +118,19 @@ export function resolveTitle(rawTitle: string | null | undefined, knownClients: 
         confidence: "high"
       };
     }
-    // Clean parse, unknown client. Auto-create candidate.
-    return {
-      clientId: null,
-      matchedBy: "auto-create-pending",
-      code: parsed.code,
-      num: parsed.num,
-      title: parsed.title,
-      confidence: "medium",
-      autoCreatePrefix: parsed.code
-    };
+    // Clean parse, unknown client. Auto-create candidate (gated to prefix length >= 3).
+    if (parsed.code.length >= 3) {
+      return {
+        clientId: null,
+        matchedBy: "auto-create-pending",
+        code: parsed.code,
+        num: parsed.num,
+        title: parsed.title,
+        confidence: "medium",
+        autoCreatePrefix: parsed.code
+      };
+    }
+    // Sub-3 unknown code: fall through to remaining steps.
   }
 
   // ── Step 2: Compound-prefix lookup against the normalized lead.
@@ -164,7 +167,7 @@ export function resolveTitle(rawTitle: string | null | undefined, knownClients: 
 
   // ── Step 3: No compound match. If parser caught a code (FALLBACK path, no num),
   // treat as auto-create-pending so caller can decide whether to materialize a new client.
-  if (parsed.code) {
+  if (parsed.code && parsed.code.length >= 3) {
     return {
       clientId: null,
       matchedBy: "auto-create-pending",
@@ -181,7 +184,7 @@ export function resolveTitle(rawTitle: string | null | undefined, knownClients: 
   // as the auto-create candidate.
   const leadWordMatch = trimmed.match(/^([A-Za-z]+)\b/);
   const hasNumMarker = /-\d{1,5}[A-Za-z]*/.test(trimmed);
-  if (leadWordMatch && hasNumMarker) {
+  if (leadWordMatch && hasNumMarker && leadWordMatch[1].length >= 3) {
     return {
       clientId: null,
       matchedBy: "auto-create-pending",
