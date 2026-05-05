@@ -1,7 +1,7 @@
 import { promises as fs } from "fs";
 import * as path from "path";
 import { Bc2Client } from "./bc2-client";
-import type { Bc2Person, Bc2Project } from "./bc2-fetcher";
+import type { Bc2Person } from "./bc2-fetcher";
 
 export interface DumpSource<T = unknown> {
   source: "dump" | "api";
@@ -19,8 +19,8 @@ export const TOPICABLE_TO_SEGMENT: Record<string, string> = {
 
 export interface DumpReader {
   people(): Promise<DumpSource<Bc2Person[]>>;
-  activeProjects(): Promise<DumpSource<Bc2Project[]>>;
-  archivedProjects(): Promise<DumpSource<Bc2Project[]>>;
+  activeProjects(): Promise<DumpSource>;
+  archivedProjects(): Promise<DumpSource>;
   topics(projectId: number): Promise<DumpSource>;
   topicDetail(projectId: number, topicableType: string, topicableId: number): Promise<DumpSource>;
   attachments(projectId: number): Promise<DumpSource>;
@@ -72,13 +72,13 @@ export function createDumpReader(opts: DumpReaderOptions): DumpReader {
     },
     activeProjects() {
       return tryDump("projects/active.json", () =>
-        fetchPaginated<Bc2Project>(client, "/projects.json"),
-      ) as Promise<DumpSource<Bc2Project[]>>;
+        fetchPaginated(client, "/projects.json"),
+      );
     },
     archivedProjects() {
       return tryDump("projects/archived.json", () =>
-        fetchPaginated<Bc2Project>(client, "/projects/archived.json"),
-      ) as Promise<DumpSource<Bc2Project[]>>;
+        fetchPaginated(client, "/projects/archived.json"),
+      );
     },
     topics(projectId) {
       const rel = `by-project/${projectId}/topics.json`;
