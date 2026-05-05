@@ -18,7 +18,8 @@ const KNOWN: KnownClient[] = [
   { id: "id-birdmarella", code: "BirdMarella", name: "Bird Marella" },
   { id: "id-blade", code: "BladeGuard", name: "BladeGuard" },
   { id: "id-mmr", code: "MMR", name: "MMR" },
-  { id: "id-abi", code: "ABI", name: "ABI" }
+  { id: "id-abi", code: "ABI", name: "ABI" },
+  { id: "id-shalom", code: "ShalomInstitute", name: "Shalom Institute" }
 ];
 
 interface Fixture {
@@ -61,7 +62,25 @@ const fixtures: Fixture[] = [
 
   // matchedBy: "none" — empty/whitespace
   { raw: "", matchedBy: "none", clientId: null, code: null, num: null, title: "", confidence: "low" },
-  { raw: "   ", matchedBy: "none", clientId: null, code: null, num: null, title: "", confidence: "low" }
+  { raw: "   ", matchedBy: "none", clientId: null, code: null, num: null, title: "", confidence: "low" },
+
+  // v2: colon-with-num, known client → matchedBy "code"
+  { raw: "GX: 0042-Brand refresh", matchedBy: "code", clientId: "id-gx", code: "GX", num: "0042", title: "Brand refresh", confidence: "high" },
+
+  // v2: colon-no-num, known multi-word client → matchedBy "name"
+  { raw: "Shalom Institute: Infographic", matchedBy: "name", clientId: "id-shalom", code: "ShalomInstitute", num: null, title: "Infographic", confidence: "medium" },
+
+  // v2: colon-no-num, unknown lead → orphan (don't auto-create from colon-only)
+  { raw: "Huntsman: Email Change", matchedBy: "none", clientId: null, code: null, num: null, title: "Huntsman: Email Change", confidence: "low" },
+
+  // v2: false-positive resistance (TODO is not a known client + no num)
+  { raw: "TODO: Pick up dry cleaning", matchedBy: "none", clientId: null, code: null, num: null, title: "TODO: Pick up dry cleaning", confidence: "low" },
+
+  // v2: 3-char gate — sub-3 lead rejected (S from "S&S: ToDo" cleared via colon Case A num check; falls through to none)
+  { raw: "S&S: ToDo", matchedBy: "none", clientId: null, code: null, num: null, title: "S&S: ToDo", confidence: "low" },
+
+  // v2: 3-char gate — Step 1 parser-first sub-3 unknown code rejected
+  { raw: "S-001: Foo", matchedBy: "none", clientId: null, code: null, num: null, title: "S-001: Foo", confidence: "low" }
 ];
 
 describe("resolveTitle", () => {
@@ -94,6 +113,16 @@ describe("resolveTitle", () => {
     expect(r.code).toBe("EcoTech");
     expect(r.num).toBe("001");
     expect(r.title).toBe("Energy Logo");
+    expect(r.confidence).toBe("medium");
+    expect(r.autoCreatePrefix).toBe("EcoTech");
+  });
+
+  it("colon-with-num auto-create when lead is unknown (Step 2.5 Case A)", () => {
+    const r = resolveTitle("EcoTech: 001-Energy Int'l Logo", KNOWN);
+    expect(r.matchedBy).toBe("auto-create-pending");
+    expect(r.code).toBe("EcoTech");
+    expect(r.num).toBe("001");
+    expect(r.title).toBe("Energy Int'l Logo");
     expect(r.confidence).toBe("medium");
     expect(r.autoCreatePrefix).toBe("EcoTech");
   });
