@@ -93,7 +93,7 @@ function stripMatchedPrefix(original: string, matchedKey: string): string {
   return "";
 }
 
-const REMAINDER_NUM_TITLE = /^(\d+[A-Za-z]*)\s*[:\s]\s*(.+)$/;
+const REMAINDER_NUM_TITLE = /^(\d+[A-Za-z]*)\s*[-:\s]\s*(.+)$/;
 
 export function resolveTitle(rawTitle: string | null | undefined, knownClients: KnownClient[]): ResolvedTitle {
   const trimmed = String(rawTitle ?? "").trim();
@@ -163,6 +163,62 @@ export function resolveTitle(rawTitle: string | null | undefined, knownClients: 
       title: remainder.trim(),
       confidence: "medium"
     };
+  }
+
+  // ── Step 2.5: Colon variant. Handle "Code: NUM-Title" and "Code: Title" shapes
+  // that PRIMARY/FALLBACK don't catch. Only fires when a colon is present.
+  const colonIdx = trimmed.indexOf(":");
+  if (colonIdx > 0) {
+    const lead = trimmed.slice(0, colonIdx).trim();
+    const rest = trimmed.slice(colonIdx + 1).trim();
+
+    // Case A: single-word lead + rest starts with num-(dash|colon|space)-title.
+    // For known clients: no length gate. For auto-create: lead must be all-letters and >=3 chars.
+    if (/^[A-Za-z]+$/.test(lead)) {
+      const numTitleMatch = rest.match(/^(\d{1,5}[A-Za-z]*)\s*[-:\s]\s*(.+)$/);
+      if (numTitleMatch) {
+        const codeNorm = normalize(lead);
+        const matchedColon = index.find((e) => e.norm === codeNorm);
+        if (matchedColon) {
+          return {
+            clientId: matchedColon.client.id,
+            matchedBy: "code",
+            code: matchedColon.client.code,
+            num: numTitleMatch[1],
+            title: numTitleMatch[2].trim(),
+            confidence: "high"
+          };
+        }
+        // Unknown client + clean num signal → auto-create candidate (gate: >=3 chars).
+        if (lead.length >= 3) {
+          return {
+            clientId: null,
+            matchedBy: "auto-create-pending",
+            code: lead,
+            num: numTitleMatch[1],
+            title: numTitleMatch[2].trim(),
+            confidence: "medium",
+            autoCreatePrefix: lead
+          };
+        }
+      }
+    }
+
+    // Case B: lead matches a known client by normalized prefix lookup.
+    // Equality (not startsWith) so "Shalom Industries" does not bind to "Shalom Institute".
+    const leadNorm = normalize(lead);
+    const matchedLead = longestPrefixMatch(leadNorm, index);
+    if (matchedLead && matchedLead.norm === leadNorm) {
+      return {
+        clientId: matchedLead.client.id,
+        matchedBy: "name",
+        code: matchedLead.client.code,
+        num: null,
+        title: rest,
+        confidence: "medium"
+      };
+    }
+    // Lead doesn't match; fall through. Do NOT auto-create from colon-only signal.
   }
 
   // ── Step 3: No compound match. If parser caught a code (FALLBACK path, no num),
