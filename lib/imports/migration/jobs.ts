@@ -8,12 +8,14 @@ export type Query = <T extends QueryResultRow = QueryResultRow>(
 
 export type DataSource = "dump" | "api";
 
-export async function createImportJob(q: Query, options: object): Promise<string> {
+export async function createImportJob(q: Query, options: Record<string, unknown>): Promise<string> {
   const r = await q<{ id: string }>(
     "insert into import_jobs (status, options) values ('running', $1) returning id",
     [JSON.stringify(options)],
   );
-  return r.rows[0].id;
+  const row = r.rows[0];
+  if (!row) throw new Error("createImportJob: insert returned no row");
+  return row.id;
 }
 
 export async function logRecord(
