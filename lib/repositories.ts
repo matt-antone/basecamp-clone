@@ -17,7 +17,7 @@ export type UserProfile = {
   bio: string | null;
 };
 
-export type NotificationRecipient = Pick<UserProfile, "id" | "email" | "firstName" | "lastName">;
+type NotificationRecipient = Pick<UserProfile, "id" | "email" | "firstName" | "lastName">;
 type SiteSettings = {
   siteTitle: string | null;
   logoUrl: string | null;
@@ -67,7 +67,7 @@ export async function getUserProfileById(id: string) {
   return result.rows[0] ?? null;
 }
 
-export type ActiveUser = {
+type ActiveUser = {
   id: string;
   email: string;
   first_name: string | null;
@@ -1354,7 +1354,7 @@ export async function removeProjectMember(projectId: string, userId: string) {
   );
 }
 
-export type ProjectMember = {
+type ProjectMember = {
   user_id: string;
   email: string;
   first_name: string | null;

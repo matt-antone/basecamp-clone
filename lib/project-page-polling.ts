@@ -1,4 +1,4 @@
-export type ProjectPageDirtyState = {
+type ProjectPageDirtyState = {
   projectFormDirty: boolean;
   myHoursDirty: boolean;
   archivedHoursDirty: boolean;
