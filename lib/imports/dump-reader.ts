@@ -57,12 +57,12 @@ async function fetchPaginated<T>(client: Bc2Client, firstPath: string): Promise<
 export function createDumpReader(opts: DumpReaderOptions): DumpReader {
   const { dumpDir, client, errors } = opts;
 
-  async function tryDump(relPath: string, fallback: () => Promise<unknown>): Promise<DumpSource> {
+  async function tryDump<T = unknown>(relPath: string, fallback: () => Promise<T>): Promise<DumpSource<T>> {
     if (errors.has(relPath)) {
       return { source: "api", body: await fallback() };
     }
     const body = await readIfExists(path.join(dumpDir, relPath));
-    if (body !== null) return { source: "dump", body };
+    if (body !== null) return { source: "dump", body: body as T };
     return { source: "api", body: await fallback() };
   }
 
@@ -101,7 +101,7 @@ export function createDumpReader(opts: DumpReaderOptions): DumpReader {
       const rel = `by-project/${projectId}/attachments.json`;
       return tryDump(rel, () =>
         fetchPaginated<Bc2Attachment>(client, `/projects/${projectId}/attachments.json`),
-      ) as Promise<DumpSource<Bc2Attachment[]>>;
+      );
     },
   };
 }

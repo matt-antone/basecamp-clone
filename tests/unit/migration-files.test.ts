@@ -49,10 +49,16 @@ function stubReader(): DumpReader {
   } as unknown as DumpReader;
 }
 
-function fakeQuery() {
+function fakeQuery(opts: { projectFound?: boolean } = {}) {
+  const projectFound = opts.projectFound ?? true;
   const calls: Array<{ sql: string; values: unknown[] }> = [];
   const q: Query = (async (sql: string, values: unknown[] = []) => {
     calls.push({ sql, values });
+    if (sql.startsWith("select storage_project_dir, archived from projects")) {
+      return projectFound
+        ? { rows: [{ storage_project_dir: "/storage/proj", archived: false }] }
+        : { rows: [] };
+    }
     return { rows: [] };
   }) as Query;
   return { calls, q };
@@ -136,6 +142,32 @@ describe("migrateFiles", () => {
     );
     expect(failedLog).toBeDefined();
     expect(failedLog!.values[4]).toContain("boom");
+  });
+
+  it("logs failed record and returns zeros when project row not found", async () => {
+    const { calls, q } = fakeQuery({ projectFound: false });
+    const reader = stubReader();
+    const out = await migrateFiles({
+      reader,
+      q,
+      jobId: "job-1",
+      project: { bc2Id: 100, localId: "proj-uuid", name: "X" },
+      downloadEnv: { username: "u", password: "p", userAgent: "ua" },
+      personMap: new Map(),
+    });
+
+    expect(out.files.success).toBe(0);
+    expect(out.files.failed).toBe(0);
+    expect(out.files.skipped).toBe(0);
+    expect(importBc2FileFromAttachment).not.toHaveBeenCalled();
+
+    const logs = calls.filter((c) => c.sql.startsWith("insert into import_logs"));
+    expect(logs).toHaveLength(1);
+    expect(logs[0].values[1]).toBe("file");
+    expect(logs[0].values[2]).toBe("100");
+    expect(logs[0].values[3]).toBe("failed");
+    expect(logs[0].values[4]).toBe("project_row_not_found");
+    expect(logs[0].values[5]).toBe("api");
   });
 
   it("logs single failed record and returns zeros when reader.attachments throws", async () => {

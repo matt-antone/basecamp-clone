@@ -49,8 +49,19 @@ export async function migrateFiles(args: {
     "select storage_project_dir, archived from projects where id = $1",
     [project.localId],
   );
-  const storageDir = projRow.rows[0]?.storage_project_dir ?? "";
-  const projectArchived = Boolean(projRow.rows[0]?.archived ?? false);
+  if (!projRow.rows[0]) {
+    await logRecord(q, {
+      jobId,
+      recordType: "file",
+      sourceId: String(project.bc2Id),
+      status: "failed",
+      message: "project_row_not_found",
+      dataSource: "api",
+    });
+    return { files: { success: 0, failed: 0, skipped: 0 } };
+  }
+  const storageDir = projRow.rows[0].storage_project_dir ?? "";
+  const projectArchived = Boolean(projRow.rows[0].archived ?? false);
 
   const adapter = new DropboxStorageAdapter();
 
