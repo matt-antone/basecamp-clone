@@ -125,4 +125,51 @@ if (!URL) {
 
     rmSync(out, { recursive: true, force: true });
   }, 120000);
+
+  it("flags unmapped prod-active project to CSV and skips it", async () => {
+    await pool.query(`INSERT INTO ${PROD_SCHEMA}.projects (title, client_id, slug, archived, created_at, updated_at)
+                      VALUES ('Unmapped', 1, 'unmapped', false, '2026-03-01', '2026-03-01')`);
+    const out = mkdtempSync(join(tmpdir(), "reconcile-"));
+    runReconcile([`--out-dir=${out}`]);
+    const csv = readFileSync(join(out, "unmapped-active.csv"), "utf8");
+    expect(csv).toMatch(/Unmapped/);
+    rmSync(out, { recursive: true, force: true });
+  }, 120000);
+
+  it("creates a new test project when prod-active project has no test row", async () => {
+    await pool.query(`INSERT INTO ${PROD_SCHEMA}.projects (id, title, client_id, slug, archived, created_at, updated_at)
+                      VALUES (50, 'Brand New', 1, 'brand-new', false, '2026-04-01', '2026-04-01')`);
+    await pool.query(`INSERT INTO ${PROD_SCHEMA}.bc2_projects_map (project_id, bc2_id) VALUES (50, 9050)`);
+    const out = mkdtempSync(join(tmpdir(), "reconcile-"));
+    runReconcile([`--project-id=9050`, `--out-dir=${out}`]);
+    const r = await pool.query(`SELECT title FROM ${TEST_SCHEMA}.projects WHERE title = 'Brand New'`);
+    expect(r.rowCount).toBe(1);
+    rmSync(out, { recursive: true, force: true });
+  }, 120000);
+
+  it("skips item with unmapped author and records to CSV", async () => {
+    await pool.query(`INSERT INTO ${PROD_SCHEMA}.users (email) VALUES ('orphan@x.test')`);
+    const u = await pool.query(`SELECT id FROM ${PROD_SCHEMA}.users WHERE email = 'orphan@x.test'`);
+    const orphanUserId = u.rows[0].id;
+    await pool.query(`INSERT INTO ${PROD_SCHEMA}.threads (project_id, author_id, title, body, created_at)
+                      VALUES (1, $1, 'NoAuthorMap', 'x', '2026-03-15')`, [orphanUserId]);
+    const out = mkdtempSync(join(tmpdir(), "reconcile-"));
+    runReconcile([`--project-id=9001`, `--out-dir=${out}`]);
+    const csv = readFileSync(join(out, "unmapped-people.csv"), "utf8");
+    expect(csv).toMatch(/discussion/);
+    rmSync(out, { recursive: true, force: true });
+  }, 120000);
+
+  it("dry-run leaves test DB unchanged but populates inserted.csv", async () => {
+    await pool.query(`INSERT INTO ${PROD_SCHEMA}.project_files (project_id, uploader_id, filename, size, mime_type, dropbox_path, created_at)
+                      VALUES (1, 1, 'dryrun.pdf', 99, 'application/pdf', '/dryrun', '2026-03-20')`);
+    const before = await pool.query(`SELECT count(*)::int AS n FROM ${TEST_SCHEMA}.project_files`);
+    const out = mkdtempSync(join(tmpdir(), "reconcile-"));
+    runReconcile([`--dry-run`, `--project-id=9001`, `--out-dir=${out}`]);
+    const after = await pool.query(`SELECT count(*)::int AS n FROM ${TEST_SCHEMA}.project_files`);
+    expect(after.rows[0].n).toBe(before.rows[0].n);
+    const csv = readFileSync(join(out, "inserted.csv"), "utf8");
+    expect(csv).toMatch(/file/);
+    rmSync(out, { recursive: true, force: true });
+  }, 120000);
 }
