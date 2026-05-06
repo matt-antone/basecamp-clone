@@ -6,7 +6,7 @@
 
 **Architecture:** Two `pg.Pool` connections (read-only prod, read-write test). Per-project transactions on test pool. Identity bridges via `bc2_projects_map` / `bc2_people_map` / `clients.code`. Three pure fingerprint functions drive a side-effect-free diff. Auditable via new `reconcile_jobs` / `reconcile_logs` tables and six CSV artifacts.
 
-**Tech Stack:** TypeScript, `pg`, `tsx`, vitest. No ORM. Existing project conventions (db/migrations/, lib/imports/, tests/unit/, tests/integration/).
+**Tech Stack:** TypeScript, `pg`, `tsx`, vitest. No ORM. Existing project conventions (supabase/migrations/, lib/imports/, tests/unit/, tests/integration/).
 
 **Spec:** `docs/superpowers/specs/2026-05-05-reconcile-prod-active-to-test-design.md`
 
@@ -69,15 +69,15 @@ git commit -m "docs(reconcile): record prod/test schema-drift verification"
 
 ---
 
-### Task 1: Schema migration `0029_reconcile_logs`
+### Task 1: Schema migration `0030_reconcile_logs`
 
 **Files:**
-- Create: `db/migrations/0029_reconcile_logs.sql`
+- Create: `supabase/migrations/0030_reconcile_logs.sql`
 
 - [ ] **Step 1: Write the migration**
 
 ```sql
--- 0029_reconcile_logs.sql
+-- 0030_reconcile_logs.sql
 -- Tables for the prod->test active-project reconcile script.
 
 CREATE TABLE IF NOT EXISTS reconcile_jobs (
@@ -108,7 +108,7 @@ CREATE INDEX IF NOT EXISTS reconcile_logs_project_bc2_id_idx ON reconcile_logs(p
 - [ ] **Step 2: Apply migration to test DB**
 
 ```bash
-psql "$DATABASE_URL" -f db/migrations/0029_reconcile_logs.sql
+psql "$DATABASE_URL" -f supabase/migrations/0030_reconcile_logs.sql
 ```
 
 Expected: `CREATE TABLE` x2, `CREATE INDEX` x2, no errors.
@@ -124,7 +124,7 @@ Expected: both tables present with expected columns.
 - [ ] **Step 4: Commit**
 
 ```bash
-git add db/migrations/0029_reconcile_logs.sql
+git add supabase/migrations/0030_reconcile_logs.sql
 git commit -m "feat(db): add reconcile_jobs and reconcile_logs tables"
 ```
 
@@ -1746,7 +1746,7 @@ if (!URL) {
     }
 
     await pool.query(`SET search_path TO ${TEST_SCHEMA}`);
-    await pool.query(readFileSync(join(process.cwd(), "db/migrations/0029_reconcile_logs.sql"), "utf8"));
+    await pool.query(readFileSync(join(process.cwd(), "supabase/migrations/0030_reconcile_logs.sql"), "utf8"));
 
     for (const schema of [PROD_SCHEMA, TEST_SCHEMA]) {
       await pool.query(`INSERT INTO ${schema}.clients (code) VALUES ('ACME')`);
