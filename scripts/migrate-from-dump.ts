@@ -116,9 +116,43 @@ async function main(): Promise<void> {
     `projects=${flags.projects} dryRun=${flags.dryRun}`,
   );
 
-  const pool = new Pool({ connectionString: requireEnv("DATABASE_URL") });
+  const pool = new Pool({
+    connectionString: requireEnv("DATABASE_URL"),
+    // Long batch import: keep pool small + recycle clients so transient
+    // connection drops on the pooler don't accumulate.
+    max: 4,
+    idleTimeoutMillis: 30_000,
+    keepAlive: true,
+  });
+  // Without this, an error on an IDLE pg client emits an unhandled 'error'
+  // event on the pool and crashes the process (EADDRNOTAVAIL, ECONNRESET, ...).
+  // Active queries still reject normally and are caught by per-record try/catch.
+  pool.on("error", (err) => {
+    console.warn(`[migrate-from-dump] pool client error (non-fatal): ${err.message}`);
+  });
+
+  async function runQuery<T extends QueryResultRow>(text: string, values?: unknown[]): Promise<{ rows: T[] }> {
+    const transient = ["EADDRNOTAVAIL", "ECONNRESET", "ETIMEDOUT", "EPIPE", "ENETUNREACH", "ECONNREFUSED"];
+    let attempt = 0;
+    while (true) {
+      try {
+        const r = await pool.query(text, values);
+        return { rows: r.rows as T[] };
+      } catch (err) {
+        const code = (err as NodeJS.ErrnoException).code;
+        if (attempt < 3 && code && transient.includes(code)) {
+          const wait = 500 * 2 ** attempt;
+          attempt++;
+          console.warn(`[migrate-from-dump] transient pg error ${code}; retry ${attempt}/3 in ${wait}ms`);
+          await new Promise((r) => setTimeout(r, wait));
+          continue;
+        }
+        throw err;
+      }
+    }
+  }
   const realQ: Query = ((text: string, values?: unknown[]) =>
-    pool.query(text, values).then((r) => ({ rows: r.rows as QueryResultRow[] }))) as Query;
+    runQuery(text, values)) as Query;
   const writableQ: Query = flags.dryRun
     ? (async (sql: string, values?: unknown[]) => {
         if (sql.trim().toLowerCase().startsWith("select")) return realQ(sql, values);
