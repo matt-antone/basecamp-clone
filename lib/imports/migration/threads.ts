@@ -64,9 +64,15 @@ export async function migrateThreadsAndComments(args: {
   }
   const topics = (Array.isArray(topicsRes.body) ? topicsRes.body : []) as Bc2TopicSummary[];
   const topicsDataSource: DataSource = topicsRes.source;
+  const total = topics.length;
 
+  let idx = 0;
   for (const topic of topics) {
+    idx++;
     const t = topic.topicable;
+    process.stdout.write(
+      `    thread ${idx}/${total} project=${project.bc2Id} ${(topic.title ?? "").slice(0, 50)}\n`,
+    );
     if (!t || !SUPPORTED_TOPICS.has(t.type)) {
       await logRecord(q, {
         jobId,

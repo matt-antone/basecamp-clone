@@ -70,7 +70,13 @@ export async function migrateFiles(args: {
   const noopLogRecord = async () => {};
   const noopIncrementCounters = async () => {};
 
+  const total = attachments.length;
+  let idx = 0;
   for (const attachment of attachments) {
+    idx++;
+    process.stdout.write(
+      `    file ${idx}/${total} project=${project.bc2Id} ${(attachment.name ?? "").slice(0, 50)}\n`,
+    );
     try {
       const { threadId, commentId } = await resolveBc2AttachmentLinkage(q, attachment);
 
