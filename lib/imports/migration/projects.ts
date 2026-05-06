@@ -119,6 +119,9 @@ export async function migrateProjects(args: {
 
   const migrated: MigratedProject[] = [];
   let count = 0;
+  const startMs = Date.now();
+  const total = allBc2Projects.length;
+  console.log(`  projects: starting (${total} candidates)`);
 
   for (const bc2Project of allBc2Projects) {
     if (filter === "active" && bc2Project.archived) continue;
@@ -127,6 +130,10 @@ export async function migrateProjects(args: {
     if (limit !== null && count >= limit) break;
 
     count++;
+    if (count % 50 === 0) {
+      const elapsed = ((Date.now() - startMs) / 1000).toFixed(0);
+      console.log(`  projects: ${count}/${total} (${elapsed}s, ${migrated.length} mapped)`);
+    }
     const dataSource: DataSource = dataSourceByBc2Id.get(bc2Project.id) ?? "api";
 
     try {
