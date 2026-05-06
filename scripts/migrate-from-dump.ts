@@ -222,7 +222,10 @@ async function main(): Promise<void> {
 
     if (flags.phase === "all" || flags.phase === "threads") {
       const personMap = await loadPersonMap(realQ);
+      const totalProjects = migratedProjects.length;
+      let pIdx = 0;
       for (const p of migratedProjects) {
+        pIdx++;
         const r = await migrateThreadsAndComments({
           reader,
           q: writableQ,
@@ -233,7 +236,7 @@ async function main(): Promise<void> {
         totalSuccess += r.threads.success;
         totalFailed += r.threads.failed;
         console.log(
-          `  threads ${p.bc2Id}: ok=${r.threads.success} fail=${r.threads.failed} skip=${r.threads.skipped}`,
+          `  threads ${p.bc2Id} ${pIdx} of ${totalProjects}: ok=${r.threads.success} fail=${r.threads.failed} skip=${r.threads.skipped}`,
         );
       }
     }
@@ -241,7 +244,10 @@ async function main(): Promise<void> {
     if (!flags.noFiles && (flags.phase === "all" || flags.phase === "files")) {
       const personMap = await loadPersonMap(realQ);
       const downloadEnv = { username, password, userAgent };
+      const totalProjects = migratedProjects.length;
+      let pIdx = 0;
       for (const p of migratedProjects) {
+        pIdx++;
         const r = await migrateFiles({
           reader,
           q: writableQ,
@@ -252,7 +258,9 @@ async function main(): Promise<void> {
         });
         totalSuccess += r.files.success;
         totalFailed += r.files.failed;
-        console.log(`  files ${p.bc2Id}: ok=${r.files.success} fail=${r.files.failed}`);
+        console.log(
+          `  files ${p.bc2Id} ${pIdx} of ${totalProjects}: ok=${r.files.success} fail=${r.files.failed}`,
+        );
       }
     }
 
