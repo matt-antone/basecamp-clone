@@ -77,4 +77,22 @@ describe("parseDecisionCsv", () => {
     expect(r.errors).toEqual([]);
     expect(r.decisions).toEqual(decisions);
   });
+
+  it("preserves embedded newlines inside quoted titles", () => {
+    const text = HEADER + `100,"Line 1\nLine 2",assign,ABC,\n`;
+    const r = parseDecisionCsv(text);
+    expect(r.errors).toEqual([]);
+    expect(r.decisions[0].title).toBe("Line 1\nLine 2");
+  });
+
+  it("accepts CRLF line endings", () => {
+    const text =
+      "bc2_id,title,action,code,client_name\r\n" +
+      `100,Plain,assign,ABC,\r\n`;
+    const r = parseDecisionCsv(text);
+    expect(r.errors).toEqual([]);
+    expect(r.decisions).toEqual([
+      { bc2Id: "100", title: "Plain", action: "assign", code: "ABC", clientName: "" },
+    ]);
+  });
 });
