@@ -1,5 +1,6 @@
 import { promises as fs } from "fs";
 import { resolve } from "path";
+import { pathToFileURL } from "url";
 import { config } from "dotenv";
 import {
   formatDecisionCsv,
@@ -90,7 +91,11 @@ async function main(): Promise<void> {
   );
 }
 
-if (require.main === module) {
+const isEntry =
+  process.argv[1] !== undefined &&
+  import.meta.url === pathToFileURL(process.argv[1]).href;
+
+if (isEntry) {
   main().catch((err) => {
     console.error(`[dump-orphan-decisions] fatal: ${err.message ?? err}`);
     process.exit(1);

@@ -19,6 +19,7 @@ import { createDumpReader } from "@/lib/imports/dump-reader";
 import { Bc2Client } from "@/lib/imports/bc2-client";
 import { migrateThreadsAndComments } from "@/lib/imports/migration/threads";
 import { migrateFiles } from "@/lib/imports/migration/files";
+import { pathToFileURL } from "url";
 
 config({ path: resolve(process.cwd(), ".env.local") });
 
@@ -296,7 +297,11 @@ async function main(): Promise<void> {
   process.exit(exit);
 }
 
-if (require.main === module) {
+const isEntry =
+  process.argv[1] !== undefined &&
+  import.meta.url === pathToFileURL(process.argv[1]).href;
+
+if (isEntry) {
   main().catch((err) => {
     console.error(`[apply-orphan-decisions] fatal: ${err.message ?? err}`);
     process.exit(1);
