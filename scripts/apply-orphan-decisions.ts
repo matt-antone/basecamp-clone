@@ -270,9 +270,9 @@ async function main(): Promise<void> {
           errors: new Set(),
         });
         const downloadEnv = {
-          username: requireEnv("BC2_USERNAME"),
-          password: requireEnv("BC2_PASSWORD"),
-          userAgent: process.env.BC2_USER_AGENT ?? "basecamp-clone-orphan-recon (matt@example.com)",
+          username: requireEnv("BASECAMP_USERNAME"),
+          password: requireEnv("BASECAMP_PASSWORD"),
+          userAgent: process.env.BASECAMP_USER_AGENT ?? requireEnv("BC2_USER_AGENT"),
         };
 
         let ok = 0;
