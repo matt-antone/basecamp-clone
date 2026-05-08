@@ -153,7 +153,11 @@ export async function runApply(deps: ApplyDeps): Promise<number> {
 
     await deps.finishJob(jobId, exitCode === 0 ? "completed" : "failed");
   } catch (e) {
-    await deps.finishJob(jobId, "failed");
+    try {
+      await deps.finishJob(jobId, "failed");
+    } catch {
+      // Don't mask the original error if finishJob also fails.
+    }
     throw e;
   }
 
