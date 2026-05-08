@@ -14,7 +14,7 @@ export function createProdReader(prodPool: Pool): ProdReader {
     projectBc2Id?: number;
     limit?: number | null;
   }): Promise<ProdProject[]> {
-    const params: any[] = [];
+    const params: (string | number)[] = [];
     let where = "p.archived = false";
     if (opts.projectBc2Id !== undefined) {
       params.push(opts.projectBc2Id);
@@ -72,10 +72,10 @@ export function createProdReader(prodPool: Pool): ProdReader {
   return { activeProjects, filesForProject, discussionsForProject, commentsForThread };
 }
 
-function rowToProdProject(row: any): ProdProject {
+function rowToProdProject(row: Record<string, unknown>): ProdProject {
   return {
-    ...row,
-    created_at: new Date(row.created_at),
-    updated_at: new Date(row.updated_at),
-  };
+    ...(row as object),
+    created_at: new Date(row.created_at as string | number | Date),
+    updated_at: new Date(row.updated_at as string | number | Date),
+  } as ProdProject;
 }
