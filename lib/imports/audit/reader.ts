@@ -9,7 +9,7 @@ import type {
   FileExpected,
 } from "./types";
 
-export const TOPICABLE_TYPE_TO_SEGMENT: Record<string, string> = {
+const TOPICABLE_TYPE_TO_SEGMENT: Record<string, string> = {
   Message: "messages",
   Todolist: "todolists",
   CalendarEvent: "calendar_events",

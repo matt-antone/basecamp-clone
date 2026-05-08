@@ -2,7 +2,7 @@
 
 export type EntityKind = "people" | "projects" | "topics" | "comments" | "files";
 
-export type EntityStatus =
+type EntityStatus =
   | "mapped"
   | "skipped_unsupported"
   | "skipped_existing"

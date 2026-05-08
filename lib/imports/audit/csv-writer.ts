@@ -21,7 +21,7 @@ export async function ensureOutDir(dir: string): Promise<void> {
   await fs.mkdir(dir, { recursive: true });
 }
 
-export interface CsvHandle {
+interface CsvHandle {
   path: string;
   stream: WriteStream;
   writeRow(fields: unknown[]): void;
