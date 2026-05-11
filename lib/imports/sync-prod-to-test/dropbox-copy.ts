@@ -1,10 +1,7 @@
 // lib/imports/sync-prod-to-test/dropbox-copy.ts
-// Uses DropboxStorageAdapter from lib/storage/dropbox-adapter.ts.
-// The adapter wraps the raw Dropbox SDK client; filesCopyV2 is NOT exposed as a
-// method on the adapter, so we instantiate the adapter to obtain its authenticated
-// internal client via the private getClient path — instead we call filesCopyV2
-// directly on the raw Dropbox SDK by constructing a lightweight client from the
-// same env vars the adapter reads, mirroring its constructor.
+// Copy files within the team-space Dropbox account, mirroring the path-root
+// resolution used by DropboxStorageAdapter (the team root namespace must be
+// set via pathRoot or filesCopyV2 will look in the user's home instead).
 import { Dropbox } from "dropbox";
 import { config } from "../../config-core";
 
@@ -19,11 +16,45 @@ export interface CopyResult {
   errorMessage: string | null;
 }
 
-/**
- * Copy a Dropbox file from /Projects/... to the equivalent path under /Projects-test/...
- * Uses the same credentials as DropboxStorageAdapter (dropboxAppKey / dropboxAppSecret /
- * dropboxRefreshToken / dropboxSelectUser / dropboxSelectAdmin).
- */
+const dropboxFetch = async (...args: Parameters<typeof fetch>) => {
+  if (typeof globalThis.fetch !== "function") {
+    throw new Error("Global fetch is unavailable in this runtime");
+  }
+  const response = await globalThis.fetch(...args);
+  const compat = response as Response & { buffer?: () => Promise<Buffer> };
+  if (typeof compat.buffer !== "function") {
+    compat.buffer = async () => Buffer.from(await response.arrayBuffer());
+  }
+  return compat;
+};
+
+let teamClientPromise: Promise<Dropbox> | null = null;
+
+function getTeamClient(): Promise<Dropbox> {
+  if (teamClientPromise) return teamClientPromise;
+  teamClientPromise = (async () => {
+    const opts = {
+      clientId: config.dropboxAppKey() ?? undefined,
+      clientSecret: config.dropboxAppSecret() ?? undefined,
+      refreshToken: config.dropboxRefreshToken() ?? undefined,
+      selectUser: config.dropboxSelectUser() ?? undefined,
+      selectAdmin: config.dropboxSelectAdmin() ?? undefined,
+      fetch: dropboxFetch,
+    };
+    const baseClient = new Dropbox(opts);
+    const account = await baseClient.usersGetCurrentAccount();
+    const rootInfo = account.result.root_info;
+    if (rootInfo.root_namespace_id === rootInfo.home_namespace_id) {
+      return baseClient;
+    }
+    return new Dropbox({
+      ...opts,
+      pathRoot: JSON.stringify({ ".tag": "root", root: rootInfo.root_namespace_id }),
+    });
+  })();
+  return teamClientPromise;
+}
+
 export async function copyProdFileToTestRoot(prodPath: string): Promise<CopyResult> {
   if (!prodPath.startsWith(PROD_ROOT + "/")) {
     return {
@@ -38,27 +69,7 @@ export async function copyProdFileToTestRoot(prodPath: string): Promise<CopyResu
   const newPath = TEST_ROOT + prodPath.slice(PROD_ROOT.length);
 
   try {
-    const dropboxFetch = async (...args: Parameters<typeof fetch>) => {
-      if (typeof globalThis.fetch !== "function") {
-        throw new Error("Global fetch is unavailable in this runtime");
-      }
-      const response = await globalThis.fetch(...args);
-      const compat = response as Response & { buffer?: () => Promise<Buffer> };
-      if (typeof compat.buffer !== "function") {
-        compat.buffer = async () => Buffer.from(await response.arrayBuffer());
-      }
-      return compat;
-    };
-
-    const dbx = new Dropbox({
-      clientId: config.dropboxAppKey() ?? undefined,
-      clientSecret: config.dropboxAppSecret() ?? undefined,
-      refreshToken: config.dropboxRefreshToken() ?? undefined,
-      selectUser: config.dropboxSelectUser() ?? undefined,
-      selectAdmin: config.dropboxSelectAdmin() ?? undefined,
-      fetch: dropboxFetch,
-    });
-
+    const dbx = await getTeamClient();
     const res = await dbx.filesCopyV2({
       from_path: prodPath,
       to_path: newPath,
@@ -92,12 +103,14 @@ export async function copyProdFileToTestRoot(prodPath: string): Promise<CopyResu
       errorMessage: null,
     };
   } catch (e) {
+    const summary =
+      (e as { error?: { error_summary?: string } })?.error?.error_summary ?? null;
     return {
       ok: false,
       newPath: null,
       newFileId: null,
       newSize: null,
-      errorMessage: (e as Error).message,
+      errorMessage: summary ? `${summary} (${(e as Error).message})` : (e as Error).message,
     };
   }
 }
