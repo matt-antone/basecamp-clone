@@ -116,3 +116,27 @@ describe("reconStrandedComments — orphan-no-thread", () => {
     ]);
   });
 });
+
+describe("reconStrandedComments — unsupported topicable", () => {
+  it("silently counts Calendar topics without logRecord or createComment", async () => {
+    let logInserts = 0;
+    const q = makeFakeQ([
+      (sql) => sql.includes("from import_map_projects")
+        ? { rows: [{ local_project_id: "lp" }], rowCount: 1 } : null,
+      (sql) => {
+        if (sql.startsWith("insert into import_logs")) { logInserts++; return { rows: [], rowCount: 1 }; }
+        return null;
+      },
+    ]);
+    const createComment = vi.fn();
+
+    const result = await reconStrandedComments({
+      q, jobId: "j", dumpDir: FIXTURE_DUMP,
+      projectIds: [102], personMap: new Map(), createComment,
+    });
+
+    expect(createComment).not.toHaveBeenCalled();
+    expect(logInserts).toBe(0);
+    expect(result.totals.skipped_unsupported_topicable).toBe(1);
+  });
+});
