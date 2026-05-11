@@ -38,3 +38,6 @@ tmp/bc2-title-audit.csv
 tmp/bc2-title-audit.json
 tmp/bc2-import-orphans.csv
 tmp/bc2-import-summary.json
+
+# Sync-prod-to-test extract audit dumps (one directory per run)
+docs/reconcile/extracts/
