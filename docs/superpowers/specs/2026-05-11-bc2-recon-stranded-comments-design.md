@@ -107,7 +107,7 @@ pnpm recon:stranded-comments --i-have-a-backup [--projects=<csv>] [--dump-dir=<p
 |------|---------|-------|
 | `--i-have-a-backup` | (required) | Refuse to apply without it. |
 | `--projects=<csv>` | `12579434,12450051,12450414,12580070,12450632,12450066` | Override only when investigating new buckets. |
-| `--dump-dir=<path>` | `process.env.BC2_DUMP_DIR` (fallback `/Volumes/Spare/basecamp-dump/` if present) | Hard fail if dir missing. |
+| `--dump-dir=<path>` | `process.env.BASECAMP_DUMP_DIR` (fallback `/Volumes/Spare/basecamp-dump/` if present) | Hard fail if dir missing. |
 
 ## Data flow
 
