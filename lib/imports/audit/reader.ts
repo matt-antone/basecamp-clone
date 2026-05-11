@@ -123,7 +123,7 @@ export async function readCommentsForTopic(
   }));
 }
 
-export interface CommentDetail {
+interface CommentDetail {
   id: number;
   content?: string;
   creator?: { id: number; name?: string };

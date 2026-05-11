@@ -4,7 +4,7 @@ import { logRecord, type Query } from "./jobs";
 
 const SUPPORTED_TOPICS = new Set(["Message", "Todolist", "Upload", "Document"]);
 
-export interface ReconStrandedCommentsDeps {
+interface ReconStrandedCommentsDeps {
   q: Query;
   jobId: string;
   dumpDir: string;
@@ -19,7 +19,7 @@ export interface ReconStrandedCommentsDeps {
   }) => Promise<{ id: string }>;
 }
 
-export interface PerProject {
+interface PerProject {
   bc2Id: number;
   localId: string | null;
   success: number;
@@ -31,7 +31,7 @@ export interface PerProject {
   };
 }
 
-export interface ReconResult {
+interface ReconResult {
   perProject: PerProject[];
   totals: {
     success: number;
