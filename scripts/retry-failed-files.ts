@@ -81,6 +81,145 @@ export async function readFailedFiles(csvPath: string): Promise<FailedFileRow[]>
   return out;
 }
 
+import type { Bc2Attachment } from "@/lib/imports/bc2-fetcher";
+
+export interface ProjectInfo {
+  bc2Id: number;
+  localId: string;
+  name: string;
+  storageDir: string;
+  archived: boolean;
+}
+
+export type ImportOneResult =
+  | { status: "imported"; localFileId: string }
+  | { status: "skipped_existing"; localFileId: string }
+  | { status: "failed"; error: string };
+
+export interface RetryDeps {
+  flags: RetryFlags;
+  readFailedFileRows: () => Promise<FailedFileRow[]>;
+  loadProjectInfo: (bc2ProjectId: string) => Promise<ProjectInfo | null>;
+  loadProjectAttachments: (bc2ProjectId: string) => Promise<Bc2Attachment[]>;
+  loadPersonMap: () => Promise<Map<number, string>>;
+  createJob: (attemptCount: number) => Promise<string>;
+  finishJob: (jobId: string, status: "completed" | "failed") => Promise<void>;
+  importOne: (args: {
+    project: ProjectInfo;
+    attachment: Bc2Attachment;
+    personMap: Map<number, string>;
+    jobId: string;
+  }) => Promise<ImportOneResult>;
+  log: (s: string) => void;
+  err: (s: string) => void;
+}
+
+function groupByProject(rows: FailedFileRow[]): Map<string, FailedFileRow[]> {
+  const out = new Map<string, FailedFileRow[]>();
+  for (const row of rows) {
+    const list = out.get(row.bc2ProjectId) ?? [];
+    list.push(row);
+    out.set(row.bc2ProjectId, list);
+  }
+  return out;
+}
+
+export async function runRetry(deps: RetryDeps): Promise<number> {
+  const { log, err } = deps;
+
+  const all = await deps.readFailedFileRows();
+  const retriable = pickRetriable(all);
+  if (retriable.length === 0) {
+    log(`[retry-failed-files] nothing to retry (no rows match retriable reasons).`);
+    return 0;
+  }
+
+  const grouped = groupByProject(retriable);
+  log(
+    `[retry-failed-files] attachments=${retriable.length} projects=${grouped.size}`,
+  );
+
+  const jobId = await deps.createJob(retriable.length);
+  log(`[retry-failed-files] jobId=${jobId}`);
+
+  const personMap = await deps.loadPersonMap();
+
+  interface Result {
+    bc2ProjectId: string;
+    bc2AttachmentId: string;
+    filename: string;
+    outcome: "ok" | "failed" | "project_not_mapped" | "attachment_not_in_dump";
+    message?: string;
+  }
+  const results: Result[] = [];
+  let exitCode = 0;
+
+  try {
+    for (const [bc2ProjectId, rowsForProject] of grouped) {
+      const project = await deps.loadProjectInfo(bc2ProjectId);
+      if (!project) {
+        for (const row of rowsForProject) {
+          err(`${row.bc2ProjectId}/${row.bc2AttachmentId} project_not_mapped`);
+          results.push({ ...row, outcome: "project_not_mapped" });
+        }
+        exitCode = 1;
+        continue;
+      }
+      const attachments = await deps.loadProjectAttachments(bc2ProjectId);
+      const byId = new Map<number, Bc2Attachment>();
+      for (const a of attachments) byId.set(a.id, a);
+
+      for (const row of rowsForProject) {
+        const attachment = byId.get(Number(row.bc2AttachmentId));
+        if (!attachment) {
+          err(`${row.bc2ProjectId}/${row.bc2AttachmentId} attachment_not_in_dump`);
+          results.push({ ...row, outcome: "attachment_not_in_dump" });
+          exitCode = 1;
+          continue;
+        }
+        try {
+          const r = await deps.importOne({ project, attachment, personMap, jobId });
+          if (r.status === "imported" || r.status === "skipped_existing") {
+            log(`${row.bc2ProjectId}/${row.bc2AttachmentId} ok (${r.status})`);
+            results.push({ ...row, outcome: "ok" });
+          } else {
+            err(`${row.bc2ProjectId}/${row.bc2AttachmentId} failed: ${r.error}`);
+            results.push({ ...row, outcome: "failed", message: r.error });
+            exitCode = 1;
+          }
+        } catch (e) {
+          const msg = e instanceof Error ? e.message : String(e);
+          err(`${row.bc2ProjectId}/${row.bc2AttachmentId} threw: ${msg}`);
+          results.push({ ...row, outcome: "failed", message: msg });
+          exitCode = 1;
+        }
+      }
+    }
+
+    const ok = results.filter((r) => r.outcome === "ok").length;
+    const failed = results.length - ok;
+    log(`[retry-failed-files] attempted=${results.length} ok=${ok} failed=${failed}`);
+    for (const r of results) {
+      if (r.outcome !== "ok") {
+        log(
+          `  ${r.bc2ProjectId} / ${r.bc2AttachmentId} ${r.filename}: ${r.outcome}${r.message ? ` — ${r.message}` : ""}`,
+        );
+      }
+    }
+
+    await deps.finishJob(jobId, exitCode === 0 ? "completed" : "failed");
+  } catch (e) {
+    try {
+      await deps.finishJob(jobId, "failed");
+    } catch {
+      // Preserve the original error.
+    }
+    throw e;
+  }
+
+  return exitCode;
+}
+
 async function main(): Promise<void> {
   // Wired in Task 3 (real pg + dump reader + dropbox adapter).
   throw new Error("retry-failed-files: main() wired in Task 3");
