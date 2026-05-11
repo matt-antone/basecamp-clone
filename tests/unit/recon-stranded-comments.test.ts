@@ -59,3 +59,26 @@ describe("reconStrandedComments — happy path", () => {
     });
   });
 });
+
+describe("reconStrandedComments — idempotency", () => {
+  it("skips comments already in import_map_comments without calling createComment", async () => {
+    const q = makeFakeQ([
+      (sql) => sql.includes("from import_map_projects")
+        ? { rows: [{ local_project_id: "lp" }], rowCount: 1 } : null,
+      (sql) => sql.includes("from import_map_threads")
+        ? { rows: [{ local_thread_id: "lt" }], rowCount: 1 } : null,
+      (sql) => sql.includes("from import_map_comments")
+        ? { rows: [{ local_comment_id: "lc" }], rowCount: 1 } : null,
+    ]);
+    const createComment = vi.fn();
+
+    const result = await reconStrandedComments({
+      q, jobId: "j", dumpDir: FIXTURE_DUMP,
+      projectIds: [100], personMap: new Map(), createComment,
+    });
+
+    expect(createComment).not.toHaveBeenCalled();
+    expect(result.totals.success).toBe(0);
+    expect(result.totals.skipped_already_mapped).toBe(2);
+  });
+});
