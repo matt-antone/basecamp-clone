@@ -15,12 +15,10 @@ export async function writeComment(
   testThreadIdForProdThreadId: Map<string, string | null>,
   prodComment: ProdCommentRow,
 ): Promise<{ result: CommentWriteResult; test_comment_id: string | null }> {
-  if (!prodComment.basecamp_comment_id) {
-    return { result: "skipped_existing", test_comment_id: null };
-  }
+  const lookupKey = prodComment.basecamp_comment_id ?? `prod_native_${prodComment.id}`;
   const existing = await testTx.query(
     `SELECT local_comment_id FROM import_map_comments WHERE basecamp_comment_id = $1 LIMIT 1`,
-    [prodComment.basecamp_comment_id],
+    [lookupKey],
   );
   if (existing.rows[0]) {
     return { result: "skipped_existing", test_comment_id: existing.rows[0].local_comment_id };
@@ -40,7 +38,7 @@ export async function writeComment(
   await testTx.query(
     `INSERT INTO import_map_comments (basecamp_comment_id, local_comment_id)
      VALUES ($1, $2) ON CONFLICT (basecamp_comment_id) DO NOTHING`,
-    [prodComment.basecamp_comment_id, ins.rows[0].id],
+    [lookupKey, ins.rows[0].id],
   );
   return { result: "inserted", test_comment_id: ins.rows[0].id };
 }

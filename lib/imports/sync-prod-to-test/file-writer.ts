@@ -40,13 +40,10 @@ export async function writeFile(
   prodFile: ProdFileRow,
   opts: WriteFileOpts,
 ): Promise<{ result: FileWriteResult; test_file_id: string | null; copy: CopyResult | null }> {
-  if (!prodFile.basecamp_file_id) {
-    return { result: "skipped_existing", test_file_id: null, copy: null };
-  }
-
+  const lookupKey = prodFile.basecamp_file_id ?? `prod_native_${prodFile.id}`;
   const existing = await testTx.query(
     `SELECT local_file_id FROM import_map_files WHERE basecamp_file_id = $1 LIMIT 1`,
-    [prodFile.basecamp_file_id],
+    [lookupKey],
   );
   if (existing.rows[0]) {
     return {
@@ -109,7 +106,7 @@ export async function writeFile(
     `INSERT INTO import_map_files (basecamp_file_id, local_file_id)
      VALUES ($1, $2)
      ON CONFLICT (basecamp_file_id) DO NOTHING`,
-    [prodFile.basecamp_file_id, testFileId],
+    [lookupKey, testFileId],
   );
 
   // Thumbnail enqueue is intentionally NOT called here.

@@ -14,12 +14,10 @@ export async function writeThread(
   testProjectId: string,
   prodThread: ProdThreadRow,
 ): Promise<{ result: ThreadWriteResult; test_thread_id: string | null }> {
-  if (!prodThread.basecamp_thread_id) {
-    return { result: "skipped_existing", test_thread_id: null };
-  }
+  const lookupKey = prodThread.basecamp_thread_id ?? `prod_native_${prodThread.id}`;
   const existing = await testTx.query(
     `SELECT local_thread_id FROM import_map_threads WHERE basecamp_thread_id = $1 LIMIT 1`,
-    [prodThread.basecamp_thread_id],
+    [lookupKey],
   );
   if (existing.rows[0]) {
     return { result: "skipped_existing", test_thread_id: existing.rows[0].local_thread_id };
@@ -35,7 +33,7 @@ export async function writeThread(
   await testTx.query(
     `INSERT INTO import_map_threads (basecamp_thread_id, local_thread_id)
      VALUES ($1, $2) ON CONFLICT (basecamp_thread_id) DO NOTHING`,
-    [prodThread.basecamp_thread_id, ins.rows[0].id],
+    [lookupKey, ins.rows[0].id],
   );
   return { result: "inserted", test_thread_id: ins.rows[0].id };
 }
