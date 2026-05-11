@@ -140,3 +140,36 @@ describe("reconStrandedComments — unsupported topicable", () => {
     expect(result.totals.skipped_unsupported_topicable).toBe(1);
   });
 });
+
+describe("reconStrandedComments — unmapped project", () => {
+  it("skips the project and continues to the next when import_map_projects misses", async () => {
+    const q = makeFakeQ([
+      (sql, p) => {
+        if (sql.includes("from import_map_projects")) {
+          const id = (p as string[])[0];
+          return id === "999"
+            ? { rows: [], rowCount: 0 }
+            : { rows: [{ local_project_id: "lp" }], rowCount: 1 };
+        }
+        return null;
+      },
+      (sql) => sql.includes("from import_map_threads")
+        ? { rows: [{ local_thread_id: "lt" }], rowCount: 1 } : null,
+      (sql) => sql.includes("from import_map_comments")
+        ? { rows: [], rowCount: 0 } : null,
+      (sql) => sql.startsWith("insert into import_map_comments") ? { rows: [], rowCount: 1 } : null,
+      (sql) => sql.startsWith("insert into import_logs") ? { rows: [], rowCount: 1 } : null,
+    ]);
+    const createComment = vi.fn().mockResolvedValue({ id: "lc" });
+
+    const result = await reconStrandedComments({
+      q, jobId: "j", dumpDir: FIXTURE_DUMP,
+      projectIds: [999, 100], personMap: new Map([[9001, "u1"], [9002, "u2"]]), createComment,
+    });
+
+    expect(result.totals.projects_skipped_unmapped).toBe(1);
+    expect(result.perProject[0]).toMatchObject({ bc2Id: 999, localId: null });
+    expect(result.perProject[1].bc2Id).toBe(100);
+    expect(result.totals.success).toBe(2);
+  });
+});
