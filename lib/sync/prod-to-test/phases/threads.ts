@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import type { PhaseCtx, PhaseResult, PhaseError } from "./types";
+import { resolveUserRef } from "./user-ref";
 
 interface ProdThreadRow {
   id: string;
@@ -49,8 +50,7 @@ export async function runThreadsPhase(ctx: PhaseCtx): Promise<PhaseResult> {
       }
       const localProject = await lookupMap(ctx, "import_map_prod_projects", row.project_id);
       if (!localProject) throw new Error(`unresolved project ${row.project_id}`);
-      const localAuthor = await lookupMap(ctx, "import_map_prod_users", row.author_user_id);
-      if (!localAuthor) throw new Error(`unresolved author ${row.author_user_id}`);
+      const localAuthor = await resolveUserRef(ctx, row.author_user_id);
 
       const localId = randomUUID();
       await ctx.test.query(

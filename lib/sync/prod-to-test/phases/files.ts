@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import type { PhaseCtx, PhaseResult, PhaseError } from "./types";
+import { resolveUserRef } from "./user-ref";
 
 interface ProdFileRow {
   id: string;
@@ -66,8 +67,7 @@ export async function runFilesPhase(ctx: PhaseCtx): Promise<PhaseResult> {
 
       const localProject = await lookupMap(ctx, "import_map_prod_projects", row.project_id);
       if (!localProject) throw new Error(`unresolved project ${row.project_id}`);
-      const localUploader = await lookupMap(ctx, "import_map_prod_users", row.uploader_user_id);
-      if (!localUploader) throw new Error(`unresolved uploader ${row.uploader_user_id}`);
+      const localUploader = await resolveUserRef(ctx, row.uploader_user_id);
       const localThread = row.thread_id
         ? await lookupMap(ctx, "import_map_prod_threads", row.thread_id)
         : null;

@@ -1,6 +1,7 @@
 // lib/sync/prod-to-test/phases/projects.ts
 import { randomUUID } from "node:crypto";
 import type { PhaseCtx, PhaseResult, PhaseError } from "./types";
+import { resolveUserRef } from "./user-ref";
 
 interface ProdProjectRow {
   id: string;
@@ -66,10 +67,7 @@ export async function runProjectsPhase(ctx: PhaseCtx): Promise<PhaseResult> {
       const localClient = row.client_id
         ? await lookupMap(ctx, "import_map_prod_clients", row.client_id)
         : null;
-      const localCreatedBy = await lookupMap(ctx, "import_map_prod_users", row.created_by);
-      if (!localCreatedBy) {
-        throw new Error(`unresolved created_by user ${row.created_by}`);
-      }
+      const localCreatedBy = await resolveUserRef(ctx, row.created_by);
 
       const localId = randomUUID();
       let slug = row.slug;
