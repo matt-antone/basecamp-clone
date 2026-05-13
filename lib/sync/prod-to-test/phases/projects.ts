@@ -51,11 +51,10 @@ export async function runProjectsPhase(ctx: PhaseCtx): Promise<PhaseResult> {
             status, project_seq, tags, requestor, deadline, last_activity_at, pm_note,
             created_at
        from projects
-       where created_at > $1
-         and archived = false
+       where archived = false
        order by created_at asc, id asc` +
     (limit ? ` limit ${Math.max(1, Math.floor(limit))}` : "");
-  const prodRes = await ctx.prod.query<ProdProjectRow>(sql, [watermark]);
+  const prodRes = await ctx.prod.query<ProdProjectRow>(sql);
 
   let inserted = 0;
   let skipped = 0;
