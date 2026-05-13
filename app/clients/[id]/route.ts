@@ -1,6 +1,6 @@
 import { requireUser } from "@/lib/auth";
 import { badRequest, notFound, ok, serverError, unauthorized } from "@/lib/http";
-import { getClientById, updateClient } from "@/lib/repositories";
+import { getClientById, getClientWithStats, updateClient } from "@/lib/repositories";
 import { z } from "zod";
 
 const clientStringListSchema = z.array(z.string().trim().min(1));
@@ -77,10 +77,14 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   try {
     await requireUser(request);
     const { id } = await params;
-    const client = await getClientById(id);
-    if (!client) {
-      return notFound("Client not found");
+    const url = new URL(request.url);
+    if (url.searchParams.get("stats") === "1") {
+      const result = await getClientWithStats(id);
+      if (!result) return notFound("Client not found");
+      return ok(result);
     }
+    const client = await getClientById(id);
+    if (!client) return notFound("Client not found");
     return ok({ client });
   } catch (error) {
     if (error instanceof Error && /auth|token|workspace/i.test(error.message)) {
