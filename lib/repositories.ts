@@ -5,7 +5,7 @@ import { renderMarkdown } from "./markdown";
 import { DEFAULT_HOURLY_RATE_USD, MAX_EXPENSE_LINE_AMOUNT_USD, MAX_SITE_HOURLY_RATE_USD } from "./project-financials";
 import type { ProjectStatus } from "./project-status";
 import type { ClientRecord } from "./types/client-record";
-import type { ClientWithStats, ClientTabCounts } from "./types/client-stats";
+import type { ClientWithStats, ClientTabCounts, ClientDetailStats } from "./types/client-stats";
 
 export type UserProfile = {
   id: string;
@@ -333,6 +333,42 @@ export async function listClientsWithStats(
     active_project_count: Number(row.active_project_count ?? 0),
     last_activity_at: row.last_activity_at ?? null
   })) as ClientWithStats[];
+}
+
+export async function getClientWithStats(
+  id: string
+): Promise<{ client: ClientRecord; stats: ClientDetailStats } | null> {
+  const result = await query(
+    `select
+       c.id, c.name, c.code, c.github_repos, c.domains, c.created_at, c.archived_at,
+       count(p.id) filter (where p.archived = false) as active_project_count,
+       count(p.id) filter (where p.archived = true)  as archived_project_count,
+       max(p.last_activity_at) filter (where p.archived = false) as last_activity_at
+     from clients c
+     left join projects p on p.client_id = c.id
+     where c.id = $1
+     group by c.id`,
+    [id]
+  );
+
+  const row = result.rows[0];
+  if (!row) return null;
+
+  const {
+    active_project_count,
+    archived_project_count,
+    last_activity_at,
+    ...client
+  } = row as any;
+
+  return {
+    client: client as ClientRecord,
+    stats: {
+      activeProjectCount: Number(active_project_count ?? 0),
+      archivedProjectCount: Number(archived_project_count ?? 0),
+      lastActivityAt: last_activity_at ?? null
+    }
+  };
 }
 
 export async function getClientTabCounts(): Promise<ClientTabCounts> {

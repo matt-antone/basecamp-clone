@@ -90,3 +90,31 @@ describe("getClientTabCounts", () => {
     expect(await getClientTabCounts()).toEqual({ active: 0, archived: 0 });
   });
 });
+
+describe("getClientWithStats", () => {
+  beforeEach(() => { queryMock.mockReset(); });
+
+  it("returns null when client missing", async () => {
+    queryMock.mockResolvedValueOnce({ rows: [] });
+    const { getClientWithStats } = await import("@/lib/repositories");
+    expect(await getClientWithStats("missing")).toBeNull();
+  });
+
+  it("returns client row plus computed stats", async () => {
+    queryMock.mockResolvedValueOnce({
+      rows: [{
+        id: "c1", name: "Acme", code: "ACME", github_repos: ["acme/web"], domains: ["acme.com"],
+        created_at: "2026-01-01T00:00:00.000Z", archived_at: null,
+        active_project_count: "7",
+        archived_project_count: "3",
+        last_activity_at: "2026-05-10T12:00:00.000Z"
+      }]
+    });
+    const { getClientWithStats } = await import("@/lib/repositories");
+    const result = await getClientWithStats("c1");
+    expect(result).toEqual({
+      client: expect.objectContaining({ id: "c1", github_repos: ["acme/web"], domains: ["acme.com"] }),
+      stats: { activeProjectCount: 7, archivedProjectCount: 3, lastActivityAt: "2026-05-10T12:00:00.000Z" }
+    });
+  });
+});
