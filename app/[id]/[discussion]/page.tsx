@@ -144,6 +144,12 @@ function DiscussionPageContent(props: {
   const [isSavingThread, setIsSavingThread] = useState(false);
   const commentFileInputRef = useRef<HTMLInputElement | null>(null);
 
+  useEffect(() => {
+    const threadTitle = thread?.title?.trim();
+    if (threadTitle) document.title = `${threadTitle} — ${projectDisplayName}`;
+    else document.title = projectDisplayName;
+  }, [thread?.title, projectDisplayName]);
+
   async function authedFetch(accessToken: string, path: string, options: RequestInit = {}) {
     const { accessToken: nextToken, data } = await authedJsonFetch({
       accessToken,

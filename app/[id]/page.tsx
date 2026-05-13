@@ -312,6 +312,11 @@ function ProjectPageContent({ projectId, initial }: { projectId: string; initial
   }, [project]);
 
   useEffect(() => {
+    const title = project?.display_name?.trim() || project?.name?.trim();
+    if (title) document.title = title;
+  }, [project?.display_name, project?.name]);
+
+  useEffect(() => {
     setArchivedHoursInputs(
       Object.fromEntries(userHours.map((entry) => [entry.userId, formatHoursInput(entry.hours)]))
     );
