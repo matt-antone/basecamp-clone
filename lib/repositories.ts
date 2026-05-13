@@ -5,6 +5,7 @@ import { renderMarkdown } from "./markdown";
 import { DEFAULT_HOURLY_RATE_USD, MAX_EXPENSE_LINE_AMOUNT_USD, MAX_SITE_HOURLY_RATE_USD } from "./project-financials";
 import type { ProjectStatus } from "./project-status";
 import type { ClientRecord } from "./types/client-record";
+import type { ClientWithStats } from "./types/client-stats";
 
 export type UserProfile = {
   id: string;
@@ -307,6 +308,31 @@ export async function updateClient(
     ]
   );
   return (result.rows[0] as ClientRecord | undefined) ?? null;
+}
+
+export async function listClientsWithStats(
+  filter: "active" | "archived"
+): Promise<ClientWithStats[]> {
+  const archivedClause =
+    filter === "archived" ? "c.archived_at is not null" : "c.archived_at is null";
+
+  const result = await query(
+    `select
+       c.id, c.name, c.code, c.github_repos, c.domains, c.created_at, c.archived_at,
+       count(p.id) filter (where p.archived = false) as active_project_count,
+       max(p.last_activity_at) filter (where p.archived = false) as last_activity_at
+     from clients c
+     left join projects p on p.client_id = c.id
+     where ${archivedClause}
+     group by c.id
+     order by c.name asc`
+  );
+
+  return result.rows.map((row: any) => ({
+    ...row,
+    active_project_count: Number(row.active_project_count ?? 0),
+    last_activity_at: row.last_activity_at ?? null
+  })) as ClientWithStats[];
 }
 
 /** Same CASE as `display_name` — use for ORDER BY title / tie-breaks. */
