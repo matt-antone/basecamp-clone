@@ -198,8 +198,8 @@ export async function runProjectsPhase(ctx: PhaseCtx): Promise<PhaseResult> {
 
         try {
           await doInsert();
-        } catch (e: any) {
-          if (e?.code === "23505") {
+        } catch (e) {
+          if ((e as { code?: string })?.code === "23505") {
             slug = `${row.slug}${suffixFor(localId)}`;
             code = row.project_code ? `${row.project_code}${suffixFor(localId)}` : null;
             await doInsert();
