@@ -1,6 +1,11 @@
 import { requireUser } from "@/lib/auth";
 import { badRequest, ok, serverError, unauthorized } from "@/lib/http";
-import { createClient, listClients } from "@/lib/repositories";
+import {
+  createClient,
+  listClients,
+  listClientsWithStats,
+  getClientTabCounts
+} from "@/lib/repositories";
 import { z } from "zod";
 
 const clientStringListSchema = z.array(z.string().trim().min(1));
@@ -15,6 +20,15 @@ const createClientSchema = z.object({
 export async function GET(request: Request) {
   try {
     await requireUser(request);
+    const url = new URL(request.url);
+    if (url.searchParams.get("stats") === "1") {
+      const [active, archived, counts] = await Promise.all([
+        listClientsWithStats("active"),
+        listClientsWithStats("archived"),
+        getClientTabCounts()
+      ]);
+      return ok({ active, archived, counts });
+    }
     const clients = await listClients();
     return ok({ clients });
   } catch (error) {
