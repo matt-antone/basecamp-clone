@@ -52,7 +52,7 @@ export function ClientEditDialog({
     try {
       const { data } = await authedJsonFetch({
         accessToken,
-        path: `/clients/${client.id}`,
+        path: `/api/clients/${client.id}`,
         init: {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },

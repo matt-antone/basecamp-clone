@@ -1427,7 +1427,7 @@ async function loadProjectData(accessToken: string, projectId: string) {
     authedJsonFetch({ accessToken, path: `/projects/${projectId}` }),
     authedJsonFetch({ accessToken, path: `/projects/${projectId}/threads` }),
     authedJsonFetch({ accessToken, path: `/projects/${projectId}/files` }),
-    authedJsonFetch({ accessToken, path: "/clients" }),
+    authedJsonFetch({ accessToken, path: "/api/clients" }),
     authedJsonFetch({ accessToken, path: "/profile" }),
     authedJsonFetch({ accessToken, path: `/projects/${projectId}/expense-lines` })
   ]);

@@ -26,7 +26,7 @@ describe("GET /clients/[id] with ?stats=1", () => {
 
   it("returns plain client without stats=1", async () => {
     getClientByIdMock.mockResolvedValue({ id: "c1", name: "Acme" });
-    const { GET } = await import("@/app/clients/[id]/route");
+    const { GET } = await import("@/app/api/clients/[id]/route");
     const res = await GET(new Request("http://localhost/clients/c1"), paramsFor("c1"));
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ client: { id: "c1", name: "Acme" } });
@@ -35,7 +35,7 @@ describe("GET /clients/[id] with ?stats=1", () => {
 
   it("returns 404 when stats=1 client missing", async () => {
     getClientWithStatsMock.mockResolvedValue(null);
-    const { GET } = await import("@/app/clients/[id]/route");
+    const { GET } = await import("@/app/api/clients/[id]/route");
     const res = await GET(new Request("http://localhost/clients/c1?stats=1"), paramsFor("c1"));
     expect(res.status).toBe(404);
   });
@@ -45,7 +45,7 @@ describe("GET /clients/[id] with ?stats=1", () => {
       client: { id: "c1", name: "Acme" },
       stats: { activeProjectCount: 7, archivedProjectCount: 3, lastActivityAt: "2026-05-10T12:00:00.000Z" }
     });
-    const { GET } = await import("@/app/clients/[id]/route");
+    const { GET } = await import("@/app/api/clients/[id]/route");
     const res = await GET(new Request("http://localhost/clients/c1?stats=1"), paramsFor("c1"));
     expect(res.status).toBe(200);
     const body = await res.json();

@@ -18,7 +18,7 @@ describe("GET /clients/[id]/projects", () => {
 
   it("returns active projects", async () => {
     listClientProjectsMock.mockResolvedValue([{ id: "p1", name: "Web" }]);
-    const { GET } = await import("@/app/clients/[id]/projects/route");
+    const { GET } = await import("@/app/api/clients/[id]/projects/route");
     const res = await GET(new Request("http://localhost/clients/c1/projects?filter=active"), paramsFor("c1"));
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ projects: [{ id: "p1", name: "Web" }] });
@@ -27,7 +27,7 @@ describe("GET /clients/[id]/projects", () => {
 
   it("returns archived projects", async () => {
     listClientProjectsMock.mockResolvedValue([]);
-    const { GET } = await import("@/app/clients/[id]/projects/route");
+    const { GET } = await import("@/app/api/clients/[id]/projects/route");
     const res = await GET(new Request("http://localhost/clients/c1/projects?filter=archived"), paramsFor("c1"));
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ projects: [] });
@@ -35,14 +35,14 @@ describe("GET /clients/[id]/projects", () => {
   });
 
   it("400s on invalid filter", async () => {
-    const { GET } = await import("@/app/clients/[id]/projects/route");
+    const { GET } = await import("@/app/api/clients/[id]/projects/route");
     const res = await GET(new Request("http://localhost/clients/c1/projects?filter=junk"), paramsFor("c1"));
     expect(res.status).toBe(400);
     expect(listClientProjectsMock).not.toHaveBeenCalled();
   });
 
   it("400s when filter missing", async () => {
-    const { GET } = await import("@/app/clients/[id]/projects/route");
+    const { GET } = await import("@/app/api/clients/[id]/projects/route");
     const res = await GET(new Request("http://localhost/clients/c1/projects"), paramsFor("c1"));
     expect(res.status).toBe(400);
   });

@@ -25,7 +25,7 @@ describe("GET /clients with ?stats=1", () => {
 
   it("returns plain client list without stats=1 (existing behavior)", async () => {
     listClientsMock.mockResolvedValue([{ id: "c1", name: "Acme" }]);
-    const { GET } = await import("@/app/clients/route");
+    const { GET } = await import("@/app/api/clients/route");
     const res = await GET(new Request("http://localhost/clients"));
     expect(res.status).toBe(200);
     const body = await res.json();
@@ -39,7 +39,7 @@ describe("GET /clients with ?stats=1", () => {
       .mockResolvedValueOnce([{ id: "c2", active_project_count: 0, last_activity_at: null }]);
     getClientTabCountsMock.mockResolvedValue({ active: 1, archived: 1 });
 
-    const { GET } = await import("@/app/clients/route");
+    const { GET } = await import("@/app/api/clients/route");
     const res = await GET(new Request("http://localhost/clients?stats=1"));
     expect(res.status).toBe(200);
     const body = await res.json();

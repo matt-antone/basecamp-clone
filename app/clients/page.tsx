@@ -40,7 +40,7 @@ export default function ClientsPage() {
         setAccessToken(session.accessToken);
         const { data: payload } = await authedJsonFetch({
           accessToken: session.accessToken,
-          path: "/clients?stats=1"
+          path: "/api/clients?stats=1"
         });
         if (cancelled) return;
         setData(payload as typeof data);

@@ -49,7 +49,7 @@ export default function ClientDetailPage() {
         try {
           const { data } = await authedJsonFetch({
             accessToken: session.accessToken,
-            path: `/clients/${clientId}?stats=1`
+            path: `/api/clients/${clientId}?stats=1`
           });
           if (cancelled) return;
           const payload = data as { client: ClientRecord; stats: ClientDetailStats };
@@ -79,7 +79,7 @@ export default function ClientDetailPage() {
       try {
         const { data } = await authedJsonFetch({
           accessToken,
-          path: `/clients/${clientId}/projects?filter=${tab}`
+          path: `/api/clients/${clientId}/projects?filter=${tab}`
         });
         if (cancelled) return;
         setProjects((data as { projects: ClientProjectRow[] }).projects);

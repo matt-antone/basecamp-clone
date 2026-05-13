@@ -480,7 +480,7 @@ async function loadProjectsBootstrap(): Promise<ProjectsBootstrap> {
     }
 
     const [clientsResponse, projectsResponse] = await Promise.all([
-      authedJsonFetch({ accessToken, path: "/clients" }),
+      authedJsonFetch({ accessToken, path: "/api/clients" }),
       authedJsonFetch({ accessToken, path: buildProjectsUrl() })
     ]);
 
