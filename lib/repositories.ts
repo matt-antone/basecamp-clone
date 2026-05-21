@@ -28,7 +28,7 @@ type SiteSettings = {
 
 type ClientArchiveStatus = "idle" | "pending" | "in_progress" | "completed" | "failed";
 
-type ProjectUserHours = {
+export type ProjectUserHours = {
   userId: string;
   firstName: string | null;
   lastName: string | null;
@@ -415,6 +415,57 @@ const projectListSelectColumns = `p.*, c.name as client_name, c.code as client_c
            0
          )::numeric as total_hours`;
 
+// billing-only: correlated JSON aggregate ordered by spec (last_name, first_name, email).
+// Capped at 200 rows per project. Inner ORDER BY + LIMIT bounds the row set;
+// outer json_agg ORDER BY restates the same sort to be planner-proof.
+const billingUserHoursBreakdownExpr = `
+  coalesce((
+    select json_agg(
+      row
+      order by row."lastName", row."firstName", row."email", row."userId"
+    )
+    from (
+      select
+        puh.user_id                          as "userId",
+        up.first_name                        as "firstName",
+        up.last_name                         as "lastName",
+        up.email                             as "email",
+        up.avatar_url                        as "avatarUrl",
+        puh.hours                            as "hours",
+        lower(coalesce(up.last_name, ''))    as "lastNameKey",
+        lower(coalesce(up.first_name, ''))   as "firstNameKey",
+        lower(up.email)                      as "emailKey"
+      from project_user_hours puh
+      left join user_profiles up on up.id = puh.user_id
+      where puh.project_id = p.id
+      order by "lastNameKey", "firstNameKey", "emailKey", puh.user_id
+      limit 200
+    ) row
+  ), '[]'::json) as user_hours_breakdown
+`;
+
+const billingSelectColumns = projectListSelectColumns + ", " + billingUserHoursBreakdownExpr;
+
+export type ProjectListRow = {
+  id: string;
+  name: string;
+  project_code: string | null;
+  status: string;
+  archived: boolean;
+  client_id: string | null;
+  client_name: string | null;
+  client_code: string | null;
+  display_name: string;
+  discussion_count: number;
+  file_count: number;
+  total_hours: string;
+  [key: string]: unknown;
+};
+
+export type BillingProjectWithBreakdown = ProjectListRow & {
+  user_hours_breakdown: ProjectUserHours[];
+};
+
 type ListProjectsOptions = {
   clientId?: string | null;
   search?: string | null;
@@ -532,15 +583,29 @@ export async function listProjects(includeArchived = true, options?: ListProject
         : `p.created_at desc`;
 
   if (billingOnly) {
-    const sql = `select ${projectListSelectColumns}
+    const sql = `select ${billingSelectColumns}
        from projects p
        left join clients c on c.id = p.client_id
        where p.archived = false
          and p.status = 'billing'
          and ($1::uuid is null or p.client_id = $1::uuid)
        order by ${orderBy}`;
-    const result = await query(sql, [clientId]);
-    return result.rows;
+    try {
+      const result = await query(sql, [clientId]);
+      return result.rows as BillingProjectWithBreakdown[];
+    } catch (err) {
+      if (!isMissingProjectUserHoursTableError(err)) throw err;
+      // project_user_hours table not yet migrated — fall back without aggregate
+      const fallbackSql = `select ${projectListSelectColumns}, '[]'::json as user_hours_breakdown
+         from projects p
+         left join clients c on c.id = p.client_id
+         where p.archived = false
+           and p.status = 'billing'
+           and ($1::uuid is null or p.client_id = $1::uuid)
+         order by ${orderBy}`;
+      const result = await query(fallbackSql, [clientId]);
+      return result.rows as BillingProjectWithBreakdown[];
+    }
   }
 
   const sql = includeArchived
@@ -1324,7 +1389,7 @@ export async function setProjectUserHours(args: {
   return result.rows[0] ?? null;
 }
 
-function isMissingProjectUserHoursTableError(error: unknown) {
+export function isMissingProjectUserHoursTableError(error: unknown) {
   if (!(error instanceof Error)) {
     return false;
   }

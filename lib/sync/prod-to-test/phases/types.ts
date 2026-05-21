@@ -8,7 +8,6 @@ export interface CliFlags {
   limitPerPhase: number | null;
   noBackup: boolean;
   iKnowWhatImDoing: boolean;
-  refreshMetadata: boolean;
 }
 
 export interface PhaseCtx {

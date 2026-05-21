@@ -33,7 +33,6 @@ function parseFlags(argv: string[]): CliFlags {
     limitPerPhase: null,
     noBackup: false,
     iKnowWhatImDoing: false,
-    refreshMetadata: false,
   };
   for (const a of argv) {
     if (a.startsWith("--phase=")) {
@@ -54,8 +53,6 @@ function parseFlags(argv: string[]): CliFlags {
       out.noBackup = true;
     } else if (a === "--i-know-what-im-doing") {
       out.iKnowWhatImDoing = true;
-    } else if (a === "--refresh-metadata") {
-      out.refreshMetadata = true;
     } else if (a === "--help" || a === "-h") {
       printHelp();
       process.exit(0);
@@ -76,9 +73,9 @@ function printHelp(): void {
     `Usage: pnpm sync:prod-to-test [flags]\n` +
       `  --phase=<name>          run only one phase (${ENTITY_NAMES.join("|")})\n` +
       `  --limit-per-phase=<n>   cap rows scanned per phase\n` +
-      `  --refresh-metadata      also update mutable fields on already-mapped records\n` +
       `  --no-backup             skip pg_dump (requires --i-know-what-im-doing)\n` +
-      `  --i-know-what-im-doing  acknowledge no-backup risk\n`
+      `  --i-know-what-im-doing  acknowledge no-backup risk\n` +
+      `\nMetadata refresh runs unconditionally after insert phase.\n`
   );
 }
 
@@ -144,19 +141,17 @@ async function main(): Promise<void> {
       }
     }
 
-    if (flags.refreshMetadata) {
-      for (const name of order) {
-        const refreshFn = REFRESH_PHASES[name];
-        if (!refreshFn) {
-          log(`[${name}:refresh] skipped (no refresh defined for this phase)`);
-          continue;
-        }
-        const result = await refreshFn(ctx);
-        results.push(result);
-        if (result.failed > 0) {
-          log(`[${name}:refresh] ${result.failed} row(s) failed`);
-          exitCode = 1;
-        }
+    for (const name of order) {
+      const refreshFn = REFRESH_PHASES[name];
+      if (!refreshFn) {
+        log(`[${name}:refresh] skipped (no refresh defined for this phase)`);
+        continue;
+      }
+      const result = await refreshFn(ctx);
+      results.push(result);
+      if (result.failed > 0) {
+        log(`[${name}:refresh] ${result.failed} row(s) failed`);
+        exitCode = 1;
       }
     }
   } finally {
