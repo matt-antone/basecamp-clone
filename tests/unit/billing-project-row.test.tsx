@@ -80,14 +80,16 @@ describe("BillingProjectRow", () => {
 
   it("does not render hours table when user_hours_breakdown is absent", async () => {
     const markup = await renderRow(makeProject());
-    expect(markup).not.toContain("aria-label=\"User hours breakdown\"");
+    expect(markup).not.toContain("class=\"archiveProjectHours\"");
+    expect(markup).not.toContain("archiveProjectRow--withBreakdown");
   });
 
   it("renders 2-col layout with table when breakdown has rows", async () => {
     const breakdown = [makeRow()];
     const markup = await renderRow(makeProject({ user_hours_breakdown: breakdown, total_hours: "3.00" }));
-    expect(markup).toContain("aria-label=\"User hours breakdown\"");
-    expect(markup).toContain("md:basis-1/2");
+    expect(markup).toContain("aria-label=\"Hours breakdown for");
+    expect(markup).toContain("archiveProjectRow--withBreakdown");
+    expect(markup).toContain("class=\"archiveProjectHours\"");
   });
 
   it("renders Name and Hours column headers", async () => {
@@ -188,13 +190,14 @@ describe("BillingProjectRow", () => {
       makeRow({ userId: `u-${i}`, firstName: "User", lastName: `${i}`, email: `u${i}@example.com`, hours: 1 })
     );
     const markup = await renderRow(makeProject({ user_hours_breakdown: breakdown, total_hours: "200.00" }));
-    // thead <tr> is plain, 200 tbody <tr>s are plain, tfoot <tr class="..."> is NOT plain
-    // so plain <tr> count = 1 (thead) + 200 (tbody) = 201
-    const plainTrCount = (markup.match(/<tr>/g) ?? []).length;
-    expect(plainTrCount).toBe(201); // 1 header + 200 body rows
-    // total <tr> occurrences = 201 plain + 1 tfoot = 202
-    const allTrCount = (markup.match(/<tr/g) ?? []).length;
+    // 1 thead <tr> + 200 tbody <tr> + 1 tfoot <tr> = 202 total <tr> tags
+    const allTrCount = (markup.match(/<tr[\s>]/g) ?? []).length;
     expect(allTrCount).toBe(202);
+    // Count tbody data rows by looking at name cells (excludes Total in tfoot which has additional class)
+    const bodyRowCount = (markup.match(/<td class="archiveProjectHoursName">/g) ?? []).length;
+    expect(bodyRowCount).toBe(200);
+    // Total cell present with extra class
+    expect(markup).toContain("archiveProjectHoursName archiveProjectHoursTotal");
   });
 
   it("renders footer note '200' when breakdown.length === 200", async () => {

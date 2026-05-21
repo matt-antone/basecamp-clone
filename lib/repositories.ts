@@ -583,13 +583,15 @@ export async function listProjects(includeArchived = true, options?: ListProject
         : `p.created_at desc`;
 
   if (billingOnly) {
+    // Billing list is always sorted alphabetically by project display name.
+    const billingOrderBy = `lower(${projectDisplayNameOrderExpr}) asc`;
     const sql = `select ${billingSelectColumns}
        from projects p
        left join clients c on c.id = p.client_id
        where p.archived = false
          and p.status = 'billing'
          and ($1::uuid is null or p.client_id = $1::uuid)
-       order by ${orderBy}`;
+       order by ${billingOrderBy}`;
     try {
       const result = await query(sql, [clientId]);
       return result.rows as BillingProjectWithBreakdown[];
@@ -602,7 +604,7 @@ export async function listProjects(includeArchived = true, options?: ListProject
          where p.archived = false
            and p.status = 'billing'
            and ($1::uuid is null or p.client_id = $1::uuid)
-         order by ${orderBy}`;
+         order by ${billingOrderBy}`;
       const result = await query(fallbackSql, [clientId]);
       return result.rows as BillingProjectWithBreakdown[];
     }

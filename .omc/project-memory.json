@@ -271,14 +271,20 @@
   "hotPaths": [
     {
       "path": "lib/repositories.ts",
-      "accessCount": 22,
-      "lastAccessed": 1779385136715,
+      "accessCount": 24,
+      "lastAccessed": 1779389603403,
       "type": "file"
     },
     {
       "path": "components/projects/billing-project-row.tsx",
-      "accessCount": 7,
-      "lastAccessed": 1779385161103,
+      "accessCount": 9,
+      "lastAccessed": 1779389465218,
+      "type": "file"
+    },
+    {
+      "path": "tests/unit/billing-project-row.test.tsx",
+      "accessCount": 6,
+      "lastAccessed": 1779389721097,
       "type": "file"
     },
     {
@@ -288,15 +294,15 @@
       "type": "file"
     },
     {
-      "path": "app/projects/route.ts",
-      "accessCount": 3,
-      "lastAccessed": 1779383876210,
+      "path": "app/styles.css",
+      "accessCount": 5,
+      "lastAccessed": 1779389522884,
       "type": "file"
     },
     {
-      "path": "tests/unit/billing-project-row.test.tsx",
+      "path": "app/projects/route.ts",
       "accessCount": 3,
-      "lastAccessed": 1779385306566,
+      "lastAccessed": 1779383876210,
       "type": "file"
     },
     {

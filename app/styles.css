@@ -1458,6 +1458,73 @@ textarea {
   padding-top: 0.05rem;
 }
 
+.archiveProjectRow--withBreakdown {
+  grid-template-columns: 1.4rem minmax(0, 1fr) minmax(0, 1fr) auto;
+}
+
+.archiveProjectHours {
+  min-width: 0;
+}
+
+.archiveProjectHoursInner {
+  border: 1px solid color-mix(in oklch, var(--projects-border) 80%, transparent);
+  border-radius: 0.5rem;
+  padding: 0.55rem 0.75rem;
+  background: color-mix(in oklch, var(--panel-bg) 65%, transparent);
+}
+
+.archiveProjectHoursTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8rem;
+  color: var(--text-primary);
+}
+
+.archiveProjectHoursTable thead th {
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--projects-muted);
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  padding: 0 0 0.3rem 0;
+  border-bottom: 1px solid color-mix(in oklch, var(--projects-border) 70%, transparent);
+}
+
+.archiveProjectHoursTable tbody td {
+  padding: 0.2rem 0;
+  border-bottom: 1px dashed color-mix(in oklch, var(--projects-border) 35%, transparent);
+}
+
+.archiveProjectHoursTable tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.archiveProjectHoursTable tfoot td {
+  padding: 0.35rem 0 0 0;
+  border-top: 1px solid color-mix(in oklch, var(--projects-border) 70%, transparent);
+}
+
+.archiveProjectHoursTable .archiveProjectHoursName {
+  text-align: left;
+  padding-right: 0.75rem;
+}
+
+.archiveProjectHoursTable .archiveProjectHoursValue {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.archiveProjectHoursTable .archiveProjectHoursTotal {
+  font-weight: 600;
+}
+
+.archiveProjectHoursFootnote {
+  margin: 0.4rem 0 0 0;
+  font-size: 0.7rem;
+  color: var(--projects-muted);
+}
+
 .archiveRestoreButton {
   display: inline-flex;
   align-items: center;
@@ -3622,10 +3689,12 @@ textarea:focus-visible,
     grid-column: 2;
   }
 
-  .archiveProjectRow {
+  .archiveProjectRow,
+  .archiveProjectRow--withBreakdown {
     grid-template-columns: 1.4rem minmax(0, 1fr);
   }
 
+  .archiveProjectHours,
   .archiveProjectActions {
     grid-column: 2;
   }
@@ -3702,11 +3771,13 @@ textarea:focus-visible,
     grid-column: auto;
   }
 
-  .archiveProjectRow {
+  .archiveProjectRow,
+  .archiveProjectRow--withBreakdown {
     grid-template-columns: 1.4rem minmax(0, 1fr);
     gap: 0.6rem;
   }
 
+  .archiveProjectHours,
   .archiveProjectActions {
     grid-column: auto;
   }

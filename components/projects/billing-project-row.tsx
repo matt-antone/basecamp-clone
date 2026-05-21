@@ -32,17 +32,19 @@ const formatHours = (v: number | string | null | undefined): string =>
 function BillingProjectUserHoursTable({
   rows,
   totalHours,
+  projectTitle,
 }: {
   rows: ProjectUserHours[];
   totalHours: number | string | null | undefined;
+  projectTitle: string;
 }) {
   return (
-    <div>
-      <table className="w-full text-sm" aria-label="User hours breakdown">
+    <div className="archiveProjectHoursInner">
+      <table className="archiveProjectHoursTable" aria-label={`Hours breakdown for ${projectTitle}`}>
         <thead>
           <tr>
-            <th scope="col" className="text-left font-medium pb-1 pr-4">Name</th>
-            <th scope="col" className="text-right font-medium pb-1">Hours</th>
+            <th scope="col" className="archiveProjectHoursName">Name</th>
+            <th scope="col" className="archiveProjectHoursValue">Hours</th>
           </tr>
         </thead>
         <tbody>
@@ -51,21 +53,21 @@ function BillingProjectUserHoursTable({
               `${row.firstName ?? ""} ${row.lastName ?? ""}`.trim() || row.email;
             return (
               <tr key={row.userId}>
-                <td className="pr-4 py-0.5">{displayName}</td>
-                <td className="text-right py-0.5">{formatHours(row.hours)}</td>
+                <td className="archiveProjectHoursName">{displayName}</td>
+                <td className="archiveProjectHoursValue">{formatHours(row.hours)}</td>
               </tr>
             );
           })}
         </tbody>
         <tfoot>
-          <tr className="border-t border-current">
-            <td className="pr-4 pt-1 font-medium">Total</td>
-            <td className="text-right pt-1 font-medium">{formatHours(totalHours)}</td>
+          <tr>
+            <td className="archiveProjectHoursName archiveProjectHoursTotal">Total</td>
+            <td className="archiveProjectHoursValue archiveProjectHoursTotal">{formatHours(totalHours)}</td>
           </tr>
         </tfoot>
       </table>
       {rows.length === 200 && (
-        <p className="mt-1 text-xs text-muted-foreground">
+        <p className="archiveProjectHoursFootnote">
           Showing first 200 users (sorted by last name).
         </p>
       )}
@@ -82,41 +84,37 @@ export function BillingProjectRow({ project, onArchive, onReopen }: Props) {
   const hasBreakdown = Array.isArray(breakdown) && breakdown.length > 0;
 
   return (
-    <li className="archiveProjectRow">
+    <li className={`archiveProjectRow${hasBreakdown ? " archiveProjectRow--withBreakdown" : ""}`}>
       <div className={`archiveProjectStatus tone-${column}`} aria-label={column.replace("_", " ")} />
-      <div className={`flex flex-col md:grid md:grid-cols-2 md:gap-6 ${hasBreakdown ? "md:basis-full" : ""}`}>
-        <div className={hasBreakdown ? "md:basis-1/2 md:flex-1 md:min-w-0" : "md:basis-full"}>
-          <div className="archiveProjectBody">
-            <div className="archiveProjectMeta">
-              {clientLabel && <span className="archiveProjectClient">{clientLabel}</span>}
-              {missingHours && (
-                <span className="projectMissingHours" role="status">
-                  Missing hours
-                </span>
-              )}
-            </div>
-            <h3 className="archiveProjectTitle">
-              <Link href={`/${project.id}`} className="archiveProjectLink">
-                {title}
-              </Link>
-            </h3>
-            {project.description && <p className="archiveProjectDescription">{project.description}</p>}
-            {project.tags && project.tags.length > 0 && <ProjectTagList tags={project.tags} />}
-          </div>
-          <div className="archiveProjectActions projectFlowCardActions">
-            <OneShotButton type="button" className="archiveRestoreButton" onClick={() => onArchive(project)}>
-              Archive
-            </OneShotButton>
-            <OneShotButton type="button" className="archiveRestoreButton" onClick={() => onReopen(project)}>
-              Reopen work
-            </OneShotButton>
-          </div>
+      <div className="archiveProjectBody">
+        <div className="archiveProjectMeta">
+          {clientLabel && <span className="archiveProjectClient">{clientLabel}</span>}
+          {missingHours && (
+            <span className="projectMissingHours" role="status">
+              Missing hours
+            </span>
+          )}
         </div>
-        {hasBreakdown && (
-          <div className="md:basis-1/2 md:flex-1 md:min-w-0">
-            <BillingProjectUserHoursTable rows={breakdown} totalHours={project.total_hours} />
-          </div>
-        )}
+        <h3 className="archiveProjectTitle">
+          <Link href={`/${project.id}`} className="archiveProjectLink">
+            {title}
+          </Link>
+        </h3>
+        {project.description && <p className="archiveProjectDescription">{project.description}</p>}
+        {project.tags && project.tags.length > 0 && <ProjectTagList tags={project.tags} />}
+      </div>
+      {hasBreakdown && (
+        <div className="archiveProjectHours">
+          <BillingProjectUserHoursTable rows={breakdown} totalHours={project.total_hours} projectTitle={title} />
+        </div>
+      )}
+      <div className="archiveProjectActions projectFlowCardActions">
+        <OneShotButton type="button" className="archiveRestoreButton" onClick={() => onArchive(project)}>
+          Archive
+        </OneShotButton>
+        <OneShotButton type="button" className="archiveRestoreButton" onClick={() => onReopen(project)}>
+          Reopen work
+        </OneShotButton>
       </div>
     </li>
   );

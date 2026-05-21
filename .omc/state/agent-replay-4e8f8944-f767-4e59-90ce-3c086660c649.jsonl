@@ -51,3 +51,7 @@
 {"t":0,"agent":"ade6919","agent_type":"unknown","event":"agent_stop","success":true}
 {"t":0,"agent":"a79ab01","agent_type":"unknown","event":"agent_stop","success":true}
 {"t":0,"agent":"a4d1f4c","agent_type":"unknown","event":"agent_stop","success":true}
+{"t":0,"agent":"aa96e76","agent_type":"unknown","event":"agent_stop","success":true}
+{"t":0,"agent":"system","event":"keyword_detected","keyword":"deep-interview"}
+{"t":0,"agent":"system","event":"keyword_detected","keyword":"deep-interview"}
+{"t":0,"agent":"abce770","agent_type":"Explore","event":"agent_start","parent_mode":"none"}
