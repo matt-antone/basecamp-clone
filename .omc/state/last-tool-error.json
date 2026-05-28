@@ -1,7 +1,0 @@
-{
-  "tool_name": "Bash",
-  "tool_input_preview": "{\"command\":\"find \\\"/Volumes/External/Glyphix Dropbox/Development Files/Under Development/Project Manager/basecamp-clone/app/projects\\\" -name \\\"AGENTS.md\\\" -path \\\"*/comments/*\\\" | head -1 | xargs head...",
-  "error": "Exit code 1\nhead: /Volumes/External/Glyphix: No such file or directory\nhead: Dropbox/Development: No such file or directory\nhead: Files/Under: No such file or directory\nhead: Development/Project: No such file or directory\nhead: Manager/basecamp-clone/app/projects/[id]/threads/[threadId]/comments/AGENTS.md: No such file or directory",
-  "timestamp": "2026-05-21T17:00:56.243Z",
-  "retry_count": 2
-}

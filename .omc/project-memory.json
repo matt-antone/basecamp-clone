@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "lastScanned": 1779382457382,
+  "lastScanned": 1779998156734,
   "projectRoot": "/Volumes/External/Glyphix Dropbox/Development Files/Under Development/Project Manager/basecamp-clone",
   "techStack": {
     "languages": [
@@ -47,12 +47,12 @@
     "runtime": null
   },
   "build": {
-    "buildCommand": "cd '/Volumes/External/Glyphix Dropbox/Development Files/Under Development/Project Manager/basecamp-clone' && pnpm tsc --noEmit 2>&1 | tail -40",
-    "testCommand": "cd '/Volumes/External/Glyphix Dropbox/Development Files/Under Development/Project Manager/basecamp-clone' && pnpm test 2>&1 | tail -15",
+    "buildCommand": "pnpm build",
+    "testCommand": "pnpm test",
     "lintCommand": "pnpm lint",
     "devCommand": "pnpm dev",
     "scripts": {
-      "dev": "next dev --turbopack",
+      "dev": "rm -rf .next && next dev --turbopack",
       "build": "next build",
       "start": "next start",
       "sync:prod-to-test": "npx tsx scripts/sync-prod-to-test.ts",
@@ -102,9 +102,10 @@
     "app": {
       "path": "app",
       "purpose": "Application code",
-      "fileCount": 5,
-      "lastAccessed": 1779382457191,
+      "fileCount": 6,
+      "lastAccessed": 1779998156426,
       "keyFiles": [
+        "AGENTS.md",
         "header.tsx",
         "layout.tsx",
         "page.tsx",
@@ -114,8 +115,8 @@
     "backups": {
       "path": "backups",
       "purpose": null,
-      "fileCount": 10,
-      "lastAccessed": 1779382457194,
+      "fileCount": 11,
+      "lastAccessed": 1779998156427,
       "keyFiles": [
         "dev-20260501-091409.sql",
         "dev-20260501-092358.sql",
@@ -128,7 +129,7 @@
       "path": "certificates",
       "purpose": null,
       "fileCount": 2,
-      "lastAccessed": 1779382457262,
+      "lastAccessed": 1779998156517,
       "keyFiles": [
         "localhost-key.pem",
         "localhost.pem"
@@ -137,57 +138,58 @@
     "components": {
       "path": "components",
       "purpose": "UI components",
-      "fileCount": 7,
-      "lastAccessed": 1779382457265,
+      "fileCount": 8,
+      "lastAccessed": 1779998156517,
       "keyFiles": [
+        "AGENTS.md",
         "file-thumbnail-preview.tsx",
         "loading-shells.tsx",
         "markdown-editor.tsx",
-        "one-shot-button.tsx",
-        "project-dialog-form.tsx"
+        "one-shot-button.tsx"
       ]
     },
     "docs": {
       "path": "docs",
       "purpose": "Documentation",
-      "fileCount": 2,
-      "lastAccessed": 1779382457273,
+      "fileCount": 3,
+      "lastAccessed": 1779998156518,
       "keyFiles": [
+        "AGENTS.md",
         "audit-2026-04-16.md"
       ]
     },
     "lib": {
       "path": "lib",
       "purpose": "Library code",
-      "fileCount": 36,
-      "lastAccessed": 1779382457315,
+      "fileCount": 37,
+      "lastAccessed": 1779998156518,
       "keyFiles": [
+        "AGENTS.md",
         "archive-projects-url.ts",
         "attachment-upload.ts",
         "auth.ts",
-        "avatar.ts",
-        "billing-stage-count.ts"
+        "avatar.ts"
       ]
     },
     "node-compile-cache": {
       "path": "node-compile-cache",
       "purpose": null,
       "fileCount": 0,
-      "lastAccessed": 1779382457319,
+      "lastAccessed": 1779998156534,
       "keyFiles": []
     },
     "orchestration": {
       "path": "orchestration",
       "purpose": null,
       "fileCount": 1,
-      "lastAccessed": 1779382457320,
+      "lastAccessed": 1779998156535,
       "keyFiles": []
     },
     "public": {
       "path": "public",
       "purpose": "Public files",
       "fileCount": 2,
-      "lastAccessed": 1779382457321,
+      "lastAccessed": 1779998156535,
       "keyFiles": [
         "gx-logo.png",
         "gx-logo.webp"
@@ -197,7 +199,7 @@
       "path": "scripts",
       "purpose": "Build/utility scripts",
       "fileCount": 21,
-      "lastAccessed": 1779382457321,
+      "lastAccessed": 1779998156536,
       "keyFiles": [
         "apply-orphan-decisions.ts",
         "audit-bc2-dump.ts",
@@ -209,16 +211,19 @@
     "skills": {
       "path": "skills",
       "purpose": null,
-      "fileCount": 0,
-      "lastAccessed": 1779382457339,
-      "keyFiles": []
+      "fileCount": 1,
+      "lastAccessed": 1779998156537,
+      "keyFiles": [
+        "AGENTS.md"
+      ]
     },
     "supabase": {
       "path": "supabase",
       "purpose": null,
-      "fileCount": 2,
-      "lastAccessed": 1779382457355,
+      "fileCount": 3,
+      "lastAccessed": 1779998156541,
       "keyFiles": [
+        "AGENTS.md",
         "config.toml"
       ]
     },
@@ -226,14 +231,14 @@
       "path": "tests",
       "purpose": "Test files",
       "fileCount": 1,
-      "lastAccessed": 1779382457358,
+      "lastAccessed": 1779998156541,
       "keyFiles": []
     },
     "tmp": {
       "path": "tmp",
       "purpose": null,
       "fileCount": 16,
-      "lastAccessed": 1779382457360,
+      "lastAccessed": 1779998156542,
       "keyFiles": [
         "bc2-import-orphans.csv",
         "bc2-import-summary.json",
@@ -245,15 +250,17 @@
     "app/api": {
       "path": "app/api",
       "purpose": "API routes",
-      "fileCount": 0,
-      "lastAccessed": 1779382457360,
-      "keyFiles": []
+      "fileCount": 1,
+      "lastAccessed": 1779998156544,
+      "keyFiles": [
+        "AGENTS.md"
+      ]
     },
     "supabase/migrations": {
       "path": "supabase/migrations",
       "purpose": "Database migrations",
-      "fileCount": 32,
-      "lastAccessed": 1779382457381,
+      "fileCount": 33,
+      "lastAccessed": 1779998156546,
       "keyFiles": [
         "0001_init.sql",
         "0002_clients.sql",
@@ -264,15 +271,21 @@
       "path": "tests/fixtures",
       "purpose": "Test fixtures",
       "fileCount": 0,
-      "lastAccessed": 1779382457381,
+      "lastAccessed": 1779998156552,
       "keyFiles": []
     }
   },
   "hotPaths": [
     {
       "path": "lib/repositories.ts",
-      "accessCount": 24,
-      "lastAccessed": 1779389603403,
+      "accessCount": 37,
+      "lastAccessed": 1779395539409,
+      "type": "file"
+    },
+    {
+      "path": "app/projects/route.ts",
+      "accessCount": 10,
+      "lastAccessed": 1779395539499,
       "type": "file"
     },
     {
@@ -300,12 +313,6 @@
       "type": "file"
     },
     {
-      "path": "app/projects/route.ts",
-      "accessCount": 3,
-      "lastAccessed": 1779383876210,
-      "type": "file"
-    },
-    {
       "path": "AGENTS.md",
       "accessCount": 2,
       "lastAccessed": 1779382724642,
@@ -321,6 +328,12 @@
       "path": "lib/sync/prod-to-test/phases/AGENTS.md",
       "accessCount": 2,
       "lastAccessed": 1779382841592,
+      "type": "file"
+    },
+    {
+      "path": "supabase/migrations/0004_user_profiles.sql",
+      "accessCount": 2,
+      "lastAccessed": 1779391854229,
       "type": "file"
     },
     {
@@ -516,12 +529,6 @@
       "type": "file"
     },
     {
-      "path": "supabase/migrations/0004_user_profiles.sql",
-      "accessCount": 1,
-      "lastAccessed": 1779383171503,
-      "type": "file"
-    },
-    {
       "path": "app/projects/[id]/my-hours/route.ts",
       "accessCount": 1,
       "lastAccessed": 1779383210510,
@@ -543,6 +550,30 @@
       "path": "tests/unit/projects-billing-route-breakdown.test.ts",
       "accessCount": 1,
       "lastAccessed": 1779385225266,
+      "type": "file"
+    },
+    {
+      "path": "app/auth/google/callback/route.ts",
+      "accessCount": 1,
+      "lastAccessed": 1779389938318,
+      "type": "file"
+    },
+    {
+      "path": "app/auth/google/start/route.ts",
+      "accessCount": 1,
+      "lastAccessed": 1779389938371,
+      "type": "file"
+    },
+    {
+      "path": "app/auth/session/route.ts",
+      "accessCount": 1,
+      "lastAccessed": 1779389938742,
+      "type": "file"
+    },
+    {
+      "path": "app/auth/logout/route.ts",
+      "accessCount": 1,
+      "lastAccessed": 1779389938829,
       "type": "file"
     }
   ],
