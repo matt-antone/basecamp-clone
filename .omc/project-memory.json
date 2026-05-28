@@ -295,6 +295,12 @@
       "type": "file"
     },
     {
+      "path": "app/styles.css",
+      "accessCount": 9,
+      "lastAccessed": 1780003183639,
+      "type": "file"
+    },
+    {
       "path": "tests/unit/billing-project-row.test.tsx",
       "accessCount": 6,
       "lastAccessed": 1779389721097,
@@ -304,12 +310,6 @@
       "path": "components/projects/projects-billing.tsx",
       "accessCount": 5,
       "lastAccessed": 1779385167804,
-      "type": "file"
-    },
-    {
-      "path": "app/styles.css",
-      "accessCount": 5,
-      "lastAccessed": 1779389522884,
       "type": "file"
     },
     {
@@ -334,6 +334,12 @@
       "path": "supabase/migrations/0004_user_profiles.sql",
       "accessCount": 2,
       "lastAccessed": 1779391854229,
+      "type": "file"
+    },
+    {
+      "path": "components/discussions/create-discussion-dialog.tsx",
+      "accessCount": 2,
+      "lastAccessed": 1780003121712,
       "type": "file"
     },
     {
@@ -388,12 +394,6 @@
       "path": "components/discussions/markdown-html.tsx",
       "accessCount": 1,
       "lastAccessed": 1779382695325,
-      "type": "file"
-    },
-    {
-      "path": "components/discussions/create-discussion-dialog.tsx",
-      "accessCount": 1,
-      "lastAccessed": 1779382695478,
       "type": "file"
     },
     {

@@ -2185,6 +2185,18 @@ button {
   overflow: hidden;
 }
 
+.withAside {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+  align-items: start;
+  gap: 16px;
+  min-height: 0;
+}
+
+.withAside > div {
+  min-width: 0;
+}
+
 .dialogCreateDiscussion .commentMdxEditor {
   display: flex;
   flex-direction: column;
@@ -3709,6 +3721,10 @@ textarea:focus-visible,
 }
 
 @media (max-width: 760px) {
+  .withAside {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
   .themeTopBar {
     gap: 0.6rem;
   }
