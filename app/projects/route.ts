@@ -8,6 +8,18 @@ import { z } from "zod";
 
 const CLIENT_MUTATION_BLOCK_PATTERN = /client is archived|client archive is in progress/i;
 
+// Escape user-controlled text before interpolating into email HTML.
+const escapeHtml = (s: string) =>
+  s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+
+// Strip CR/LF to prevent header injection in the subject line.
+const stripNewlines = (s: string) => s.replace(/[\r\n]+/g, " ").trim();
+
 const createProjectSchema = z.object({
   name: z.string().min(1),
   description: z.string().optional(),
@@ -108,12 +120,14 @@ export async function POST(request: Request) {
       // retry, no idempotency key.
       if (addedMemberEmails.length > 0) {
         const projectName = createdProject.name;
+        const safeSubjectName = stripNewlines(projectName);
+        const safeHtmlName = escapeHtml(projectName);
         const sends = addedMemberEmails.map((email) =>
           sendMail({
             recipients: [{ email }],
-            subject: `You've been added to ${projectName}`,
+            subject: `You've been added to ${safeSubjectName}`,
             text: `You're now a member of the project "${projectName}".`,
-            html: `<p>You're now a member of the project <strong>${projectName}</strong>.</p>`
+            html: `<p>You're now a member of the project <strong>${safeHtmlName}</strong>.</p>`
           }).catch((err) => {
             console.error("project_member_notify_failed", {
               projectId: createdProject.id,
