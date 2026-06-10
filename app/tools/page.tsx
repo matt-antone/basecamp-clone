@@ -21,7 +21,7 @@ export default function ToolsPage() {
 
     let cancelled = false;
 
-    QRCode.toDataURL(trimmed, { width: 320, margin: 2, errorCorrectionLevel: "M" })
+    QRCode.toDataURL(trimmed, { width: 640, margin: 2, errorCorrectionLevel: "M" })
       .then((url) => {
         if (cancelled) return;
         setDataUrl(url);
