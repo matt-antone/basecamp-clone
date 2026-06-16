@@ -32,7 +32,7 @@ const createProjectSchema = z.object({
 
 export async function GET(request: Request) {
   try {
-    await requireUser(request);
+    const user = await requireUser(request);
     const url = new URL(request.url);
     const includeArchived = url.searchParams.get("includeArchived") !== "false";
 
@@ -64,6 +64,7 @@ export async function GET(request: Request) {
     const projects = await listProjects(includeArchived, {
       clientId,
       search,
+      userId: user.id,
       ...(search.length === 0 && sort ? { sort } : {}),
       ...(billingOnly ? { billingOnly: true } : {})
     });

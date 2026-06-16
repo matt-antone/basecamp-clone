@@ -24,10 +24,13 @@ export function ProjectsList() {
     renderProjectTitle,
     getProjectStatusLabel,
     getProjectClientLabel,
-    activeSearch
+    activeSearch,
+    toggleFavorite,
+    favoritingIds
   } = useProjectsWorkspace();
 
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
+  const [activeTab, setActiveTab] = useState<"all" | "favorites">("all");
   const [highlightedProjectId, setHighlightedProjectId] = useState<string | null>(null);
 
   function projectMatchesStatus(project: Project) {
@@ -41,25 +44,33 @@ export function ProjectsList() {
 
   const filterShelf = useProjectsFilterShelf(filteredActiveProjects);
 
+  // Favorites tab narrows the already status/client/search-filtered set to the
+  // current user's favorited projects. Filtering filteredActiveProjects (not raw
+  // activeProjects) keeps status/client/search composition intact.
+  const visibleProjects = useMemo(
+    () => (activeTab === "favorites" ? filteredActiveProjects.filter((project) => project.favorited) : filteredActiveProjects),
+    [activeTab, filteredActiveProjects]
+  );
+
   const keyboardNavigableProjects = useMemo(
     () =>
-      filteredActiveProjects
+      visibleProjects
         .slice()
         .sort((a, b) => (a.display_name ?? a.name).localeCompare(b.display_name ?? b.name)),
-    [filteredActiveProjects]
+    [visibleProjects]
   );
 
   const statusSummaries = useMemo(() => {
-    const total = Math.max(filteredActiveProjects.length, 1);
+    const total = Math.max(visibleProjects.length, 1);
     return projectColumns.map((column) => {
-      const count = filteredActiveProjects.filter((project) => normalizeProjectColumn(project) === column.key).length;
+      const count = visibleProjects.filter((project) => normalizeProjectColumn(project) === column.key).length;
       return {
         ...column,
         count,
         fillPercent: `${Math.round((count / total) * 100)}%`
       };
     });
-  }, [filteredActiveProjects, projectColumns]);
+  }, [visibleProjects, projectColumns]);
 
   useEffect(() => {
     if (!keyboardNavigableProjects.length) {
@@ -120,11 +131,30 @@ export function ProjectsList() {
     setHighlightedProjectId((current) => (current === projectId ? null : current));
   }
 
-  const visibleProjects = filteredActiveProjects;
   const visibleClients = new Set(visibleProjects.map((project) => getProjectClientLabel(project))).size;
 
   const workbench = domainAllowed ? (
     <>
+      <div className="projectsTabRow" role="tablist" aria-label="Project views">
+        <OneShotButton
+          type="button"
+          role="tab"
+          aria-selected={activeTab === "all"}
+          className={`projectsTabButton ${activeTab === "all" ? "projectsTabButtonActive" : ""}`}
+          onClick={() => setActiveTab("all")}
+        >
+          All
+        </OneShotButton>
+        <OneShotButton
+          type="button"
+          role="tab"
+          aria-selected={activeTab === "favorites"}
+          className={`projectsTabButton ${activeTab === "favorites" ? "projectsTabButtonActive" : ""}`}
+          onClick={() => setActiveTab("favorites")}
+        >
+          Favorites
+        </OneShotButton>
+      </div>
       <ProjectsFilterShelf
         searchValue={filterShelf.searchValue}
         searchInputRef={filterShelf.searchInputRef}
@@ -159,15 +189,17 @@ export function ProjectsList() {
 
   const viewport = domainAllowed ? (
     <ProjectsListView
-      items={filteredActiveProjects}
+      items={visibleProjects}
       projectColumns={projectColumns}
       activeTab="list"
-      hasSearchOrFilter={Boolean(activeSearch || filterShelf.filterClientId || statusFilter !== "all")}
+      hasSearchOrFilter={Boolean(activeSearch || filterShelf.filterClientId || statusFilter !== "all" || activeTab === "favorites")}
       highlightedProjectId={highlightedProjectId}
       emptyState={
-        activeSearch || filterShelf.filterClientId || statusFilter !== "all"
-          ? "No projects match this edit of the index."
-          : "No active projects yet."
+        activeTab === "favorites"
+          ? "No favorites yet — click the star on a project to add it."
+          : activeSearch || filterShelf.filterClientId || statusFilter !== "all"
+            ? "No projects match this edit of the index."
+            : "No active projects yet."
       }
       onOpenCreateDialog={openCreateDialog}
       onHighlightProject={setHighlightedProjectId}
@@ -175,6 +207,8 @@ export function ProjectsList() {
       renderProjectTitle={renderProjectTitle}
       getProjectStatusLabel={getProjectStatusLabel}
       getProjectClientLabel={getProjectClientLabel}
+      onToggleFavorite={toggleFavorite}
+      favoritingIds={favoritingIds}
     />
   ) : null;
 

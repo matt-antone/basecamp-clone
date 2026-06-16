@@ -199,7 +199,8 @@ describe("GET /projects", () => {
     });
     expect(listProjectsMock).toHaveBeenCalledWith(true, {
       clientId: "11111111-1111-1111-8111-111111111111",
-      search: "website refresh"
+      search: "website refresh",
+      userId: "user-1"
     });
   });
 
@@ -221,7 +222,12 @@ describe("GET /projects", () => {
     const response = await GET(new Request("http://localhost/projects?billingOnly=true"));
 
     expect(response.status).toBe(200);
-    expect(listProjectsMock).toHaveBeenCalledWith(true, { clientId: null, search: "", billingOnly: true });
+    expect(listProjectsMock).toHaveBeenCalledWith(true, {
+      clientId: null,
+      search: "",
+      userId: "user-1",
+      billingOnly: true
+    });
   });
 
   it("passes includeArchived=false alongside the billing filter", async () => {
@@ -231,7 +237,12 @@ describe("GET /projects", () => {
     const response = await GET(new Request("http://localhost/projects?billingOnly=true&includeArchived=false"));
 
     expect(response.status).toBe(200);
-    expect(listProjectsMock).toHaveBeenCalledWith(false, { clientId: null, search: "", billingOnly: true });
+    expect(listProjectsMock).toHaveBeenCalledWith(false, {
+      clientId: null,
+      search: "",
+      userId: "user-1",
+      billingOnly: true
+    });
   });
 
   it("parses sort=title and passes sort to listProjects when search is empty", async () => {
@@ -241,7 +252,12 @@ describe("GET /projects", () => {
     const response = await GET(new Request("http://localhost/projects?sort=title"));
 
     expect(response.status).toBe(200);
-    expect(listProjectsMock).toHaveBeenCalledWith(true, { clientId: null, search: "", sort: "title" });
+    expect(listProjectsMock).toHaveBeenCalledWith(true, {
+      clientId: null,
+      search: "",
+      userId: "user-1",
+      sort: "title"
+    });
   });
 
   it("parses sort=deadline and passes sort to listProjects when search is empty", async () => {
@@ -251,7 +267,12 @@ describe("GET /projects", () => {
     const response = await GET(new Request("http://localhost/projects?sort=deadline"));
 
     expect(response.status).toBe(200);
-    expect(listProjectsMock).toHaveBeenCalledWith(true, { clientId: null, search: "", sort: "deadline" });
+    expect(listProjectsMock).toHaveBeenCalledWith(true, {
+      clientId: null,
+      search: "",
+      userId: "user-1",
+      sort: "deadline"
+    });
   });
 
   it("does not pass sort to listProjects when search is active (FTS ignores sort)", async () => {
@@ -265,7 +286,8 @@ describe("GET /projects", () => {
     expect(response.status).toBe(200);
     expect(listProjectsMock).toHaveBeenCalledWith(true, {
       clientId: null,
-      search: "foo"
+      search: "foo",
+      userId: "user-1"
     });
   });
 
