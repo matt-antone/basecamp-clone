@@ -1181,6 +1181,7 @@ textarea {
 }
 
 .projectLedgerItem {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -1218,9 +1219,8 @@ textarea {
 
 .projectLedgerBody {
   gap: 0.5rem;
-  /* Left gutter hosts the favorite star (absolutely placed) so the title and
-     the text below it share the same left edge. */
-  position: relative;
+  /* Left gutter hosts the favorite star (absolutely placed on the row) so the
+     title and the text below it share the same left edge. */
   padding-left: 1.9rem;
 }
 
@@ -1246,12 +1246,13 @@ textarea {
   margin: 0;
 }
 
-/* Per-user favorite star — pinned in the body's left gutter so it never
-   reflows the title; the title aligns with the description beneath it. */
+/* Per-user favorite star — pinned to the top-left of the row (in the body's
+   gutter) so it never reflows the title and stays at the row top even when the
+   row is taller than the title line. */
 .projectFavoriteStar {
   position: absolute;
   left: 0;
-  top: -0.1rem;
+  top: 1rem;
   display: inline-flex;
   align-items: center;
   justify-content: center;
