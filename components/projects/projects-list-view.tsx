@@ -35,6 +35,7 @@ type ProjectListItem = {
   deadline?: string | null;
   pm_note?: string | null;
   total_hours?: number | string | null;
+  favorited?: boolean;
 };
 
 type ProjectGroup = {
@@ -55,6 +56,8 @@ type ProjectsListViewProps = {
   renderProjectTitle: (title: string) => ReactNode;
   getProjectStatusLabel: (project: ProjectListItem) => string;
   getProjectClientLabel: (project: ProjectListItem) => string;
+  onToggleFavorite?: (projectId: string, next: boolean) => void;
+  favoritingIds?: Set<string>;
 };
 
 export function ProjectsListView(props: ProjectsListViewProps) {
@@ -70,7 +73,9 @@ export function ProjectsListView(props: ProjectsListViewProps) {
     onProjectBlur,
     renderProjectTitle,
     getProjectStatusLabel,
-    getProjectClientLabel
+    getProjectClientLabel,
+    onToggleFavorite,
+    favoritingIds
   } = props;
 
   const groups = groupProjectsByClient(items, getProjectClientLabel);
@@ -163,6 +168,18 @@ export function ProjectsListView(props: ProjectsListViewProps) {
                 >
                   <div className="projectMain projectLedgerBody">
                     <div className="projectTitleRow">
+                      {onToggleFavorite ? (
+                        <button
+                          type="button"
+                          className={`projectFavoriteStar ${project.favorited ? "projectFavoriteStarOn" : ""}`}
+                          aria-pressed={Boolean(project.favorited)}
+                          aria-label={project.favorited ? "Unfavorite project" : "Favorite project"}
+                          disabled={favoritingIds?.has(project.id) ?? false}
+                          onClick={() => onToggleFavorite(project.id, !project.favorited)}
+                        >
+                          <span aria-hidden="true">{project.favorited ? "★" : "☆"}</span>
+                        </button>
+                      ) : null}
                       <Link
                         href={`/${project.id}`}
                         className={`projectLink projectTitle projectLedgerTitle tone-${normalizeProjectColumn(project)}`}

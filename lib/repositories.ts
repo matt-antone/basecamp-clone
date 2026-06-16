@@ -459,6 +459,7 @@ export type ProjectListRow = {
   discussion_count: number;
   file_count: number;
   total_hours: string;
+  favorited: boolean;
   [key: string]: unknown;
 };
 
@@ -476,6 +477,12 @@ type ListProjectsOptions = {
    * When false/omitted: default workspace lists exclude `billing` rows.
    */
   billingOnly?: boolean;
+  /**
+   * Authenticated user id. When set (and the `project_favorites` table exists),
+   * each row's `favorited` reflects whether THIS user favorited the project.
+   * When absent, `favorited` is always `false`.
+   */
+  userId?: string | null;
 };
 
 function projectFtsPredicate(alias = "q") {
@@ -552,17 +559,51 @@ function projectFtsRankExpr(alias = "q") {
          )`;
 }
 
+// Per-user favorites. Cached once per process: if the table is absent (pre-migration)
+// the project list must still load. Restart the process after applying 0032 so this
+// flips to `true` and real `favorited` values start flowing.
+let projectFavoritesTableExists: boolean | null = null;
+
+async function projectFavoritesTableAvailable(): Promise<boolean> {
+  if (projectFavoritesTableExists !== null) {
+    return projectFavoritesTableExists;
+  }
+  try {
+    const result = await query<{ present: boolean }>(
+      "select to_regclass('public.project_favorites') is not null as present"
+    );
+    projectFavoritesTableExists = result.rows[0]?.present === true;
+  } catch {
+    projectFavoritesTableExists = false;
+  }
+  return projectFavoritesTableExists;
+}
+
+/**
+ * SELECT fragment (with leading comma) exposing `favorited` per row.
+ * `placeholder` is a bound-param token like `$2`/`$3` carrying the user id —
+ * never interpolate the id itself. When favorites are unavailable, emit a constant.
+ */
+function favoritedExpr(available: boolean, placeholder: string) {
+  return available
+    ? `, exists (select 1 from project_favorites pf where pf.project_id = p.id and pf.user_id = ${placeholder}) as favorited`
+    : `, false as favorited`;
+}
+
 export async function listProjects(includeArchived = true, options?: ListProjectsOptions) {
   const clientId = options?.clientId?.trim() ? options.clientId : null;
   const search = (options?.search ?? "").trim();
   const sort = search.length > 0 ? null : options?.sort ?? null;
   const billingOnly = options?.billingOnly === true;
+  const userId = options?.userId?.trim() ? options.userId : null;
+  const favAvailable = userId ? await projectFavoritesTableAvailable() : false;
 
   if (search.length > 0) {
     const archivedAndBillingClause = billingOnly
       ? "and p.archived = false and p.status = 'billing'"
       : `${includeArchived ? "" : "and p.archived = false\n         "}and p.status <> 'billing'`;
-    const sql = `select ${projectListSelectColumns}
+    // FTS branch: $1 = search, $2 = clientId, $3 = userId (favorited).
+    const sql = `select ${projectListSelectColumns}${favoritedExpr(favAvailable, "$3")}
        from projects p
        left join clients c on c.id = p.client_id
        cross join lateral (select plainto_tsquery('english', $1) as tsq) q
@@ -571,7 +612,7 @@ export async function listProjects(includeArchived = true, options?: ListProject
          and ${projectFtsPredicate("q")}
        order by ${projectFtsRankExpr("q")} desc, p.created_at desc
        limit 100`;
-    const result = await query(sql, [search, clientId]);
+    const result = await query(sql, favAvailable ? [search, clientId, userId] : [search, clientId]);
     return result.rows;
   }
 
@@ -582,10 +623,14 @@ export async function listProjects(includeArchived = true, options?: ListProject
         ? `p.deadline asc nulls last, lower(${projectDisplayNameOrderExpr}) asc`
         : `p.created_at desc`;
 
+  // Non-FTS branches: $1 = clientId, $2 = userId (favorited).
+  const favExpr = favoritedExpr(favAvailable, "$2");
+  const branchParams = favAvailable ? [clientId, userId] : [clientId];
+
   if (billingOnly) {
     // Billing list is always sorted alphabetically by project display name.
     const billingOrderBy = `lower(${projectDisplayNameOrderExpr}) asc`;
-    const sql = `select ${billingSelectColumns}
+    const sql = `select ${billingSelectColumns}${favExpr}
        from projects p
        left join clients c on c.id = p.client_id
        where p.archived = false
@@ -593,39 +638,55 @@ export async function listProjects(includeArchived = true, options?: ListProject
          and ($1::uuid is null or p.client_id = $1::uuid)
        order by ${billingOrderBy}`;
     try {
-      const result = await query(sql, [clientId]);
+      const result = await query(sql, branchParams);
       return result.rows as BillingProjectWithBreakdown[];
     } catch (err) {
       if (!isMissingProjectUserHoursTableError(err)) throw err;
       // project_user_hours table not yet migrated — fall back without aggregate
-      const fallbackSql = `select ${projectListSelectColumns}, '[]'::json as user_hours_breakdown
+      const fallbackSql = `select ${projectListSelectColumns}, '[]'::json as user_hours_breakdown${favExpr}
          from projects p
          left join clients c on c.id = p.client_id
          where p.archived = false
            and p.status = 'billing'
            and ($1::uuid is null or p.client_id = $1::uuid)
          order by ${billingOrderBy}`;
-      const result = await query(fallbackSql, [clientId]);
+      const result = await query(fallbackSql, branchParams);
       return result.rows as BillingProjectWithBreakdown[];
     }
   }
 
   const sql = includeArchived
-    ? `select ${projectListSelectColumns}
+    ? `select ${projectListSelectColumns}${favExpr}
        from projects p
        left join clients c on c.id = p.client_id
        where ($1::uuid is null or p.client_id = $1::uuid)
          and p.status <> 'billing'
        order by ${orderBy}`
-    : `select ${projectListSelectColumns}
+    : `select ${projectListSelectColumns}${favExpr}
        from projects p
        left join clients c on c.id = p.client_id
        where p.archived = false
          and ($1::uuid is null or p.client_id = $1::uuid)
          and p.status <> 'billing'
        order by ${orderBy}`;
-  const result = await query(sql, [clientId]);
+  const result = await query(sql, branchParams);
   return result.rows;
+}
+
+export async function addProjectFavorite(userId: string, projectId: string): Promise<void> {
+  await query(
+    `insert into project_favorites (user_id, project_id)
+     values ($1, $2)
+     on conflict (user_id, project_id) do nothing`,
+    [userId, projectId]
+  );
+}
+
+export async function removeProjectFavorite(userId: string, projectId: string): Promise<void> {
+  await query(
+    `delete from project_favorites where user_id = $1 and project_id = $2`,
+    [userId, projectId]
+  );
 }
 
 /**

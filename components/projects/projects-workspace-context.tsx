@@ -47,6 +47,8 @@ export type Project = {
   created_at?: string | null;
   /** PM-facing note; max 256 chars; list/board show one line when set. */
   pm_note?: string | null;
+  /** Whether the CURRENT user favorited this project (per-user, server-computed). */
+  favorited?: boolean;
 };
 
 export type { ProjectColumn };
@@ -113,6 +115,8 @@ type ProjectsWorkspaceContextValue = {
   isCreatingProject: boolean;
   toggleArchive: (project: Project) => Promise<void>;
   moveProject: (projectId: string, targetColumn: ProjectColumn) => Promise<void>;
+  toggleFavorite: (projectId: string, next: boolean) => Promise<void>;
+  favoritingIds: Set<string>;
   getProjectClientLabel: (project: Project) => string;
   renderProjectTitle: (title: string) => ReactNode;
   getProjectStatusLabel: (project: Project) => string;
@@ -191,6 +195,7 @@ function ProjectsWorkspaceInner({ initial, children }: { initial: ProjectsBootst
   const [filterClientId, setFilterClientId] = useState<string | null>(null);
   const [activeSearch, setActiveSearch] = useState("");
   const [projectSort, setProjectSort] = useState<ProjectSort>("title");
+  const [favoritingIds, setFavoritingIds] = useState<Set<string>>(() => new Set());
 
   const userId = initial.userId;
   const [projectForm, setProjectForm] = useState<ProjectDialogValues>(createProjectDialogValues());
@@ -413,6 +418,36 @@ function ProjectsWorkspaceInner({ initial, children }: { initial: ProjectsBootst
     [activeSearch, authedFetch, filterClientId, projectSort, projects, refreshProjects]
   );
 
+  const toggleFavorite = useCallback(
+    async (projectId: string, next: boolean) => {
+      // Optimistic, mirrors moveProject. No refreshProjects: favoriting does not
+      // change which projects are active, so a refetch would only cause churn.
+      const previousProjects = projects;
+      setFavoritingIds((current) => {
+        const updated = new Set(current);
+        updated.add(projectId);
+        return updated;
+      });
+      setProjects((current) =>
+        current.map((project) => (project.id === projectId ? { ...project, favorited: next } : project))
+      );
+
+      try {
+        await authedFetch(`/projects/${projectId}/favorite`, { method: next ? "POST" : "DELETE" });
+      } catch (error) {
+        setProjects(previousProjects);
+        throw error;
+      } finally {
+        setFavoritingIds((current) => {
+          const updated = new Set(current);
+          updated.delete(projectId);
+          return updated;
+        });
+      }
+    },
+    [authedFetch, projects]
+  );
+
   const getProjectClientLabel = useCallback((project: Project) => {
     return project.client_name?.trim() || project.client_code?.trim() || "No client";
   }, []);
@@ -481,6 +516,8 @@ function ProjectsWorkspaceInner({ initial, children }: { initial: ProjectsBootst
     isCreatingProject,
     toggleArchive,
     moveProject,
+    toggleFavorite,
+    favoritingIds,
     getProjectClientLabel,
     renderProjectTitle,
     getProjectStatusLabel

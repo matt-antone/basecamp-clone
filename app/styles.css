@@ -1181,6 +1181,7 @@ textarea {
 }
 
 .projectLedgerItem {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -1218,6 +1219,9 @@ textarea {
 
 .projectLedgerBody {
   gap: 0.5rem;
+  /* Left gutter hosts the favorite star (absolutely placed on the row) so the
+     title and the text below it share the same left edge. */
+  padding-left: 1.9rem;
 }
 
 .projectFlowCardBody {
@@ -1240,6 +1244,71 @@ textarea {
 .projectTitleRow .projectFlowCardTitle {
   display: inline;
   margin: 0;
+}
+
+/* Per-user favorite star — pinned to the top-left of the row (in the body's
+   gutter) so it never reflows the title and stays at the row top even when the
+   row is taller than the title line. */
+.projectFavoriteStar {
+  position: absolute;
+  left: 0;
+  top: 1rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 1.6rem;
+  height: 1.6rem;
+  padding: 0;
+  border: none;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--projects-muted);
+  font-size: 1.05rem;
+  line-height: 1;
+  cursor: pointer;
+  transition: color 0.15s ease, background 0.15s ease, transform 0.1s ease;
+}
+
+.projectFavoriteStar:hover:not(:disabled) {
+  background: var(--projects-accent-soft, rgba(0, 0, 0, 0.05));
+  color: var(--projects-accent-strong, #b8860b);
+}
+
+.projectFavoriteStarOn {
+  color: var(--projects-accent-strong, #f2b705);
+}
+
+.projectFavoriteStar:disabled {
+  cursor: progress;
+  opacity: 0.55;
+}
+
+.projectFavoriteStar:focus-visible {
+  outline: 2px solid var(--projects-accent-strong, #b8860b);
+  outline-offset: 2px;
+}
+
+/* All / Favorites view tabs. */
+.projectsTabRow {
+  display: flex;
+  gap: 0.4rem;
+  margin-bottom: 0.6rem;
+}
+
+.projectsTabButton {
+  padding: 0.35rem 0.85rem;
+  border-radius: 999px;
+  font-weight: 600;
+  font-size: 0.85rem;
+  color: var(--projects-muted);
+  background: transparent;
+  cursor: pointer;
+}
+
+.projectsTabButtonActive {
+  color: var(--text-primary);
+  background: var(--projects-accent-soft, rgba(0, 0, 0, 0.06));
 }
 
 .projectCreatedMeta,
