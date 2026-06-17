@@ -1289,6 +1289,44 @@ textarea {
   outline-offset: 2px;
 }
 
+/* Flow board variant — anchor the star to the top-right corner of the card
+   (the list variant pins top-left). The card reserves right padding so long
+   titles never slide under the star. */
+.projectFlowCardFavorite {
+  left: auto;
+  right: 0.4rem;
+  top: 0.5rem;
+}
+
+/* Favorites-only toggle in the flow board filter shelf. */
+.projectsFavoriteToggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  height: 2.1rem;
+  padding: 0 0.8rem;
+  border: 1px solid color-mix(in oklch, var(--projects-border) 84%, transparent);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--projects-muted);
+  font-size: 0.8rem;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: color 0.15s ease, background 0.15s ease, border-color 0.15s ease;
+}
+
+.projectsFavoriteToggle:hover {
+  color: var(--projects-accent-strong, #b8860b);
+  border-color: var(--projects-accent-strong, #b8860b);
+}
+
+.projectsFavoriteToggleOn {
+  color: var(--projects-accent-strong, #f2b705);
+  border-color: var(--projects-accent-strong, #f2b705);
+  background: var(--projects-accent-soft, rgba(242, 183, 5, 0.12));
+}
+
 /* All / Favorites view tabs. */
 .projectsTabRow {
   display: flex;
@@ -1759,11 +1797,18 @@ textarea {
 }
 
 .projectFlowCard {
+  position: relative;
   display: grid;
   gap: 0.65rem;
   padding: 0.78rem;
   margin: 0 0 0.5rem 0;
   border: 1px solid color-mix(in oklch, var(--projects-border) 84%, transparent);
+}
+
+/* Reserve room on the right of the card body for the absolutely-positioned
+   favorite star so long titles wrap before reaching it. */
+.projectFlowCard .projectFlowCardBody {
+  padding-right: 1.7rem;
 }
 
 .projectMetaRow,

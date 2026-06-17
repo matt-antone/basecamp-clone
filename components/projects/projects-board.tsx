@@ -23,12 +23,20 @@ export function ProjectsBoard() {
     filterClientId,
     activeSearch,
     projectSort,
-    refreshProjects
+    refreshProjects,
+    toggleFavorite,
+    favoritingIds
   } = useProjectsWorkspace();
+
+  const [favoritesOnly, setFavoritesOnly] = useState(false);
 
   const filterShelf = useProjectsFilterShelf(activeProjects);
 
-  const visibleClients = new Set(activeProjects.map((project) => getProjectClientLabel(project))).size;
+  // Favorites-only toggle (flow board only) narrows the board to the current
+  // user's favorited projects, mirroring the home list's Favorites tab.
+  const boardProjects = favoritesOnly ? activeProjects.filter((project) => project.favorited) : activeProjects;
+
+  const visibleClients = new Set(boardProjects.map((project) => getProjectClientLabel(project))).size;
 
   const [draggingProjectId, setDraggingProjectId] = useState<string | null>(null);
   const [dragOverColumn, setDragOverColumn] = useState<ProjectColumn | null>(null);
@@ -111,14 +119,17 @@ export function ProjectsBoard() {
       projectSort={filterShelf.projectSort}
       setProjectSort={filterShelf.setProjectSort}
       onKeyDown={filterShelf.handleCommandRowKeyDown}
-      resultCount={activeProjects.length}
+      resultCount={boardProjects.length}
       clientCount={visibleClients}
+      showFavoriteToggle
+      favoritesOnly={favoritesOnly}
+      onToggleFavoritesOnly={setFavoritesOnly}
     />
   ) : null;
 
   const viewport = domainAllowed ? (
     <ProjectsBoardView
-      items={activeProjects}
+      items={boardProjects}
       projectColumns={projectColumns}
       dragOverColumn={dragOverColumn}
       draggingProjectId={draggingProjectId}
@@ -139,6 +150,12 @@ export function ProjectsBoard() {
         toggleArchive(project).catch((error) => setStatus(error instanceof Error ? error.message : "Archive failed"))
       }
       onOpenCreateDialog={openCreateDialog}
+      onToggleFavorite={(projectId, next) =>
+        toggleFavorite(projectId, next).catch((error) =>
+          setStatus(error instanceof Error ? error.message : "Failed to update favorite")
+        )
+      }
+      favoritingIds={favoritingIds}
     />
   ) : null;
 
