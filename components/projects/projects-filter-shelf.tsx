@@ -17,6 +17,9 @@ type Props = {
   onKeyDown: (event: KeyboardEvent<HTMLDivElement>) => void;
   resultCount: number;
   clientCount: number;
+  showFavoriteToggle?: boolean;
+  favoritesOnly?: boolean;
+  onToggleFavoritesOnly?: (next: boolean) => void;
 };
 
 export function ProjectsFilterShelf(props: Props) {
@@ -66,6 +69,19 @@ export function ProjectsFilterShelf(props: Props) {
             />
             <span className="projectsSearchHint">/</span>
           </label>
+          {props.showFavoriteToggle ? (
+            <div className="projectsFilterField">
+              <span className="projectsFilterLabel">Favorites</span>
+              <button
+                type="button"
+                className={`projectsFavoriteToggle ${props.favoritesOnly ? "projectsFavoriteToggleOn" : ""}`}
+                aria-pressed={Boolean(props.favoritesOnly)}
+                onClick={() => props.onToggleFavoritesOnly?.(!props.favoritesOnly)}
+              >
+                <span aria-hidden="true">{props.favoritesOnly ? "★" : "☆"}</span> Favorites only
+              </button>
+            </div>
+          ) : null}
         </div>
       </div>
       <div className="projectsResultsMeta">

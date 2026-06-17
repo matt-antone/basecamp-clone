@@ -35,6 +35,7 @@ type ProjectBoardItem = {
   deadline?: string | null;
   pm_note?: string | null;
   total_hours?: number | string | null;
+  favorited?: boolean;
 };
 
 type ProjectsBoardViewProps = {
@@ -53,6 +54,8 @@ type ProjectsBoardViewProps = {
   onSendToBilling: (project: ProjectBoardItem) => void;
   onArchiveProject: (project: ProjectBoardItem) => void;
   onOpenCreateDialog: () => void;
+  onToggleFavorite?: (projectId: string, next: boolean) => void;
+  favoritingIds?: Set<string>;
 };
 
 export function ProjectsBoardView(props: ProjectsBoardViewProps) {
@@ -71,7 +74,9 @@ export function ProjectsBoardView(props: ProjectsBoardViewProps) {
     onCardDragEnd,
     onSendToBilling,
     onArchiveProject,
-    onOpenCreateDialog
+    onOpenCreateDialog,
+    onToggleFavorite,
+    favoritingIds
   } = props;
 
   const [now, setNow] = React.useState<Date | null>(null);
@@ -134,6 +139,19 @@ export function ProjectsBoardView(props: ProjectsBoardViewProps) {
                       onDragStart={(event) => onCardDragStart(event, project.id)}
                       onDragEnd={onCardDragEnd}
                     >
+                      {onToggleFavorite ? (
+                        <button
+                          type="button"
+                          className={`projectFavoriteStar projectFlowCardFavorite ${project.favorited ? "projectFavoriteStarOn" : ""}`}
+                          aria-pressed={Boolean(project.favorited)}
+                          aria-label={project.favorited ? "Unfavorite project" : "Favorite project"}
+                          disabled={favoritingIds?.has(project.id) ?? false}
+                          draggable={false}
+                          onClick={() => onToggleFavorite(project.id, !project.favorited)}
+                        >
+                          <span aria-hidden="true">{project.favorited ? "★" : "☆"}</span>
+                        </button>
+                      ) : null}
                       <div className="projectMain projectFlowCardBody">
                         <div className="projectTitleRow">
                           <Link
